@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <poll.h>
 
 #define QUEUE_SIZE 10
 #define BUFFER_SIZE 2560
@@ -28,6 +29,7 @@ void sendAll(int sock, char *buf, int len) {
 	while (total < len) {
 		sent = send(sock, buf+total, len-total, 0);
 		if (sent == -1) {
+			fprintf(stderr, "send error: %s", strerror(errno));
 			return;
 		}
 		total += sent;
@@ -35,10 +37,55 @@ void sendAll(int sock, char *buf, int len) {
 }
 
 void respond(int sock, char *status, char *statusText, char *body) {
-	char buf[BUFFER_SIZE];
-	sprintf(buf, "HTTP/1.0 %s %s\nServer: Stub\nContent-Type: text/html\nContent-Length: %d\n\n<html><body>%s</body></html>", status, statusText, strlen(body)+26, body);
-	
-	sendAll(sock, buf, strlen(buf));
+	char headers[BUFFER_SIZE];
+	sprintf(headers, "HTTP/1.1 %s %s\nServer: Stub\nContent-Type: text/html\nContent-Length: %d\n\n", status, statusText, strlen(body));
+	sendAll(sock, headers, strlen(headers));
+	sendAll(sock, body, strlen(body));
+}
+
+void sendStatus(int sock, char *status, char *statusText, char *description) {
+	char body[BUFFER_SIZE];
+	sprintf(body, "<html><body><h1>%s - %s</h1><p>%s</p></body></html>", status, statusText, description);
+	respond(sock, status, statusText, body);
+}
+
+void sendContent(int sock, char *filename) {
+	char *buffer;
+	long length;
+	FILE *f = fopen(filename, "rb");
+
+	if (f) {
+		fseek(f, 0, SEEK_END);
+		length = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		buffer = malloc(length);
+		if (buffer) {
+			fread(buffer, 1, length, f);
+		}
+		fclose(f);
+	}
+
+	respond(sock, "200", "OK", buffer);
+	free(buffer);
+}
+
+void addSocket(struct pollfd *sockets[], int newSocket, int *count, int *size) {
+	if (*count == *size) {
+		*size *= 2;
+
+		*sockets = realloc(*sockets, sizeof(**sockets) * (*size));
+	}
+
+	(*sockets)[*count].fd = newSocket;
+	(*sockets)[*count].events = POLLIN;
+
+	(*count)++;
+}
+
+void rmSocket(struct pollfd sockets[], int i, int *count) {
+	sockets[i] = sockets[*count-1];
+
+	(*count)--;
 }
 
 int main(int argc, char *argv[]) {
@@ -51,6 +98,10 @@ int main(int argc, char *argv[]) {
 	socklen_t addressSize;
 	char clientAddressString[INET6_ADDRSTRLEN];
 	int clientSocket;
+
+	int socketsCount = 0;
+	int socketsSize = 10;
+	struct pollfd *sockets = malloc(sizeof *sockets * socketsSize);
 
 	char dataIn[BUFFER_SIZE];
 	int dataInLen;
@@ -97,55 +148,76 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
+	addSocket(&sockets, serverSocket, &socketsCount, &socketsSize);
+
 	printf("waiting for connections\n");
 
 	// accept connection and respond
 	for (;;) {
-		addressSize = sizeof clientAddress;
-		if ((clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &addressSize)) < 0) {
-			fprintf(stderr, "accept error: %s\n", strerror(errno));
+		int pollCount = poll(sockets, socketsCount, -1);
+
+		if (pollCount == -1) {
+			fprintf(stderr, "poll error: %s\n", strerror(errno));
+			return EXIT_FAILURE;
 		}
 
-		if (!fork()) {
-			// child process does not need server socket
-			close(serverSocket);
-
-			inet_ntop(clientAddress.ss_family, get_in_addr((struct sockaddr *)&clientAddress), clientAddressString, sizeof clientAddressString);
-			
-			// read request
-			if ((dataInLen = recv(clientSocket, &dataIn, BUFFER_SIZE, 0)) < 0) {
-				fprintf(stderr, "recv error: %s\n", strerror(errno));
-			}
-
-			method = strtok(dataIn, " ");
-			path = strtok(NULL, " ");
-			printf("address: %s, method: %s, path: %s\n", clientAddressString, method, path);
-
-			// route
-			if (method != NULL && path != NULL) {
-				if (strcmp(method, "GET")==0) {
-					if (strcmp(path, "/")==0) {
-						respond(clientSocket, "200", "OK", "<p>It still works!</p>");
+		for (int i = 0; i < socketsCount; i++) {
+			if (sockets[i].revents & POLLIN) {
+				if (sockets[i].fd == serverSocket) {
+					// server listener
+					addressSize = sizeof clientAddress;
+					if ((clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddress, &addressSize)) < 0) {
+						fprintf(stderr, "accept error: %s\n", strerror(errno));
 					} else {
-						respond(clientSocket, "404", "Not Found", "<h1>404 - Not Found</h1><p>Opps, that resource can not be found.</p>");
+						inet_ntop(clientAddress.ss_family, get_in_addr((struct sockaddr *)&clientAddress), clientAddressString, sizeof clientAddressString);
+
+						printf("connection from %s on %d\n", clientAddressString, clientSocket);
+
+						addSocket(&sockets, clientSocket, &socketsCount, &socketsSize);
 					}
 				} else {
-					respond(clientSocket, "501", "Not Implemented", "<h1>501 - Not Implemented</h1><p>Opps, that functionality has not been implemented.</p>");
+					// client socket
+					dataInLen = recv(sockets[i].fd, dataIn, BUFFER_SIZE, 0);
+
+					if (dataInLen <= 0) {
+						if (dataInLen < 0) {
+							fprintf(stderr, "recv error on %d: %s\n", sockets[i].fd, strerror(errno));
+						} else {
+							printf("connection on %d closed\n", sockets[i].fd);
+						}
+
+					} else {
+						method = strtok(dataIn, " ");
+						path = strtok(NULL, " ");
+						printf("connection: %d, method: %s, path: %s\n", sockets[i].fd, method, path);
+
+						// route
+						if (method != NULL && path != NULL) {
+							if (strcmp(method, "GET")==0) {
+								if (strcmp(path, "/")==0) {
+									sendContent(clientSocket, "content.html");
+								} else if (strcmp(path, "/code")==0) {
+									sendContent(clientSocket, "stub.c");
+								} else {
+									sendStatus(clientSocket, "404", "Not Found", "Opps, that resource can not be found.");
+								}
+							} else {
+								sendStatus(clientSocket, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
+							}
+						} else {
+							sendStatus(clientSocket, "500", "Internal Server Error", "Opps, something bad has happened, don't worry it's probably not your fault.  Probably.");
+							//printf("request:\n%s\n", dataIn);
+						}
+					}
+
+					close(sockets[i].fd);
+					rmSocket(sockets, i, &socketsCount);
 				}
-			} else {
-				respond(clientSocket, "500", "Internal Server Error", "<h1>500 - Internal Server Error</h1><p>Opps, something bad has happened, don't worry it's probably not your fault.  Probably.</p>");
-				//printf("request:\n%s\n", dataIn);
 			}
-
-			close(clientSocket);
-			exit(0);
 		}
-
-		close(clientSocket);
 	}
 
-
-	// tidy up
+	// tidy up?
 	close(serverSocket);
 	
 	return EXIT_SUCCESS;
