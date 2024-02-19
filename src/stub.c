@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
-#include <math.h>
 #include <stdarg.h> // for varidic functions
 #include <unistd.h> // for system calls, like read and close etc
 #include <fts.h> // for file system access stuff
@@ -313,16 +312,16 @@ int buf_append_str(struct buffer* buf, char* str) {
 	return buf_append(buf, str, strlen(str));	
 }
 
-int buf_append_long(struct buffer* buf, long num) {
-	size_t len = 2;
-	if (num != 0) {
-		len = (size_t)(ceil(log10(num))+2);
-	}
-	if (buf_ensure(buf, len) < 0) {
+int buf_append_format(struct buffer* buf, size_t max, char* format, ...) {
+	if (buf_ensure(buf, max+1) < 0) {
 		return -1;
 	}
 
-	int added = snprintf(buf->data+buf->length, len, "%ld", num);
+	va_list args;
+	va_start(args, format);
+	int added = vsnprintf(buf->data+buf->length, max+1, format, args);
+	va_end(args);
+
 	if (added < 0) {
 		return -1;
 	}
@@ -350,6 +349,10 @@ void buf_seek(struct buffer* buf, int offset) {
 	}
 }
 
+void buf_reset(struct buffer* buf) {
+	buf->length = 0;
+}
+
 char* buf_as_str(struct buffer* buf) {
 	if (buf->length == buf->size) {
 		if (buf_extend(buf, buf->size + 1) < 0) {
@@ -366,9 +369,7 @@ struct client_state {
 	int data_in_size;
 	int data_in_length;
 	char* data_in;
-	int data_out_size;
-	int data_out_length;
-	char* data_out;
+	struct buffer* out;
 };
 
 struct client_state* client_state_new() {
@@ -383,11 +384,9 @@ struct client_state* client_state_new() {
 	state->data_in_length = 0;
 	state->data_in = malloc(state->data_in_size);
 
-	state->data_out_size = 256;
-	state->data_out_length = 0;
-	state->data_out = malloc(state->data_out_size);
+	state->out = buf_new(256);
 
-	if (state->data_in == NULL || state->data_out == NULL) {
+	if (state->data_in == NULL || state->out == NULL) {
 		fprintf(stderr, "Unable to allocate memory for client state");
 		return NULL;
 	}
@@ -395,7 +394,7 @@ struct client_state* client_state_new() {
 }
 void client_state_free(struct client_state* state) {
 	free(state->data_in);
-	free(state->data_out);
+	buf_free(state->out);
 	free(state);
 }
 
@@ -419,11 +418,7 @@ void send_response(int sock, struct client_state* state, char *status_code, char
 	struct buffer* header = buf_new(128);
 
 	// status line
-	buf_append_str(header, "HTTP/1.1 ");
-	buf_append_str(header, status_code);
-	buf_append_str(header, " ");
-	buf_append_str(header, status_text);
-	buf_append_str(header, "\r\n");
+	buf_append_format(header, 12 + strlen(status_code) + strlen(status_text), "HTTP/1.1 %s %s\r\n", status_code, status_text);
 
 	// date
 	buf_append_str(header, "Date: ");
@@ -464,59 +459,53 @@ void send_response(int sock, struct client_state* state, char *status_code, char
 	buf_append_str(header, "\r\n");
 
 	// content length
-	buf_append_str(header, "Content-Length: ");
-	buf_append_long(header, state->data_out_length);
-	buf_append_str(header, "\r\n");
+	buf_append_format(header, 30, "Content-Length: %ld\r\n", state->out->length);
 
 	// end header
 	buf_append_str(header, "\r\n");
 
 	// send it
 	send_all(sock, header->data, header->length);
-	send_all(sock, state->data_out, state->data_out_length);
+	send_all(sock, state->out->data, state->out->length);
+	buf_reset(state->out);
 }
 
 void send_simple_status(int sock, struct client_state* state, char *status_code, char *status_text, char *description) {
-	snprintf(state->data_out, state->data_out_size, "<html><body><h1>%s - %s</h1><p>%s</p></body></html>", status_code, status_text, description);
-	state->data_out_length = strlen(state->data_out);
+	buf_append_format(
+		state->out, 
+		49 + strlen(status_code) + strlen(status_text) + strlen(description), 
+		"<html><body><h1>%s - %s</h1><p>%s</p></body></html>", 
+		status_code, status_text, description);
 	send_response(sock, state, status_code, status_text, "html");
 }
 
-int send_file(int sock, struct client_state* state, char* filename) {
-	int new_size;
-	char* new_data;
-	FILE *f = fopen(filename, "rb");
-
-	if (f) {
-		fseek(f, 0, SEEK_END);
-		new_size = ftell(f);
-		fseek(f, 0, SEEK_SET);
-
-		if (new_size > state->data_out_size) {
-			new_data = realloc(state->data_out, new_size);
-			if (new_data == NULL) {
-				fprintf(stderr, "error allocating output buffer");
-				return -1;
-			}
-			state->data_out_size = new_size;
-			state->data_out = new_data;
-		}
-		state->data_out_length = new_size;
-
-		fread(state->data_out, 1, new_size, f);
-
-		fclose(f);
-
-		char *ext;
-		ext = strrchr(filename, '.');
-		if (strlen(ext) <= 1) {
-			ext = ".txt"; // hack!
-		}
-
-		send_response(sock, state, "200", "OK", ext+1);
+int send_file(int sock, struct client_state* state, char* path) {
+	size_t length;
+	FILE *file = fopen(path, "rb");
+	
+	if (file == NULL) {
+		return -1;
 	}
 
-	return 0;
+	fseek(file, 0, SEEK_END);
+	length = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	char* out = buf_reserve(state->out, length);
+	if (out == NULL) {
+		return -1;
+	}
+
+	fread(out, 1, length, file);
+	fclose(file);
+
+	char *ext;
+	ext = strrchr(path, '.');
+	if (strlen(ext) <= 1) {
+		ext = ".txt"; // hack!
+	}
+
+	send_response(sock, state, "200", "OK", ext+1);
 }
 
 void client_listener(struct sockets_list* sockets, int index) {
