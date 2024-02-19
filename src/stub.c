@@ -3,12 +3,17 @@
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 #include <stdarg.h> // for varidic functions
 #include <unistd.h> // for system calls, like read and close etc
 #include <fts.h> // for file system access stuff
 #include <netdb.h> // for getaddrinfo
 #include <arpa/inet.h> // for inet stuff
 #include <poll.h>
+
+#define IMF_DATE_LEN 30 // length of a date in Internet Messaging Format with null terminator
+
+// ================ date/time stuff ================
 
 // formated printing with the time
 void tprintf(const char* format, ...) {
@@ -22,6 +27,14 @@ void tprintf(const char* format, ...) {
 	va_start(args, format);
 	vfprintf(stdout, format, args);
 	va_end(args);
+}
+
+// generate a date stamp in Internet Messaging Format
+char* imf_date(char* buf, size_t max_len) {
+	time_t seconds = time(NULL);
+	struct tm* gmt = gmtime(&seconds);
+	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmt);
+	return buf;
 }
 
 // ================ Static files ================
@@ -105,7 +118,7 @@ char* get_file_path(struct static_file* file, char* server_path) {
 	return NULL;
 }
 
-// ================ Basic Network stuff ================
+// ================ basic network stuff ================
 int get_server_socket(char* port) {
 	int status;
 
@@ -168,8 +181,8 @@ struct sockets_list;
 typedef void (*socket_listener)(struct sockets_list*, int);
 
 struct sockets_list {
-	int size;
-	int count;
+	size_t  size;
+	size_t  count;
 	struct pollfd* pollfds;
 	socket_listener* listeners;
 	void** states;
@@ -222,13 +235,129 @@ int sockets_list_add(struct sockets_list* list, int new_socket, socket_listener 
 	return list->count-1;
 }
 
-void sockets_list_rm(struct sockets_list* list, int index) {
-	if (index>=0 && index<list->count) {
+void sockets_list_rm(struct sockets_list* list, size_t index) {
+	if (index < list->count) {
 		list->pollfds[index] = list->pollfds[list->count-1];
 		list->listeners[index] = list->listeners[list->count-1];
 		list->states[index] = list->states[list->count-1];
 		list->count--;
 	}
+}
+
+// ================ buffer ================
+struct buffer {
+	size_t size;
+	size_t length;
+	char* data;
+};
+
+struct buffer* buf_new(size_t size) {
+	struct buffer* buf;
+
+	if ((buf = malloc(sizeof(*buf))) == NULL) {
+		fprintf(stderr, "Unable to allocate memory for buffer");
+		return NULL;
+	}
+
+	buf->size = size;
+	buf->length = 0;
+	if ((buf->data = malloc(buf->size)) == NULL) {
+		fprintf(stderr, "Unable to allocate memory for buffer");
+		return NULL;
+	}
+	return buf;
+}
+
+void buf_free(struct buffer* buf) {
+	free(buf->data);
+	free(buf);
+}
+
+int buf_extend(struct buffer* buf, size_t new_size) {
+	if (new_size > buf->size) {
+		char* new_data = realloc(buf->data, new_size);
+		if (new_data == NULL) {
+			return -1;
+		}
+
+		buf->size = new_size;
+		buf->data = new_data;
+	}
+	return 0;
+}
+
+int buf_ensure(struct buffer* buf, size_t n) {
+	if (buf->length + n > buf->size) {
+		int new_size = buf->size * 2;
+		while (new_size < buf->length + n) {
+			new_size *= 2;
+		}
+		if (buf_extend(buf, new_size) < 0) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
+int buf_append(struct buffer* buf, char* data, size_t n) {
+	if (buf_ensure(buf, n) < 0) {
+		return -1;
+	}
+
+	memcpy(buf->data + buf->length, data, n);
+	buf->length += n;
+	return buf->length;
+}
+
+int buf_append_str(struct buffer* buf, char* str) {
+	return buf_append(buf, str, strlen(str));	
+}
+
+int buf_append_long(struct buffer* buf, long num) {
+	size_t len = 2;
+	if (num != 0) {
+		len = (size_t)(ceil(log10(num))+2);
+	}
+	if (buf_ensure(buf, len) < 0) {
+		return -1;
+	}
+
+	int added = snprintf(buf->data+buf->length, len, "%ld", num);
+	if (added < 0) {
+		return -1;
+	}
+	buf->length += added;
+	return buf->length;
+}
+
+char* buf_reserve(struct buffer* buf, size_t n) {
+	if (buf_ensure(buf, n) < 0) {
+		return NULL;
+	}
+
+	char* rv = buf->data + buf->length;
+	buf->length += n;
+	return rv;
+}
+
+void buf_seek(struct buffer* buf, int offset) {
+	if (buf->length + offset < 0) {
+		buf->length = 0;
+	} else if (buf->length + offset > buf->size) {
+		buf->length = buf->size;
+	} else {
+		buf-> length += offset;
+	}
+}
+
+char* buf_as_str(struct buffer* buf) {
+	if (buf->length == buf->size) {
+		if (buf_extend(buf, buf->size + 1) < 0) {
+			return NULL;
+		}
+	}
+	buf->data[buf->length] = '\0';
+	return buf->data;
 }
 
 // ================ client code ================
@@ -270,18 +399,8 @@ void client_state_free(struct client_state* state) {
 	free(state);
 }
 
-#define IMF_DATE_LEN 29
-
-char* imf_date(char* buf, size_t max_len) {
-	time_t seconds = time(NULL);
-	struct tm* gmt = gmtime(&seconds);
-	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmt);
-	return buf;
-}
-
-void send_all(int sock, char *buf, int len) {
-	int total = 0;
-	int todo = len;
+void send_all(int sock, char *buf, size_t len) {
+	size_t total = 0;
 	int sent;
 	
 	while (total < len) {
@@ -297,42 +416,63 @@ void send_all(int sock, char *buf, int len) {
 }
 
 void send_response(int sock, struct client_state* state, char *status_code, char *status_text, char* ext) {
-	int size = 1024;
-	int len = 0;
-	char headers[size];
-	
-	len += snprintf(headers, size-len, "HTTP/1.1 %s %s\r\nDate: ", status_code, status_text);
-	imf_date(headers+len, IMF_DATE_LEN+1);
-	len += IMF_DATE_LEN;
-	len += snprintf(headers+len, size-len, "\r\nServer: Stub\r\n");
-	len += snprintf(headers+len, size-len, "Content-Type: ");
+	struct buffer* header = buf_new(128);
+
+	// status line
+	buf_append_str(header, "HTTP/1.1 ");
+	buf_append_str(header, status_code);
+	buf_append_str(header, " ");
+	buf_append_str(header, status_text);
+	buf_append_str(header, "\r\n");
+
+	// date
+	buf_append_str(header, "Date: ");
+	imf_date(buf_reserve(header, IMF_DATE_LEN), IMF_DATE_LEN);
+	buf_seek(header, -1);
+	buf_append_str(header, "\r\n");
+
+	// server
+	buf_append_str(header, "Server: Stub\r\n");
+
+	// content type
+	buf_append_str(header, "Content-Type: ");
 	if (ext == NULL) {
-		len += snprintf(headers+len, size-len, "text/plain; charset=utf-8");
+		buf_append_str(header, "text/plain; charset=utf-8");
 	} else {
 		if (strcmp(ext, "html")==0 || strcmp(ext, "htm")==0) {
-			len += snprintf(headers+len, size-len, "text/html; charset=utf-8");
+			buf_append_str(header, "text/html; charset=utf-8");
 		} else if (strcmp(ext, "css")==0) {
-			len += snprintf(headers+len, size-len, "text/css; charset=utf-8");
+			buf_append_str(header, "text/css; charset=utf-8");
 		} else if (strcmp(ext, "js")==0) {
-			len += snprintf(headers+len, size-len, "text/javascript; charset=utf-8");
-		} else if (strcmp(ext, "jpeg")==0 || strcmp(ext, ".jpg")==0) {
-			len += snprintf(headers+len, size-len, "image/jpeg");
+			buf_append_str(header, "text/javascript; charset=utf-8");
+		} else if (strcmp(ext, "jpeg")==0 || strcmp(ext, "jpg")==0) {
+			buf_append_str(header, "image/jpeg");
 		} else if (strcmp(ext, "png")==0) {
-			len += snprintf(headers+len, size-len, "image/png");
+			buf_append_str(header, "image/png");
 		} else if (strcmp(ext, "gif")==0) {
-			len += snprintf(headers+len, size-len, "image/gif");
+			buf_append_str(header, "image/gif");
 		} else if (strcmp(ext, "bmp")==0) {
-			len += snprintf(headers+len, size-len, "image/bmp");
+			buf_append_str(header, "image/bmp");
 		} else if (strcmp(ext, "svg")==0) {
-			len += snprintf(headers+len, size-len, "image/svg+xml");
+			buf_append_str(header, "image/svg+xml");
 		} else if (strcmp(ext, "ico")==0) {
-			len += snprintf(headers+len, size-len, "image/vnd.microsoft.icon");
+			buf_append_str(header, "image/vnd.microsoft.icon");
 		} else {
-			len += snprintf(headers+len, size-len, "text/plain; charset=utf-8");
+			buf_append_str(header, "text/plain; charset=utf-8");
 		}
 	}
-	len += snprintf(headers+len, size-len, "\r\nContent-Length: %ld\r\n\r\n", state->data_out_length);
-	send_all(sock, headers, len);
+	buf_append_str(header, "\r\n");
+
+	// content length
+	buf_append_str(header, "Content-Length: ");
+	buf_append_long(header, state->data_out_length);
+	buf_append_str(header, "\r\n");
+
+	// end header
+	buf_append_str(header, "\r\n");
+
+	// send it
+	send_all(sock, header->data, header->length);
 	send_all(sock, state->data_out, state->data_out_length);
 }
 
