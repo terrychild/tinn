@@ -373,7 +373,6 @@ char* buf_as_str(struct buffer* buf) {
 struct client_state {
 	char address[INET6_ADDRSTRLEN];
 	struct buffer* in;
-	struct buffer* out;
 };
 
 struct client_state* client_state_new() {
@@ -384,10 +383,7 @@ struct client_state* client_state_new() {
 		exit(EXIT_FAILURE);
 	}
 
-	state->in = buf_new(256);
-	state->out = buf_new(256);
-
-	if (state->in == NULL || state->out == NULL) {
+	if ((state->in = buf_new(256)) == NULL) {
 		fprintf(stderr, "PANIC: Unable to allocate memory for client state");
 		exit(EXIT_FAILURE);
 	}
@@ -395,7 +391,6 @@ struct client_state* client_state_new() {
 }
 void client_state_free(struct client_state* state) {
 	buf_free(state->in);
-	buf_free(state->out);
 	free(state);
 }
 
@@ -413,7 +408,7 @@ void send_all(int sock, char *buf, size_t len) {
 	}
 }
 
-void send_response(int sock, struct client_state* state, char *status_code, char *status_text, char* ext) {
+void send_header(int sock, struct client_state* state, char *status_code, char *status_text, char* ext, size_t length) {
 	struct buffer* header = buf_new(128);
 
 	// status line
@@ -458,27 +453,30 @@ void send_response(int sock, struct client_state* state, char *status_code, char
 	buf_append_str(header, "\r\n");
 
 	// content length
-	buf_append_format(header, 30, "Content-Length: %ld\r\n", state->out->length);
+	buf_append_format(header, 30, "Content-Length: %ld\r\n", length);
 
 	// end header
 	buf_append_str(header, "\r\n");
 
 	// send it
 	send_all(sock, header->data, header->length);
-	send_all(sock, state->out->data, state->out->length);
-
-	// finish
 	buf_free(header);
-	buf_reset(state->out);
 }
 
 void send_simple_status(int sock, struct client_state* state, char *status_code, char *status_text, char *description) {
-	buf_append_format(
-		state->out, 
-		49 + strlen(status_code) + strlen(status_text) + strlen(description), 
-		"<html><body><h1>%s - %s</h1><p>%s</p></body></html>", 
-		status_code, status_text, description);
-	send_response(sock, state, status_code, status_text, "html");
+	struct buffer* body = buf_new(256);
+
+	buf_append_str(body, "<html><body><h1>");
+	buf_append_str(body, status_code);
+	buf_append_str(body, " - ");
+	buf_append_str(body, status_text);
+	buf_append_str(body, "</h1><p>");
+	buf_append_str(body, description);
+	buf_append_str(body, "</p></body></html>");
+
+	send_header(sock, state, status_code, status_text, "html", body->length);
+	send_all(sock, body->data, body->length);
+	buf_free(body);
 }
 
 int send_file(int sock, struct client_state* state, char* path) {
@@ -493,12 +491,13 @@ int send_file(int sock, struct client_state* state, char* path) {
 	length = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	char* out = buf_reserve(state->out, length);
-	if (out == NULL) {
+	struct buffer* body = buf_new(length);
+	if (body == NULL) {
+		fclose(file);
 		return -1;
 	}
 
-	fread(out, 1, length, file);
+	fread(buf_reserve(body, length), 1, length, file);
 	fclose(file);
 
 	char *ext;
@@ -507,7 +506,9 @@ int send_file(int sock, struct client_state* state, char* path) {
 		ext = ".txt"; // hack!
 	}
 
-	send_response(sock, state, "200", "OK", ext+1);
+	send_header(sock, state, "200", "OK", ext+1, length);
+	send_all(sock, body->data, length);
+	buf_free(body);
 }
 
 void client_listener(struct sockets_list* sockets, int index) {
