@@ -559,7 +559,7 @@ void client_listener(struct sockets_list* sockets, int index) {
 				memcpy(method, state->in->data, space_1);
 				method[space_1] = '\0';
 
-				char path[space_2-space_1+5];
+				char path[space_2-space_1+11]; // extra 11 is for /index.html
 				memcpy(path, state->in->data+space_1+1, space_2-space_1-1);
 				path[space_2-space_1-1] = '\0';
 
@@ -569,19 +569,16 @@ void client_listener(struct sockets_list* sockets, int index) {
 					if (file_path != NULL) {
 						send_file(sock, state, file_path);
 					} else {
-						// special urls
-						if (strcmp(path, "/")==0) {
-							send_file(sock, state, get_file_path(files, "/content.html"));
-						} else if (strcmp(path, "/blog")==0 || strcmp(path, "/blog/")==0) {
-							send_file(sock, state, get_file_path(files, "/blog/all.html"));
-						} else if (strncmp(path, "/blog/", 6)==0) {
-							strcat(path, ".html");
-							file_path = get_file_path(files, path);
-							if (file_path != NULL) {
-								send_file(sock, state, file_path);
-							} else {
-								send_simple_status(sock, state, "404", "Not Found", "Opps, that resource can not be found.");
-							}
+						// try appending /index.html
+						if (path[space_2-space_1-2] == '/') {
+							strcat(path, "index.html");
+						} else {
+							strcat(path, "/index.html");
+						}
+
+						file_path = get_file_path(files, path);
+						if (file_path != NULL) {
+							send_file(sock, state, file_path);
 						} else {
 							send_simple_status(sock, state, "404", "Not Found", "Opps, that resource can not be found.");
 						}
