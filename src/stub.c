@@ -174,10 +174,10 @@ int get_server_socket(char* port) {
 	return sock;
 }
 
-// ================ socket handelers ================
+// ================ socket list ================
 struct sockets_list;
 
-typedef void (*socket_listener)(struct sockets_list*, int);
+typedef void (*socket_listener)(struct sockets_list* sockets, int index);
 
 struct sockets_list {
 	size_t  size;
@@ -191,47 +191,52 @@ struct sockets_list* sockets_list_new() {
 	struct sockets_list* list;
 
 	if ((list = malloc(sizeof(*list))) == NULL) {
-		fprintf(stderr, "Unable to allocate memory for sockets list");
-		return NULL;
+		fprintf(stderr, "PANIC: Unable to allocate memory for sockets list");
+		exit(EXIT_FAILURE);
 	}
 
 	list->size = 5;
 	list->count = 0;
+
 	list->pollfds = malloc(sizeof(*list->pollfds) * list->size);
 	list->listeners = malloc(sizeof(*list->listeners) * list->size);
 	list->states = malloc(sizeof(*list->states) * list->size);
+
 	if (list->pollfds == NULL || list->listeners == NULL || list->states == NULL) {
-		fprintf(stderr, "Unable to allocate memory for sockets list");
-		return NULL;
+		fprintf(stderr, "PANIC: Unable to allocate memory for sockets list");
+		exit(EXIT_FAILURE);
 	}
+
 	return list;
 }
 
 int sockets_list_add(struct sockets_list* list, int new_socket, socket_listener new_listener) {
+	// do we need to expand the arrays
 	if (list->count == list->size) {
-		int new_size = list->size * 2;
-		struct pollfd* new_pollfds = realloc(list->pollfds, sizeof(*list->pollfds) * new_size);
-		socket_listener* new_listeners = realloc(list->listeners, sizeof(*list->listeners) * new_size);
-		void* new_states = realloc(list->states, sizeof(*list->states) * new_size);
-		if (new_pollfds == NULL || new_listeners == NULL || new_states == NULL) {
-			fprintf(stderr, "Unable to allocate memory for sockets list");
-			return -1;
-		}
+		list->size *= 2;
 
-		list->size = new_size;
-		list->pollfds = new_pollfds;
-		list->listeners = new_listeners;
+		list->pollfds = realloc(list->pollfds, sizeof(*list->pollfds) * list->size);
+		list->listeners = realloc(list->listeners, sizeof(*list->listeners) * list->size);
+		list->states = realloc(list->states, sizeof(*list->states) * list->size);
+
+		if (list->pollfds == NULL || list->listeners == NULL || list->states == NULL) {
+			fprintf(stderr, "PANIC: Unable to allocate memory for sockets list");
+			exit(EXIT_FAILURE);
+		}
 	}
 
+	// add new socket
 	list->pollfds[list->count].fd = new_socket;
 	list->pollfds[list->count].events = POLLIN;
 	list->pollfds[list->count].revents = 0;
+
 	list->listeners[list->count] = new_listener;
+
 	list->states[list->count] = NULL;
 
+	// update count
 	list->count++;
-
-	return list->count-1;
+	return list->count - 1;
 }
 
 void sockets_list_rm(struct sockets_list* list, size_t index) {
@@ -262,6 +267,7 @@ struct buffer* buf_new(size_t size) {
 	buf->length = 0;
 	if ((buf->data = malloc(buf->size)) == NULL) {
 		fprintf(stderr, "Unable to allocate memory for buffer");
+		free(buf);
 		return NULL;
 	}
 	return buf;
@@ -366,9 +372,7 @@ char* buf_as_str(struct buffer* buf) {
 // ================ client code ================
 struct client_state {
 	char address[INET6_ADDRSTRLEN];
-	int data_in_size;
-	int data_in_length;
-	char* data_in;
+	struct buffer* in;
 	struct buffer* out;
 };
 
@@ -376,24 +380,21 @@ struct client_state* client_state_new() {
 	struct client_state* state;
 
 	if ((state = malloc(sizeof(*state))) == NULL) {
-		fprintf(stderr, "Unable to allocate memory for client state");
-		return NULL;
+		fprintf(stderr, "PANIC: Unable to allocate memory for client state");
+		exit(EXIT_FAILURE);
 	}
 
-	state->data_in_size = 256;
-	state->data_in_length = 0;
-	state->data_in = malloc(state->data_in_size);
-
+	state->in = buf_new(256);
 	state->out = buf_new(256);
 
-	if (state->data_in == NULL || state->out == NULL) {
-		fprintf(stderr, "Unable to allocate memory for client state");
-		return NULL;
+	if (state->in == NULL || state->out == NULL) {
+		fprintf(stderr, "PANIC: Unable to allocate memory for client state");
+		exit(EXIT_FAILURE);
 	}
 	return state;
 }
 void client_state_free(struct client_state* state) {
-	free(state->data_in);
+	buf_free(state->in);
 	buf_free(state->out);
 	free(state);
 }
@@ -407,8 +408,6 @@ void send_all(int sock, char *buf, size_t len) {
 		if (sent == -1) {
 			fprintf(stderr, "send error: %s", strerror(errno));
 			return;
-		} else {
-			tprintf("sent %d\n", sent);
 		}
 		total += sent;
 	}
@@ -467,6 +466,9 @@ void send_response(int sock, struct client_state* state, char *status_code, char
 	// send it
 	send_all(sock, header->data, header->length);
 	send_all(sock, state->out->data, state->out->length);
+
+	// finish
+	buf_free(header);
 	buf_reset(state->out);
 }
 
@@ -512,9 +514,7 @@ void client_listener(struct sockets_list* sockets, int index) {
 	int sock = sockets->pollfds[index].fd;
 	struct client_state* state = sockets->states[index];
 	
-	int recvied = recv(sock, state->data_in+state->data_in_length, state->data_in_size-state->data_in_length, 0);
-	tprintf("recvied %d\n", recvied);
-
+	int recvied = recv(sock, state->in->data + state->in->length, state->in->size - state->in->length, 0);
 	if (recvied <= 0) {
 		if (recvied < 0) {
 			fprintf(stderr, "recv error from %s (%d): %s\n", state->address, sock, strerror(errno));
@@ -526,53 +526,40 @@ void client_listener(struct sockets_list* sockets, int index) {
 		client_state_free(state);
 		sockets_list_rm(sockets, index);
 	} else {
-		// parse request
-		state->data_in_length += recvied;
+		// update buffer
+		buf_seek(state->in, recvied);
 
+		// parse request
 		int space_1 = -1;
 		int space_2 = -1;
 		int end = -1;
-		for (int i=0; i<state->data_in_length; i++) {
+		for (int i=0; i<state->in->length; i++) {
 			if (space_1<0) {
-				if (state->data_in[i]==' ') {
+				if (state->in->data[i]==' ') {
 					space_1 = i;
 				}
 			} else if (space_2<0) {
-				if (state->data_in[i]==' ') {
+				if (state->in->data[i]==' ') {
 					space_2 = i;
 				}
 			}
 			// look for a blank line
-			if (i>2 && state->data_in[i-3]=='\r' && state->data_in[i-2]=='\n' && state->data_in[i-1]=='\r' && state->data_in[i]=='\n') {
+			if (i>2 && state->in->data[i-3]=='\r' && state->in->data[i-2]=='\n' && state->in->data[i-1]=='\r' && state->in->data[i]=='\n') {
 				end = i;
 			}
 		}
 
 		if (end<0) {
 			// make buffer bigger
-			int new_size = state->data_in_size * 2;
-			char* new_data = realloc(state->data_in, new_size);
-
-			if (new_data == NULL) {
-				fprintf(stderr, "unable to allocate data in buffer for %s (%d): %d\n", state->address, sock, new_size);
-
-				close(sock);
-				client_state_free(state);
-				sockets_list_rm(sockets, index);
-			} else {
-				state->data_in_size = new_size;
-				state->data_in = new_data;
-			}
+			buf_extend(state->in, state->in->size * 2);
 		} else {
 			if (space_1>0 && space_2>space_1+1) {
-				tprintf("method is %d long, needing %d space\n", space_1, space_1+1);
 				char method[space_1+1];
-				strncpy(method, state->data_in, space_1);
+				memcpy(method, state->in->data, space_1);
 				method[space_1] = '\0';
 
-				tprintf("path is %d long, needing %d space\n", space_2-space_1-1, space_2-space_1);
 				char path[space_2-space_1+5];
-				strncpy(path, state->data_in+space_1+1, space_2-space_1-1);
+				memcpy(path, state->in->data+space_1+1, space_2-space_1-1);
 				path[space_2-space_1-1] = '\0';
 
 				tprintf("\"%s\" \"%s\" from %s (%d)\n", method, path, state->address, sock);
@@ -605,8 +592,8 @@ void client_listener(struct sockets_list* sockets, int index) {
 				send_simple_status(sock, state, "400", "Bad Request", "Opps, that request made no sense.");
 			}
 
-			// done with this request to reset the length
-			state->data_in_length = 0;
+			// done with this request to reset
+			buf_reset(state->in);
 		}
 	}
 }
@@ -632,16 +619,8 @@ void server_listener(struct sockets_list* sockets, int index) {
 	if ((client_socket = accept(sockets->pollfds[index].fd, (struct sockaddr *)&address, &address_size)) < 0) {
 		perror("accept");
 	} else {
-		if ((client_state = client_state_new()) == NULL) {
-			close(client_socket);
-			return;
-		}
-
-		if ((client_index = sockets_list_add(sockets, client_socket, client_listener)) < 0) {
-			close(client_socket);
-			client_state_free(client_state);
-			return;
-		}
+		client_state = client_state_new();
+		client_index = sockets_list_add(sockets, client_socket, client_listener);
 
 		sockets->states[client_index] = client_state;
 		inet_ntop(address.ss_family, get_in_addr((struct sockaddr *)&address), client_state->address, INET6_ADDRSTRLEN);
@@ -668,10 +647,7 @@ int main(int argc, char* argv[]) {
 
 	// create list of sockets
 	struct sockets_list* sockets = sockets_list_new();
-	if (sockets == NULL) {
-		return EXIT_FAILURE;
-	}
-
+	
 	// open server socket
 	int server_socket = get_server_socket(argv[1]);
 	if (server_socket < 0) {
@@ -682,11 +658,9 @@ int main(int argc, char* argv[]) {
 	sockets_list_add(sockets, server_socket, server_listener);
 	tprintf("waiting for connections\n");
 
-	// loop for ever directing network traifc
+	// loop forever directing network traffic
 	for (;;) {
-		int poll_count = poll(sockets->pollfds, sockets->count, -1);
-		
-		if (poll_count == -1) {
+		if (poll(sockets->pollfds, sockets->count, -1) < 0 ) {
 			perror("poll");
 			return EXIT_FAILURE;
 		}
