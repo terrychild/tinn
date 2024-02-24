@@ -286,12 +286,13 @@ void sockets_list_rm(struct sockets_list* list, size_t index) {
 
 // ================ buffer ================
 struct buffer {
-	size_t size;
-	size_t length;
+	long size;
+	long length;
+	long read_pos;
 	char* data;
 };
 
-struct buffer* buf_new(size_t size) {
+struct buffer* buf_new(long size) {
 	struct buffer* buf;
 
 	if ((buf = malloc(sizeof(*buf))) == NULL) {
@@ -301,6 +302,7 @@ struct buffer* buf_new(size_t size) {
 
 	buf->size = size;
 	buf->length = 0;
+	buf->read_pos = 0;
 	if ((buf->data = malloc(buf->size)) == NULL) {
 		fprintf(stderr, "Unable to allocate memory for buffer");
 		free(buf);
@@ -314,7 +316,7 @@ void buf_free(struct buffer* buf) {
 	free(buf);
 }
 
-int buf_extend(struct buffer* buf, size_t new_size) {
+int buf_extend(struct buffer* buf, long new_size) {
 	if (new_size > buf->size) {
 		char* new_data = realloc(buf->data, new_size);
 		if (new_data == NULL) {
@@ -327,7 +329,7 @@ int buf_extend(struct buffer* buf, size_t new_size) {
 	return 0;
 }
 
-int buf_ensure(struct buffer* buf, size_t n) {
+int buf_ensure(struct buffer* buf, long n) {
 	if (buf->length + n > buf->size) {
 		int new_size = buf->size * 2;
 		while (new_size < buf->length + n) {
@@ -340,7 +342,7 @@ int buf_ensure(struct buffer* buf, size_t n) {
 	return 0;
 }
 
-int buf_append(struct buffer* buf, char* data, size_t n) {
+int buf_append(struct buffer* buf, char* data, long n) {
 	if (buf_ensure(buf, n) < 0) {
 		return -1;
 	}
@@ -354,7 +356,7 @@ int buf_append_str(struct buffer* buf, char* str) {
 	return buf_append(buf, str, strlen(str));	
 }
 
-int buf_append_format(struct buffer* buf, size_t max, char* format, ...) {
+int buf_append_format(struct buffer* buf, long max, char* format, ...) {
 	if (buf_ensure(buf, max+1) < 0) {
 		return -1;
 	}
@@ -370,8 +372,18 @@ int buf_append_format(struct buffer* buf, size_t max, char* format, ...) {
 	buf->length += added;
 	return buf->length;
 }
+int buf_append_buf(struct buffer* target, struct buffer* source) {
+	long len = source->length;
+	if (buf_ensure(target, len) < 0) {
+		return -1;
+	}
 
-char* buf_reserve(struct buffer* buf, size_t n) {
+	memcpy(target->data + target->length, source->data, len);
+	target->length += len;
+	return target->length;
+}
+
+char* buf_reserve(struct buffer* buf, long n) {
 	if (buf_ensure(buf, n) < 0) {
 		return NULL;
 	}
@@ -381,7 +393,13 @@ char* buf_reserve(struct buffer* buf, size_t n) {
 	return rv;
 }
 
-void buf_seek(struct buffer* buf, int offset) {
+char* buf_write_ptr(struct buffer* buf) {
+	return buf->data + buf->length;
+}
+long buf_write_max(struct buffer* buf) {
+	return buf->size - buf->length;
+}
+long buf_mod_len(struct buffer* buf, long offset) {
 	if (buf->length + offset < 0) {
 		buf->length = 0;
 	} else if (buf->length + offset > buf->size) {
@@ -389,10 +407,40 @@ void buf_seek(struct buffer* buf, int offset) {
 	} else {
 		buf-> length += offset;
 	}
+	return buf->length;
 }
 
+char* buf_read_ptr(struct buffer* buf) {
+	return buf->data + buf->read_pos;
+}
+long buf_read_max(struct buffer* buf) {
+	return buf->length - buf->read_pos;
+}
+long buf_seek(struct buffer* buf, long offset) {
+	if (buf->read_pos + offset < 0) {
+		buf->read_pos = 0;
+	} else if (buf->read_pos + offset > buf->length) {
+		buf->read_pos = buf->length;
+	} else {
+		buf-> read_pos += offset;
+	}
+	return buf->read_pos;
+}
+
+void buf_consume(struct buffer* buf, long n) {
+	long new_len = buf->length - n;
+	if (new_len > 0) {
+		memmove(buf->data, buf->data+n, new_len);
+		buf->length = new_len;
+		buf_seek(buf, -n);
+	} else {
+		buf->length = 0;
+		buf->read_pos = 0;	
+	}
+}
 void buf_reset(struct buffer* buf) {
 	buf->length = 0;
+	buf->read_pos = 0;
 }
 
 char* buf_as_str(struct buffer* buf) {
@@ -406,9 +454,14 @@ char* buf_as_str(struct buffer* buf) {
 }
 
 // ================ client code ================
+#define CLIENT_READ 1;
+#define CLIENT_WRITE 2;
+
 struct client_state {
 	char address[INET6_ADDRSTRLEN];
+	unsigned short mode;
 	struct buffer* in;
+	struct buffer* out;
 };
 
 struct client_state* client_state_new() {
@@ -419,115 +472,84 @@ struct client_state* client_state_new() {
 		exit(EXIT_FAILURE);
 	}
 
-	if ((state->in = buf_new(256)) == NULL) {
+	if ((state->in = buf_new(1024)) == NULL) {
 		fprintf(stderr, "PANIC: Unable to allocate memory for client state");
 		exit(EXIT_FAILURE);
 	}
+
+	if ((state->out = buf_new(1024)) == NULL) {
+		fprintf(stderr, "PANIC: Unable to allocate memory for client state");
+		exit(EXIT_FAILURE);
+	}
+
 	return state;
 }
 void client_state_free(struct client_state* state) {
 	buf_free(state->in);
+	buf_free(state->out);
 	free(state);
 }
 
-void send_all(int sock, char *buf, size_t len) {
-	size_t total = 0;
-	int sent;
-	
-	while (total < len) {
-		sent = send(sock, buf+total, len-total, 0);
-		if (sent == -1) {
-			fprintf(stderr, "send error: %s", strerror(errno));
-			return;
-		}
-		total += sent;
-	}
-}
-
-void send_redirect(int sock, struct client_state* state, char *location) {
-	struct buffer* header = buf_new(128);
-
+void buf_start_headers(struct buffer* buf, char *status_code, char *status_text) {
 	// status line
-	buf_append_str(header, "HTTP/1.1 301 Moved Permanently\r\n");
+	buf_append_format(buf, 12 + strlen(status_code) + strlen(status_text), "HTTP/1.1 %s %s\r\n", status_code, status_text);
 
 	// date
-	buf_append_str(header, "Date: ");
-	imf_date(buf_reserve(header, IMF_DATE_LEN), IMF_DATE_LEN);
-	buf_seek(header, -1);
-	buf_append_str(header, "\r\n");
+	buf_append_str(buf, "Date: ");
+	imf_date(buf_reserve(buf, IMF_DATE_LEN), IMF_DATE_LEN);
+	buf_mod_len(buf, -1);
+	buf_append_str(buf, "\r\n");
 
 	// server
-	buf_append_str(header, "Server: Tinn\r\n");
-
-	// location
-	buf_append_str(header, "Location: ");
-	buf_append_str(header, location);	
-	buf_append_str(header, "\r\n");
-
-	// end header
-	buf_append_str(header, "\r\n");
-
-	// send it
-	send_all(sock, header->data, header->length);
-	buf_free(header);
+	buf_append_str(buf, "Server: Tinn\r\n");
 }
 
-void send_header(int sock, struct client_state* state, char *status_code, char *status_text, char* ext, size_t length) {
-	struct buffer* header = buf_new(128);
+void buf_end_headers(struct buffer* buf) {
+	buf_append_str(buf, "\r\n");
+}
 
-	// status line
-	buf_append_format(header, 12 + strlen(status_code) + strlen(status_text), "HTTP/1.1 %s %s\r\n", status_code, status_text);
-
-	// date
-	buf_append_str(header, "Date: ");
-	imf_date(buf_reserve(header, IMF_DATE_LEN), IMF_DATE_LEN);
-	buf_seek(header, -1);
-	buf_append_str(header, "\r\n");
-
-	// server
-	buf_append_str(header, "Server: Tinn\r\n");
-
-	// content type
-	buf_append_str(header, "Content-Type: ");
-	if (ext == NULL) {
-		buf_append_str(header, "text/plain; charset=utf-8");
+void buf_append_content_type(struct buffer* buf, char* ext) {
+	buf_append_str(buf, "Content-Type: ");
+	if (ext == NULL || strlen(ext) == 0) {
+		buf_append_str(buf, "text/plain; charset=utf-8");
 	} else {
+		if (ext[0] == '.') {
+			ext += 1;
+		}
+
 		if (strcmp(ext, "html")==0 || strcmp(ext, "htm")==0) {
-			buf_append_str(header, "text/html; charset=utf-8");
+			buf_append_str(buf, "text/html; charset=utf-8");
 		} else if (strcmp(ext, "css")==0) {
-			buf_append_str(header, "text/css; charset=utf-8");
+			buf_append_str(buf, "text/css; charset=utf-8");
 		} else if (strcmp(ext, "js")==0) {
-			buf_append_str(header, "text/javascript; charset=utf-8");
+			buf_append_str(buf, "text/javascript; charset=utf-8");
 		} else if (strcmp(ext, "jpeg")==0 || strcmp(ext, "jpg")==0) {
-			buf_append_str(header, "image/jpeg");
+			buf_append_str(buf, "image/jpeg");
 		} else if (strcmp(ext, "png")==0) {
-			buf_append_str(header, "image/png");
+			buf_append_str(buf, "image/png");
 		} else if (strcmp(ext, "gif")==0) {
-			buf_append_str(header, "image/gif");
+			buf_append_str(buf, "image/gif");
 		} else if (strcmp(ext, "bmp")==0) {
-			buf_append_str(header, "image/bmp");
+			buf_append_str(buf, "image/bmp");
 		} else if (strcmp(ext, "svg")==0) {
-			buf_append_str(header, "image/svg+xml");
+			buf_append_str(buf, "image/svg+xml");
 		} else if (strcmp(ext, "ico")==0) {
-			buf_append_str(header, "image/vnd.microsoft.icon");
+			buf_append_str(buf, "image/vnd.microsoft.icon");
+		} else if (strcmp(ext, "mp3")==0) {
+			buf_append_str(buf, "audio/mpeg");
+			//buf_append_str(buf, "audio/mpeg\r\nContent-Disposition: attachment; filename=\"my-file.mp3\"");
 		} else {
-			buf_append_str(header, "text/plain; charset=utf-8");
+			buf_append_str(buf, "text/plain; charset=utf-8");
 		}
 	}
-	buf_append_str(header, "\r\n");
-
-	// content length
-	buf_append_format(header, 30, "Content-Length: %ld\r\n", length);
-
-	// end header
-	buf_append_str(header, "\r\n");
-
-	// send it
-	send_all(sock, header->data, header->length);
-	buf_free(header);
+	buf_append_str(buf, "\r\n");
 }
 
-void send_simple_status(int sock, struct client_state* state, char *status_code, char *status_text, char *description) {
+void buf_append_content_length(struct buffer* buf, long length) {
+	buf_append_format(buf, 30, "Content-Length: %ld\r\n", length);
+}
+
+void client_prep_simple_status(struct client_state* state, char *status_code, char *status_text, char *description) {
 	struct buffer* body = buf_new(256);
 
 	buf_append_str(body, "<html><body><h1>");
@@ -538,61 +560,87 @@ void send_simple_status(int sock, struct client_state* state, char *status_code,
 	buf_append_str(body, description);
 	buf_append_str(body, "</p></body></html>");
 
-	send_header(sock, state, status_code, status_text, "html", body->length);
-	send_all(sock, body->data, body->length);
-	buf_free(body);
+	// headers
+	buf_start_headers(state->out, status_code, status_text);
+
+	buf_append_content_type(state->out, "html");
+	buf_append_content_length(state->out, body->length);
+
+	buf_end_headers(state->out);
+
+	// content
+	buf_append_buf(state->out, body);
 }
 
-int send_file(int sock, struct client_state* state, char* path) {
-	size_t length;
+void client_prep_redirect(struct client_state* state, char* location) {
+	buf_start_headers(state->out, "301", "Moved Permanently");
+
+	buf_append_str(state->out, "Location: ");
+	buf_append_str(state->out, location);	
+	buf_append_str(state->out, "\r\n");
+
+	buf_end_headers(state->out);
+}
+
+void client_prep_file(struct client_state* state, char* path) {
+	// open file and get content length
+	long length;
 	FILE *file = fopen(path, "rb");
 	
 	if (file == NULL) {
-		return -1;
+		return;
 	}
 
 	fseek(file, 0, SEEK_END);
 	length = ftell(file);
 	fseek(file, 0, SEEK_SET);
 
-	struct buffer* body = buf_new(length);
-	if (body == NULL) {
-		fclose(file);
-		return -1;
-	}
+	// populate header
+	buf_start_headers(state->out, "200", "OK");
 
-	fread(buf_reserve(body, length), 1, length, file);
+	buf_append_content_type(state->out, strrchr(path, '.'));
+	buf_append_content_length(state->out, length);
+
+	buf_end_headers(state->out);
+
+	// populate content
+	char* body = buf_reserve(state->out, length);
+	if (body != NULL) {
+		fread(body, 1, length, file);
+	}
 	fclose(file);
-
-	char *ext;
-	ext = strrchr(path, '.');
-	if (strlen(ext) <= 1) {
-		ext = ".txt"; // hack!
-	}
-
-	send_header(sock, state, "200", "OK", ext+1, length);
-	send_all(sock, body->data, length);
-	buf_free(body);
 }
 
-void client_listener(struct sockets_list* sockets, int index, struct routes* routes) {
-	int sock = sockets->pollfds[index].fd;
-	struct client_state* state = sockets->states[index];
-	
-	int recvied = recv(sock, state->in->data + state->in->length, state->in->size - state->in->length, 0);
+int client_write(struct pollfd* pfd, struct client_state* state) {
+	long len = buf_read_max(state->out);
+	long sent = send(pfd->fd, buf_read_ptr(state->out), len, MSG_DONTWAIT);
+	//LOG:tprintf("sent: %ld/%ld\n", sent, len);
+	if (sent < 0) {
+		fprintf(stderr, "send error from %s (%d): %s\n", state->address, pfd->fd, strerror(errno));
+		return -1;
+	}
+	if (sent < len) {
+		buf_seek(state->out, sent);
+		pfd->events = POLLOUT;
+	} else {
+		buf_reset(state->out);
+		pfd->events = POLLIN;
+	}
+	return sent;
+}
+
+int client_read(struct pollfd* pfd, struct client_state* state, struct routes* routes) {
+	int recvied = recv(pfd->fd, buf_write_ptr(state->in), buf_write_max(state->in), 0);
 	if (recvied <= 0) {
 		if (recvied < 0) {
-			fprintf(stderr, "recv error from %s (%d): %s\n", state->address, sock, strerror(errno));
+			fprintf(stderr, "recv error from %s (%d): %s\n", state->address, pfd->fd, strerror(errno));
 		} else {
-			tprintf("connection from %s (%d) closed\n", state->address, sock);
+			tprintf("connection from %s (%d) closed\n", state->address, pfd->fd);
 		}
-
-		close(sock);
-		client_state_free(state);
-		sockets_list_rm(sockets, index);
+		return -1;
 	} else {
 		// update buffer
-		buf_seek(state->in, recvied);
+		buf_mod_len(state->in, recvied);
 
 		// parse request
 		int space_1 = -1;
@@ -617,6 +665,7 @@ void client_listener(struct sockets_list* sockets, int index, struct routes* rou
 		if (end<0) {
 			// make buffer bigger
 			buf_extend(state->in, state->in->size * 2);
+			return 0;
 		} else {
 			if (space_1>0 && space_2>space_1+1) {
 				char method[space_1+1];
@@ -639,28 +688,61 @@ void client_listener(struct sockets_list* sockets, int index, struct routes* rou
 					query++;
 				}
 
-				tprintf("\"%s\" \"%s\" from %s (%d)\n", method, path, state->address, sock);
+				tprintf("\"%s\" \"%s\" from %s (%d)\n", method, path, state->address, pfd->fd);
 				if (strcmp(method, "GET")==0) {
 					struct route* route = routes_find(routes, path);
 					if (route == NULL) {
-						send_simple_status(sock, state, "404", "Not Found", "Opps, that resource can not be found.");
+						client_prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
 					} else if (route->type == RT_LOCAL) {
-						send_file(sock, state, route->to);
+						client_prep_file(state, route->to);
 					} else if (route->type == RT_REDIRECT) {
-						send_redirect(sock, state, route->to);
+						client_prep_redirect(state, route->to);
 					} else {
-						send_simple_status(sock, state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
+						client_prep_simple_status(state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
 					}
 				} else {
-					send_simple_status(sock, state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
+					client_prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
 				}
 			} else {
-				send_simple_status(sock, state, "400", "Bad Request", "Opps, that request made no sense.");
+				tprintf("Bad request from %s (%d)\n", state->address, pfd->fd);
+				puts(buf_as_str(state->in));
+				client_prep_simple_status(state, "400", "Bad Request", "Opps, that request made no sense.");
 			}
 
-			// done with this request to reset
-			buf_reset(state->in);
+			// done reading request so reset buffer
+			buf_consume(state->in, end+1);
+
+			// send
+			return client_write(pfd, state);
+			/*pfd->events &= POLLOUT;
+			return 0;*/
 		}
+	}
+}
+
+void client_listener(struct sockets_list* sockets, int index, struct routes* routes) {
+	struct pollfd* pfd = &sockets->pollfds[index];
+	struct client_state* state = sockets->states[index];
+
+	int flag = 0;
+	if (pfd->revents & POLLHUP) {
+		tprintf("connection from %s (%d) hung up\n", state->address, pfd->fd);
+		flag = -1;
+	} else if (pfd->revents & (POLLERR | POLLNVAL)) {
+		fprintf(stderr, "Socket error from %s (%d): %d\n", state->address, pfd->fd, pfd->revents);
+		flag = -1;
+	} else {
+		if (pfd->revents & POLLIN) {
+			flag = client_read(pfd, state, routes);
+		} else if (pfd->revents & POLLOUT) {
+			flag = client_write(pfd, state);
+		}
+	}
+
+	if (flag < 0) {
+		close(pfd->fd);
+		client_state_free(state);
+		sockets_list_rm(sockets, index);
 	}
 }
 
@@ -680,6 +762,11 @@ void server_listener(struct sockets_list* sockets, int index, struct routes* rou
 	int client_socket;
 	struct client_state* client_state;
 	int client_index;
+
+	if (sockets->pollfds[index].revents & (POLLERR | POLLHUP | POLLNVAL)) {
+		tprintf("PANIC: error on server socket: %d\n", sockets->pollfds[index].revents);
+		exit(EXIT_FAILURE);
+	} 
 	
 	address_size = sizeof(address);
 	if ((client_socket = accept(sockets->pollfds[index].fd, (struct sockaddr *)&address, &address_size)) < 0) {
@@ -733,7 +820,8 @@ int main(int argc, char* argv[]) {
 		}
 
 		for (int i = 0; i < sockets->count; i++) {
-			if (sockets->pollfds[i].revents & POLLIN) {
+			short revents = sockets->pollfds[i].revents;
+			if (sockets->pollfds[i].revents) {
 				sockets->listeners[i](sockets, i, routes);
 			}
 		}
