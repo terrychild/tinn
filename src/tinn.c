@@ -36,21 +36,55 @@ char* imf_date(char* buf, size_t max_len) {
 	return buf;
 }
 
-// ================ Static files ================
+// ================ Routes ================
+#define RT_LOCAL 1
+#define RT_REDIRECT 2
 
-struct static_file {
-	char* local_path;
-	char* server_path;
-	struct static_file* next;
+struct route {
+	unsigned short type;
+	char* from;
+	char* to;
+	struct route* next;
 };
+struct routes {
+	struct route* head;
+	struct route** tail_next;
+};
+struct routes* routes_new() {
+	struct routes* list;
+	if ((list = malloc(sizeof(*list))) != NULL) {
+		list->head = NULL;
+		list->tail_next = &list->head;
+	}
+	return list;
+}
+struct route* routes_add(struct routes* list, unsigned short type, char* from, char* to) {
+	struct route* new_route;
+	if ((new_route = malloc(sizeof(*new_route))) != NULL) {
+		new_route->type = type;
+		new_route->from = from;
+		new_route->to = to;
 
-struct static_file* files; // a global?????
+		new_route->next = NULL;
+		*list->tail_next = new_route;
+		list->tail_next = &new_route->next;
+	}
+	return new_route;
+}
 
-struct static_file* find_static_files(char* path) {
-	// a simple linked list of files
-	struct static_file temp_head;
-	temp_head.next = NULL;
-	struct static_file* tail = &temp_head;
+struct route* routes_find(struct routes* list, char* from) {
+	struct route* route = list->head;
+	while (route != NULL) {
+		if (strcmp(route->from, from)==0) {
+			return route;
+		}
+		route = route->next;
+	}
+	return NULL;
+}
+
+struct routes* routes_build(char* path) {
+	struct routes* list = routes_new();
 
 	// To work out the server path, we are going to remove the traversal to 
 	// the root directory, but we want to keep the forward slash so all 
@@ -76,45 +110,47 @@ struct static_file* find_static_files(char* path) {
 		// ignore dot (hidden) files unless it's the first directory and it's . or ..
 		if(node->fts_name[0]=='.' && strcmp(node->fts_path, ".")!=0 && strcmp(node->fts_path, "..")!=0) {
 			fts_set(file_system, node, FTS_SKIP);
+
 		} else if (node->fts_info == FTS_F) {
 			if (node->fts_pathlen > pathlen) {
+				// a valid file, add route
+				char* file_path = malloc(node->fts_pathlen+1);
+				strcpy(file_path, node->fts_path);
 
-				// a valid file, add it to the list
-				struct static_file* new_file = malloc(sizeof(*new_file));
-				new_file->next = NULL;
-				tail->next = new_file;
-				tail = new_file;
+				routes_add(list, RT_LOCAL, file_path+pathlen, file_path);
 
-				// file paths
-				new_file->local_path = malloc(node->fts_pathlen+1);
-				strcpy(new_file->local_path, node->fts_path);
-				new_file->server_path = new_file->local_path+pathlen;				
+				// add directory?
+				if (strcmp(node->fts_name, "index.html") == 0) {
+					size_t len = node->fts_pathlen - pathlen - 10;
+					char* dir_path = malloc(len+1);
+					strncpy(dir_path, node->fts_path+pathlen, len);
+					dir_path[len] = '\0';
+
+					routes_add(list, RT_LOCAL, dir_path, file_path);
+
+					if (len>1) {
+						char* redirect_path = malloc(len);
+						strncpy(redirect_path, node->fts_path+pathlen, len-1);
+						redirect_path[len-1] = '\0';
+
+						routes_add(list, RT_REDIRECT, redirect_path, dir_path);
+					}
+				} else if (strcmp(node->fts_name, "post.html") == 0) {
+					size_t len = node->fts_pathlen - pathlen - 10;
+					char* dir_path = malloc(len+1);
+					strncpy(dir_path, node->fts_path+pathlen, len);
+					dir_path[len] = '\0';
+
+					routes_add(list, RT_LOCAL, dir_path, file_path);
+				}
 			}
 		}
 	}
+
 	fts_close(file_system);
 
 	// return the first file in the list
-	return temp_head.next;
-}
-
-void free_static_files(struct static_file* file) {
-	while (file != NULL) {
-		struct static_file* next = file->next;
-		free(file->local_path);
-		free(file);
-		file = next;
-	}
-}
-
-char* get_file_path(struct static_file* file, char* server_path) {
-	while (file != NULL) {
-		if (strcmp(file->server_path, server_path)==0) {
-			return file->local_path;
-		}
-		file = file->next;
-	}
-	return NULL;
+	return list;
 }
 
 // ================ basic network stuff ================
@@ -177,7 +213,7 @@ int get_server_socket(char* port) {
 // ================ socket list ================
 struct sockets_list;
 
-typedef void (*socket_listener)(struct sockets_list* sockets, int index);
+typedef void (*socket_listener)(struct sockets_list* sockets, int index, struct routes* routes);
 
 struct sockets_list {
 	size_t  size;
@@ -408,6 +444,34 @@ void send_all(int sock, char *buf, size_t len) {
 	}
 }
 
+void send_redirect(int sock, struct client_state* state, char *location) {
+	struct buffer* header = buf_new(128);
+
+	// status line
+	buf_append_str(header, "HTTP/1.1 301 Moved Permanently\r\n");
+
+	// date
+	buf_append_str(header, "Date: ");
+	imf_date(buf_reserve(header, IMF_DATE_LEN), IMF_DATE_LEN);
+	buf_seek(header, -1);
+	buf_append_str(header, "\r\n");
+
+	// server
+	buf_append_str(header, "Server: Tinn\r\n");
+
+	// location
+	buf_append_str(header, "Location: ");
+	buf_append_str(header, location);	
+	buf_append_str(header, "\r\n");
+
+	// end header
+	buf_append_str(header, "\r\n");
+
+	// send it
+	send_all(sock, header->data, header->length);
+	buf_free(header);
+}
+
 void send_header(int sock, struct client_state* state, char *status_code, char *status_text, char* ext, size_t length) {
 	struct buffer* header = buf_new(128);
 
@@ -421,7 +485,7 @@ void send_header(int sock, struct client_state* state, char *status_code, char *
 	buf_append_str(header, "\r\n");
 
 	// server
-	buf_append_str(header, "Server: Stub\r\n");
+	buf_append_str(header, "Server: Tinn\r\n");
 
 	// content type
 	buf_append_str(header, "Content-Type: ");
@@ -511,7 +575,7 @@ int send_file(int sock, struct client_state* state, char* path) {
 	buf_free(body);
 }
 
-void client_listener(struct sockets_list* sockets, int index) {
+void client_listener(struct sockets_list* sockets, int index, struct routes* routes) {
 	int sock = sockets->pollfds[index].fd;
 	struct client_state* state = sockets->states[index];
 	
@@ -559,29 +623,33 @@ void client_listener(struct sockets_list* sockets, int index) {
 				memcpy(method, state->in->data, space_1);
 				method[space_1] = '\0';
 
-				char path[space_2-space_1+11]; // extra 11 is for /index.html
+				char path[space_2-space_1+10]; // extra 10 is for index.html
 				memcpy(path, state->in->data+space_1+1, space_2-space_1-1);
 				path[space_2-space_1-1] = '\0';
 
+				char* anchor = strchr(path, '#');
+				if (anchor != NULL) {
+					*(anchor) = '\0';
+					anchor++;
+				}
+
+				char* query = strchr(path, '?');
+				if (query != NULL) {
+					*(query) = '\0';
+					query++;
+				}
+
 				tprintf("\"%s\" \"%s\" from %s (%d)\n", method, path, state->address, sock);
 				if (strcmp(method, "GET")==0) {
-					char* file_path = get_file_path(files, path);
-					if (file_path != NULL) {
-						send_file(sock, state, file_path);
+					struct route* route = routes_find(routes, path);
+					if (route == NULL) {
+						send_simple_status(sock, state, "404", "Not Found", "Opps, that resource can not be found.");
+					} else if (route->type == RT_LOCAL) {
+						send_file(sock, state, route->to);
+					} else if (route->type == RT_REDIRECT) {
+						send_redirect(sock, state, route->to);
 					} else {
-						// try appending /index.html
-						if (path[space_2-space_1-2] == '/') {
-							strcat(path, "index.html");
-						} else {
-							strcat(path, "/index.html");
-						}
-
-						file_path = get_file_path(files, path);
-						if (file_path != NULL) {
-							send_file(sock, state, file_path);
-						} else {
-							send_simple_status(sock, state, "404", "Not Found", "Opps, that resource can not be found.");
-						}
+						send_simple_status(sock, state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
 					}
 				} else {
 					send_simple_status(sock, state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
@@ -606,7 +674,7 @@ void *get_in_addr(struct sockaddr *sa) {
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
-void server_listener(struct sockets_list* sockets, int index) {
+void server_listener(struct sockets_list* sockets, int index, struct routes* routes) {
 	struct sockaddr_storage address;
 	socklen_t address_size;
 	int client_socket;
@@ -635,13 +703,14 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// get static files
-	files = find_static_files(argv[2]);
-	
-	tprintf("available files\n");
-	for (struct static_file* file = files; file != NULL; file = file->next) {
-		printf("  %s\n", file->server_path);
-	}
+	// build routes
+	struct routes* routes = routes_build(argv[2]);
+
+	/*struct route* route = routes->head;
+	while (route != NULL) {
+		printf("\"%s\" %s \"%s\"\n", route->from, route->type==RT_LOCAL ? "->" : "rd", route->to);
+		route = route->next;
+	}*/
 
 	// create list of sockets
 	struct sockets_list* sockets = sockets_list_new();
@@ -665,14 +734,14 @@ int main(int argc, char* argv[]) {
 
 		for (int i = 0; i < sockets->count; i++) {
 			if (sockets->pollfds[i].revents & POLLIN) {
-				sockets->listeners[i](sockets, i);
+				sockets->listeners[i](sockets, i, routes);
 			}
 		}
 	}
 
 	// tidy up, but we should never get here?
 	close(server_socket);
-	free_static_files(files);
+	//routes_free(routes);
 	
 	return EXIT_SUCCESS;
 }
