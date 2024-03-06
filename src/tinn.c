@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -84,67 +85,51 @@ struct route* routes_find(struct routes* list, char* from) {
 	return NULL;
 }
 
-struct routes* routes_build(char* path) {
-	struct routes* list = routes_new();
-
-	// To work out the server path, we are going to remove the traversal to 
-	// the root directory, but we want to keep the forward slash so all 
-	// server paths start with one.
-	int pathlen = strlen(path);
-	if (pathlen>0) {
-		if (path[pathlen-1] == '/') {
-			pathlen--;
-		}
-	}
+void routes_add_static(struct routes* list) {
 
 	// read the file system
 	FTS* file_system = NULL;
 	FTSENT* node = NULL;
 
-	file_system = fts_open((char* const[]){path, NULL}, FTS_LOGICAL, NULL);
+	file_system = fts_open((char* const[]){".", NULL}, FTS_LOGICAL, NULL);
 	if (file_system == NULL) {
 		perror("routes_build");
-		return NULL;
+		return;
 	}
 	
 	while ((node = fts_read(file_system)) != NULL) {
-		// ignore dot (hidden) files unless it's the first directory and it's . or ..
-		if(node->fts_name[0]=='.' && strcmp(node->fts_path, ".")!=0 && strcmp(node->fts_path, "..")!=0) {
+		// ignore dot (hidden) files unless it's the . dir aka the current dir
+		if(node->fts_name[0]=='.' && strcmp(node->fts_path, ".")!=0) {
 			fts_set(file_system, node, FTS_SKIP);
 
 		} else if (node->fts_info == FTS_F) {
-			if (node->fts_pathlen > pathlen) {
-				// a valid file, add route
-				char* file_path = malloc(node->fts_pathlen+1);
-				strcpy(file_path, node->fts_path);
+			// a valid file, add route
+			char* file_path = malloc(node->fts_pathlen+1);
+			strcpy(file_path, node->fts_path);
 
-				routes_add(list, RT_FILE, file_path+pathlen, file_path);
+			routes_add(list, RT_FILE, file_path+1, file_path);
 
-				// add directory?
-				if (strcmp(node->fts_name, "index.html") == 0) {
-					size_t len = node->fts_pathlen - pathlen - 10;
-					char* dir_path = malloc(len+1);
-					strncpy(dir_path, node->fts_path+pathlen, len);
-					dir_path[len] = '\0';
+			// add directory?
+			if (strcmp(node->fts_name, "index.html") == 0) {
+				size_t len = node->fts_pathlen - 10;
+				char* dir_path = malloc(len+1);
+				strncpy(dir_path, node->fts_path, len);
+				dir_path[len] = '\0';
 
-					routes_add(list, RT_FILE, dir_path, file_path);
+				routes_add(list, RT_FILE, dir_path+1, file_path);
 
-					if (len>1) {
-						char* redirect_path = malloc(len);
-						strncpy(redirect_path, node->fts_path+pathlen, len-1);
-						redirect_path[len-1] = '\0';
+				if (len>2) {
+					char* redirect_path = malloc(len);
+					strncpy(redirect_path, node->fts_path, len-1);
+					redirect_path[len-1] = '\0';
 
-						routes_add(list, RT_REDIRECT, redirect_path, dir_path);
-					}
+					routes_add(list, RT_REDIRECT, redirect_path+1, dir_path);
 				}
 			}
 		}
 	}
 
 	fts_close(file_system);
-
-	// return the first file in the list
-	return list;
 }
 
 // ================ basic network stuff ================
@@ -306,85 +291,36 @@ struct buffer* buf_new(long size) {
 }
 
 void buf_free(struct buffer* buf) {
-	free(buf->data);
-	free(buf);
+	if (buf != NULL) {
+		free(buf->data);
+		free(buf);
+	}
 }
 
-int buf_extend(struct buffer* buf, long new_size) {
+bool buf_extend(struct buffer* buf, long new_size) {
 	if (new_size > buf->size) {
 		char* new_data = realloc(buf->data, new_size);
 		if (new_data == NULL) {
-			return -1;
+			return false;
 		}
 
 		buf->size = new_size;
 		buf->data = new_data;
 	}
-	return 0;
+	return true;
 }
 
-int buf_ensure(struct buffer* buf, long n) {
+bool buf_ensure(struct buffer* buf, long n) {
 	if (buf->length + n > buf->size) {
-		int new_size = buf->size * 2;
+		int new_size = buf->size * 2 || 1;
 		while (new_size < buf->length + n) {
 			new_size *= 2;
 		}
 		if (buf_extend(buf, new_size) < 0) {
-			return -1;
+			return false;
 		}
 	}
-	return 0;
-}
-
-int buf_append(struct buffer* buf, char* data, long n) {
-	if (buf_ensure(buf, n) < 0) {
-		return -1;
-	}
-
-	memcpy(buf->data + buf->length, data, n);
-	buf->length += n;
-	return buf->length;
-}
-
-int buf_append_str(struct buffer* buf, char* str) {
-	return buf_append(buf, str, strlen(str));	
-}
-
-int buf_append_format(struct buffer* buf, long max, char* format, ...) {
-	if (buf_ensure(buf, max+1) < 0) {
-		return -1;
-	}
-
-	va_list args;
-	va_start(args, format);
-	int added = vsnprintf(buf->data+buf->length, max+1, format, args);
-	va_end(args);
-
-	if (added < 0) {
-		return -1;
-	}
-	buf->length += added;
-	return buf->length;
-}
-int buf_append_buf(struct buffer* target, struct buffer* source) {
-	long len = source->length;
-	if (buf_ensure(target, len) < 0) {
-		return -1;
-	}
-
-	memcpy(target->data + target->length, source->data, len);
-	target->length += len;
-	return target->length;
-}
-
-char* buf_reserve(struct buffer* buf, long n) {
-	if (buf_ensure(buf, n) < 0) {
-		return NULL;
-	}
-
-	char* rv = buf->data + buf->length;
-	buf->length += n;
-	return rv;
+	return true;
 }
 
 char* buf_write_ptr(struct buffer* buf) {
@@ -421,6 +357,63 @@ long buf_seek(struct buffer* buf, long offset) {
 	return buf->read_pos;
 }
 
+long buf_append(struct buffer* buf, char* data, long n) {
+	if (!buf_ensure(buf, n)) {
+		return -1;
+	}
+
+	memcpy(buf->data + buf->length, data, n);
+	buf->length += n;
+	return buf->length;
+}
+long buf_append_str(struct buffer* buf, char* str) {
+	return buf_append(buf, str, strlen(str));	
+}
+long buf_append_format(struct buffer* buf, char* format, ...) {
+	long max = buf_write_max(buf);
+
+	va_list args;
+	va_start(args, format);
+	long len = vsnprintf(buf_write_ptr(buf), max, format, args);
+	va_end(args);
+
+	if (len >= max) {
+		if (!buf_ensure(buf, len+1)) {
+			return -1;
+		}
+
+		va_start(args, format);
+		len = vsnprintf(buf_write_ptr(buf), len+1, format, args);
+		va_end(args);
+	}
+
+	if (len < 0) {
+		return -1;
+	}
+	buf->length += len;
+
+	return buf->length;
+}
+long buf_append_buf(struct buffer* target, struct buffer* source) {
+	long len = source->length;
+	if (!buf_ensure(target, len)) {
+		return -1;
+	}
+
+	memcpy(target->data + target->length, source->data, len);
+	target->length += len;
+	return target->length;
+}
+
+char* buf_reserve(struct buffer* buf, long n) {
+	if (buf_ensure(buf, n) < 0) {
+		return NULL;
+	}
+
+	char* rv = buf->data + buf->length;
+	buf->length += n;
+	return rv;
+}
 void buf_consume(struct buffer* buf, long n) {
 	long new_len = buf->length - n;
 	if (new_len > 0) {
@@ -439,7 +432,7 @@ void buf_reset(struct buffer* buf) {
 
 char* buf_as_str(struct buffer* buf) {
 	if (buf->length == buf->size) {
-		if (buf_extend(buf, buf->size + 1) < 0) {
+		if (!buf_extend(buf, buf->size + 1)) {
 			return NULL;
 		}
 	}
@@ -486,7 +479,7 @@ void client_state_free(struct client_state* state) {
 
 void buf_start_headers(struct buffer* buf, char *status_code, char *status_text) {
 	// status line
-	buf_append_format(buf, 12 + strlen(status_code) + strlen(status_text), "HTTP/1.1 %s %s\r\n", status_code, status_text);
+	buf_append_format(buf, "HTTP/1.1 %s %s\r\n", status_code, status_text);
 
 	// date
 	buf_append_str(buf, "Date: ");
@@ -540,7 +533,7 @@ void buf_append_content_type(struct buffer* buf, char* ext) {
 }
 
 void buf_append_content_length(struct buffer* buf, long length) {
-	buf_append_format(buf, 30, "Content-Length: %ld\r\n", length);
+	buf_append_format(buf, "Content-Length: %ld\r\n", length);
 }
 
 void client_prep_simple_status(struct client_state* state, char *status_code, char *status_text, char *description) {
@@ -810,197 +803,256 @@ long buf_append_file(struct buffer* buf, char* path) {
 	fread(buf_ptr, 1, length, file);
 	fclose(file);
 
-	return length;
+	return buf->length;
 }
 
-void blog_build(char* base_path, struct routes* routes) {
-	const size_t max_len = 256;
-	const char blog_dir[] = "/blog/";
-	const char blog_file[] = "/.post.html";
+struct buffer* buf_new_file(char* path) {
+	struct buffer* buf = buf_new(0);
+	if (buf != NULL) {
+		if (buf_append_file(buf, path) < 0) {
+			fprintf(stderr, "Error reading %s\n", path);
+			return NULL;
+		}
+	}
+	return buf;
+}
 
-	// create arrays for paths
-	size_t bpl = strlen(base_path);
-	size_t spl = sizeof(blog_dir)-1;
-	if (base_path[bpl-1] == '/') {
-		bpl--;
-	}	
-	char path[bpl + spl + max_len + sizeof(blog_file)];
-	strcpy(path, base_path);
-	strcpy(path + bpl, blog_dir);
-	bpl += spl;
+#define MAX_PATH_LEN 256
+
+struct post {
+	char path[MAX_PATH_LEN];
+	char server_path[MAX_PATH_LEN];
+	char title[MAX_PATH_LEN];
+	char date[20];
+	struct buffer* content;
+};
+
+struct posts_list {
+	size_t size;
+	size_t count;
+	struct post* data;
+};
+
+struct posts_list* posts_list_new() {
+	struct posts_list* list;
+	if ((list = malloc(sizeof(*list))) != NULL) {
+		list->size = 32;
+		list->count = 0;
+		list->data = malloc(sizeof(*list->data) * list->size);
+	}
+	return list;
+}
+void posts_list_free(struct posts_list* list) {
+	if (list != NULL) {
+		for (int i=0; i<list->count; i++) {
+			buf_free(list->data[i].content);
+		}
+		free(list->data);
+		free(list);
+	}
+}
+bool posts_list_extend(struct posts_list* list, size_t new_size) {
+	struct post* new_data = realloc(list->data, sizeof(*list->data) * new_size);
+	if (new_data != NULL) {
+		list->size = new_size;
+		list->data = new_data;
+		return true;
+	}
+	return false;
+}
+struct post* posts_list_draft(struct posts_list* list) {
+	if (list->count == list->size) {
+		if (!posts_list_extend(list, list->size * 2)) {
+			return NULL;
+		}
+	}
+	return &(list->data[list->count]);
+}
+void posts_list_commit(struct posts_list* list) {
+	if (list->count < list->size) {
+		list->count++;
+	}
+}
+
+bool blog_read_posts(struct posts_list* posts, const char* blog_dir) {
+	char path[MAX_PATH_LEN];
+	snprintf(path, MAX_PATH_LEN, "%s/.posts.txt", blog_dir);
+
+	FILE* data = fopen(path, "r");
+	if (data == NULL) {
+		fprintf(stderr, "Error reading %s\n", path);
+		return false;
+	}
+
+	for (;;) {
+		struct post* post = posts_list_draft(posts);
+		if (post == NULL) {
+			fprintf(stderr, "Unable to get next posts");
+			fclose(data);
+			return false;
+		}
+		if (fscanf(data, "%255[^\t]%*[\t]%2556[^\t]%*[\t]%19[^\n]%*[\n]", post->path, post->title, post->date) != 3) { //TODO better parsing and no hardcoding?
+			// done reading file?
+			break;
+		} else {
+			int len = snprintf(path, MAX_PATH_LEN, "%s/%s/.post.html", blog_dir, post->path);
+			if (len < 0 || len >= MAX_PATH_LEN) {
+				fprintf(stderr, "Error, unable to create path for \"%s\"\n", post->path);
+				continue;
+			}
+			snprintf(post->server_path, MAX_PATH_LEN, "/%s/%s", blog_dir, post->path);
+
+			post->content = buf_new_file(path);
+			if (post->content == NULL) {
+				fprintf(stderr, "Error reading %s\n", path);
+				continue;
+			}
+
+			posts_list_commit(posts);
+		}
+	}
+
+	fclose(data);
+	return true;
+}
+
+bool blog_build(struct routes* routes) {
+	bool ok = true;
+	const char blog_dir[] = "blog";
 			
-	// load header part 1
-	strcpy(path+bpl, ".header1.html");
-	struct buffer* header1 = buf_new(256);
-	if (buf_append_file(header1, path) < 0) {
-		fprintf(stderr, "Error reading %s\n", path);
-		return;
-	}
+	// load html fragments
+	struct buffer* header1 = buf_new_file(".header1.html");
+	struct buffer* header2 = buf_new_file(".header2.html");
+	struct buffer* footer = buf_new_file(".footer.html");
 
-	// load header part 2
-	strcpy(path+bpl, ".header2.html");
-	struct buffer* header2 = buf_new(256);
-	if (buf_append_file(header2, path) < 0) {
-		fprintf(stderr, "Error reading %s\n", path);
-		return;
-	}
-
-	// load footer
-	strcpy(path+bpl, ".footer.html");
-	struct buffer* footer = buf_new(256);
-	if (buf_append_file(footer, path) < 0) {
-		fprintf(stderr, "Error reading %s\n", path);
-		return;
-	}
-
-	// start index
-	struct buffer* index = buf_new(10240);
-	buf_append_buf(index, header1);
-	buf_append_buf(index, header2);
-
-	// start archive
-	struct buffer* archive = buf_new(10240);
-	buf_append_buf(archive, header1);
-	buf_append_str(archive, " - Blog");
-	buf_append_buf(archive, header2);
-	buf_append_str(archive, "<h1>Blog Archive</h1>\n");
+	ok = header1 != NULL && header2 != NULL && footer != NULL;
 
 	// read blog list
-	strcpy(path+bpl, ".posts.txt");
-	FILE *posts = fopen(path, "r");	
-	if (posts == NULL) {
-		fprintf(stderr, "Error reading %s\n", path);
-		return;
+	struct posts_list* posts = NULL;
+	if (ok) {
+		posts = posts_list_new();
+		ok = posts != NULL && blog_read_posts(posts, blog_dir);
 	}
-
-	int count = 0;
-	char post_path[max_len];
-	char post_title[max_len];
-	char post_date[20];
-
-	struct buffer* next_post;
-	char* next_post_path = NULL;
-	char* next_next_post_path = NULL;
-
-	char archive_date[15] = "";
-
-	// erm, this is a going to be fun to read later, google scansets
-	// also hardcoded the maximums....
-	while (fscanf(posts, "%256[^\t]%*[\t]%256[^\t]%*[\t]%18[^\n]%*[\n]", post_path, post_title, post_date) == 3) {
-		count++;
-
-		strcpy(path+bpl, post_path);
-		strcpy(path+bpl+strlen(post_path), blog_file);
-
-		// post page
-		struct buffer* post = buf_new(10240);
-		buf_append_buf(post, header1);
-		buf_append_str(post, " - ");
-		buf_append_str(post, post_title);
-		buf_append_buf(post, header2);
-		buf_append_str(post, "<article><h1>");
-		buf_append_str(post, post_title);
-		buf_append_str(post, "</h1><h2>");
-		buf_append_str(post, post_date);
-		buf_append_str(post, "</h2>\n");
-		if (buf_append_file(post, path) < 0) {
-			fprintf(stderr, "Error reading %s\n", path);
-			buf_free(post);
-			continue;
-		}
-
-		char* server_path = malloc(spl + strlen(post_path) + 1);
-		strcpy(server_path, blog_dir);
-		strcpy(server_path+spl, post_path);
-		routes_add(routes, RT_BUFFER, server_path, post);
-
-		//printf("\"%s\" \"%s\" \"%s\"\n", server_path, next_post_path, next_next_post_path);
-
-		// add navigation and close off the next post (which we already saw because blogs are backwards)
-		if (count > 1) {
-			buf_append_str(next_post, "<nav><a href=\"");
-			buf_append_str(next_post, server_path);
-			buf_append_str(next_post, "\">prev</a>");
-			if (count > 2) {
-				buf_append_str(next_post, "<a href=\"");
-				buf_append_str(next_post, next_next_post_path);
-				buf_append_str(next_post, "\">next</a>");
+	
+	// build pages
+	if (ok) {
+		// build blog pages
+		for (int i=0; i<posts->count; i++) {
+			struct buffer* post = buf_new(10240);
+			buf_append_buf(post, header1);
+			buf_append_format(post, " - %s", posts->data[i].title);
+			buf_append_buf(post, header2);
+			buf_append_format(post, "<article><h1>%s</h1><h2>%s</h2>\n", posts->data[i].title, posts->data[i].date);
+			buf_append_buf(post, posts->data[i].content);
+			buf_append_str(post, "<nav>");
+			if (i < posts->count-1) {
+				buf_append_format(post, "<a href=\"%s\">prev</a>", posts->data[i+1].path);
+			} else {
+				buf_append_str(post, "<span>&nbsp;</span>");
 			}
-			buf_append_str(next_post, "</nav></article>\n");
-			buf_append_buf(next_post, footer);
+			if (i > 0) {
+				buf_append_format(post, "<a href=\"%s\">next</a>", posts->data[i-1].path);
+			}
+			buf_append_str(post, "</nav></article>\n");
+			buf_append_buf(post, footer);
+			
+			routes_add(routes, RT_BUFFER, posts->data[i].server_path, post);
 		}
 
-		next_post = post;
-		next_next_post_path = next_post_path;
-		next_post_path = server_path;
+		// build archive page
+		struct buffer* archive = buf_new(10240);
+		buf_append_buf(archive, header1);
+		buf_append_str(archive, " - Blog");
+		buf_append_buf(archive, header2);
+		buf_append_str(archive, "<h1>Blog Archive</h1>\n");
+		buf_append_str(archive, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
 
-		// index
-		if (count > 1) {
-			buf_append_str(index, "<hr>\n");
+		char archive_date[15] = "";
+
+		for (int i=0; i<posts->count; i++) {
+			if (strcmp(archive_date, strchr(posts->data[i].date, ' ')+1) != 0) {
+				strcpy(archive_date, strchr(posts->data[i].date, ' ')+1);
+
+				buf_append_format(archive, "<hr>\n<h3>%s</h3>\n", archive_date);
+			}
+			buf_append_format(archive, "<p><a href=\"%s\">%s</a></p>\n", posts->data[i].server_path, posts->data[i].title);
 		}
-		buf_append_str(index, "<article><h1><a href=\"");
-		buf_append_str(index, server_path);
-		buf_append_str(index, "\">");
-		buf_append_str(index, post_title);
-		buf_append_str(index, "</a></h1><h2>");
-		buf_append_str(index, post_date);
-		buf_append_str(index, "</h2>");
-		buf_append_file(index, path);
-		buf_append_str(index, "</article>\n");
 
-		// archive
-		if (strcmp(archive_date, strchr(post_date, ' ')+1) != 0) {
-			buf_append_str(archive, "<hr>\n");
+		buf_append_buf(archive, footer);
+		routes_add(routes, RT_BUFFER, "/blog", archive); //TODO remove hardcoded path
 
-			strcpy(archive_date, strchr(post_date, ' ')+1);
-			buf_append_str(archive, "<h3>");
-			buf_append_str(archive, archive_date);
-			buf_append_str(archive, "</h3>\n");
-		}		
-		buf_append_str(archive, "<p><a href=\"");
-		buf_append_str(archive, server_path);
-		buf_append_str(archive, "\">");
-		buf_append_str(archive, post_title);
-		buf_append_str(archive, "</a></p>\n");
+		// build home page
+		struct buffer* home = buf_new(10240);
+		buf_append_buf(home, header1);
+		buf_append_buf(home, header2);
+
+		for (int i=0; i<posts->count; i++) {
+			if (i > 0) {
+				buf_append_str(home, "<hr>\n");
+			}
+			buf_append_str(home, "<article>");
+			buf_append_format(home, "<h1><a href=\"%s\">%s</a></h1>", posts->data[i].server_path, posts->data[i].title);
+			buf_append_format(home, "<h2>%s</h2>", posts->data[i].date);
+			buf_append_buf(home, posts->data[i].content);
+			buf_append_str(home, "</article>\n");
+		}
+
+		buf_append_buf(home, footer);
+		routes_add(routes, RT_BUFFER, "/", home);
+
+		// build log page
+		struct buffer* log = buf_new(10240);
+		buf_append_buf(log, header1);
+		buf_append_buf(log, header2);
+
+		for (int i=posts->count-1; i>=0; i--) {
+			if (i < posts->count-1) {
+				buf_append_str(log, "<hr>\n");
+			}
+			buf_append_str(log, "<article>");
+			buf_append_format(log, "<h1><a href=\"%s\">%s</a></h1>", posts->data[i].server_path, posts->data[i].title);
+			buf_append_format(log, "<h2>%s</h2>", posts->data[i].date);
+			buf_append_buf(log, posts->data[i].content);
+			buf_append_str(log, "</article>\n");
+		}
+
+		buf_append_buf(log, footer);
+		routes_add(routes, RT_BUFFER, "/log", log); // TODO remove hardcoded path?
 	}
-
-	// close off first post (which is last becuase blogs are backwards)
-	if (count > 1) {
-		buf_append_str(next_post, "<nav><span>&nbsp;</span><a href=\"");
-		buf_append_str(next_post, next_next_post_path);
-		buf_append_str(next_post, "\">next</a></nav>");
-	}
-	if (count > 0) {
-		buf_append_str(next_post, "</article>\n");
-		buf_append_buf(next_post, footer);
-	}
-
-	// close index
-	buf_append_buf(index, footer);
-	routes_add(routes, RT_BUFFER, "/", index);
-
-	// close archive
-	buf_append_buf(archive, footer);
-	routes_add(routes, RT_BUFFER, "/blog", archive);
 
 	// clean up
+	//posts_list_free(posts); // There is a problem with how routes store the paths that means I can't free this...yet
 	buf_free(header1);
 	buf_free(header2);
 	buf_free(footer);
+
+	// success?
+	return ok;
 }
 
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
 	// validate arguments
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s port root_dir\n", argv[0]);
+		fprintf(stderr, "Usage: %s port content_directory\n", argv[0]);
+		return EXIT_FAILURE;
+	}
+
+	// change working directory to content directory
+	if (chdir(argv[2]) != 0) {
+		perror("content_directory");
 		return EXIT_FAILURE;
 	}
 
 	// build routes
-	struct routes* routes = routes_build(argv[2]);
-	blog_build(argv[2], routes);
-
+	struct routes* routes = routes_new();
+	routes_add_static(routes);
+	
+	if (!blog_build(routes)) {
+		fprintf(stderr, "Error loading blog\n", argv[0]);
+		return EXIT_FAILURE;
+	}
+	
 	/*struct route* route = routes->head;
 	while (route != NULL) {
 
