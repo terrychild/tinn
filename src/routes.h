@@ -1,6 +1,7 @@
 #ifndef TINN_ROUTES_H
 #define TINN_ROUTES_H
 
+#include "console.h"
 #include "buffer.h"
 
 #define RT_FILE 1
@@ -26,7 +27,7 @@ void routes_add_static(Routes* list);
 
 Route* routes_find(Routes* list, char* from);
 
-void routes_list(Routes* list);
-void routes_print(Route* route);
+void routes_log(Routes* list, ConsoleLevel level);
+void route_log(Route* route, ConsoleLevel level);
 
 #endif

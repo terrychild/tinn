@@ -3,7 +3,6 @@
 #include <fts.h> // for file system access stuff
 
 #include "routes.h"
-#include "console.h"
 
 Routes* routes_new() {
 	Routes* list = malloc(sizeof(*list));
@@ -139,41 +138,32 @@ Route* routes_find(Routes* list, char* from) {
 	return NULL;
 }
 
-void routes_list(Routes* list) {
-	TRACE("routes");
+void routes_log(Routes* list, ConsoleLevel level) {
+	console(stdout, level, true, false, "routes");
 
 	Route* route = list->head;
 	while (route != NULL) {
-		switch(route->type) {
-			case RT_FILE: 
-				TRACE_DETAIL("\"%s\" -> \"%s\"", route->from, route->to);
-				break;
-			case RT_REDIRECT: 
-				TRACE_DETAIL("\"%s\" RD \"%s\"", route->from, route->to);
-				break;
-			case RT_BUFFER: 
-				TRACE_DETAIL("\"%s\" buffer %d", route->from, ((Buffer*)route->to)->length);
-				break;
-			default:
-				TRACE_DETAIL("\"%s\" ??", route->from);
-				break;
-		}
+		route_log(route, level);
 		route = route->next;
 	}
 }
-void routes_print(Route* route) {
-	switch(route->type) {
-		case RT_FILE: 
-			TRACE("\"%s\" -> \"%s\"", route->from, route->to);
-			break;
-		case RT_REDIRECT: 
-			TRACE("\"%s\" RD \"%s\"", route->from, route->to);
-			break;
-		case RT_BUFFER: 
-			TRACE("\"%s\" buffer %d", route->from, ((Buffer*)route->to)->length);
-			break;
-		default:
-			TRACE("\"%s\" ??", route->from);
-			break;
+void route_log(Route* route, ConsoleLevel level) {
+	if (route == NULL) {
+		console(stdout, level, false, false, "Unknown route");
+	} else {
+		switch(route->type) {
+			case RT_FILE: 
+				console(stdout, level, false, false, "\"%s\" -> \"%s\"", route->from, route->to);
+				break;
+			case RT_REDIRECT: 
+				console(stdout, level, false, false, "\"%s\" RD \"%s\"", route->from, route->to);
+				break;
+			case RT_BUFFER: 
+				console(stdout, level, false, false, "\"%s\" buffer (%d)", route->from, ((Buffer*)route->to)->length);
+				break;
+			default:
+				console(stdout, level, false, false, "\"%s\" ??", route->from);
+				break;
+		}
 	}
 }

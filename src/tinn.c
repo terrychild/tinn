@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	routes_list(routes);
+	routes_log(routes, CL_TRACE);
 	
 	// create list of sockets
 	Sockets* sockets = sockets_new();

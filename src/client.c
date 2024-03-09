@@ -235,21 +235,19 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			LOG("\"%s\" \"%s\" from %s (%d)", method, path, state->address, pfd->fd);
 			if (strcmp(method, "GET")==0) {
 				Route* route = routes_find(routes, path);
+				route_log(route, CL_DEBUG);
 				if (route == NULL) {
 					prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
-				} else {
-					routes_print(route);
-					if (route->type == RT_FILE) {
-						if (!prep_file(state, route->to)) {
-							prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
-						}
-					} else if (route->type == RT_REDIRECT) {
-						prep_redirect(state, route->to);
-					} else if (route->type == RT_BUFFER) {
-						prep_buffer(state, route->to);
-					} else {
-						prep_simple_status(state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
+				} else if (route->type == RT_FILE) {
+					if (!prep_file(state, route->to)) {
+						prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
 					}
+				} else if (route->type == RT_REDIRECT) {
+					prep_redirect(state, route->to);
+				} else if (route->type == RT_BUFFER) {
+					prep_buffer(state, route->to);
+				} else {
+					prep_simple_status(state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
 				}
 			} else {
 				prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");

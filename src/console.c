@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "console.h"
-ConsoleLevel console_level = CL_TRACE;
 
 #define RED "\x1B[31m"
 #define INTENSE_BOLD_RED "\x1B[1;91m"
@@ -22,9 +21,10 @@ static void print_time(FILE *stream) {
 static void print_prefix(FILE *stream, ConsoleLevel level) {
 	switch(level) {
 		case CL_TRACE:
+		case CL_DEBUG:
 			fputs(CYAN, stream);
 			break;
-		case CL_LOG:
+		case CL_INFO:
 			break;
 		case CL_WARN:
 			fputs(YELLOW "warning: " RESET, stream);
@@ -39,7 +39,7 @@ static void print_prefix(FILE *stream, ConsoleLevel level) {
 }
 
 void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...) {
-	if (level >= console_level) {
+	if (level >= CONSOLE_OUTPUT_LEVEL) {
 		if (inc_time) {
 			print_time(stream);
 		} else {
