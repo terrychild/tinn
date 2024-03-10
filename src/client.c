@@ -254,7 +254,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			}
 		} else {
 			WARN("Bad request from %s (%d)\n", state->address, pfd->fd);
-			TRACE(buf_as_str(state->in));
+			//DEBUG(buf_as_str(state->in));
 			prep_simple_status(state, "400", "Bad Request", "Opps, that request made no sense.");
 		}
 
