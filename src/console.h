@@ -14,7 +14,9 @@ typedef enum {
 	CL_PANIC =	5
 } ConsoleLevel;
 
-#define CONSOLE_OUTPUT_LEVEL CL_DEBUG
+#ifndef CLEVEL
+#define CLEVEL CL_DEBUG
+#endif
 
 void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...);
 

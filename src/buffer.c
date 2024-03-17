@@ -2,21 +2,16 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "utils.h"
 #include "buffer.h"
 #include "console.h"
 
 Buffer* buf_new(long size) {
-	Buffer* buf = malloc(sizeof(*buf));
-	if (buf == NULL) {
-		PANIC("unable to allocate memory for buffer");
-	}
-	
+	Buffer* buf = allocate(NULL, sizeof(*buf));
 	buf->size = size;
 	buf->length = 0;
 	buf->read_pos = 0;
-	if ((buf->data = malloc(buf->size)) == NULL) {
-		PANIC("unable to allocate memory for buffer");
-	}
+	buf->data = allocate(NULL, buf->size);
 	return buf;
 }
 Buffer* buf_new_file(char* path) {
@@ -41,24 +36,19 @@ void buf_reset(Buffer* buf) {
 	buf->read_pos = 0;
 }
 
-static void extend(Buffer* buf, long new_size) {
-	if (new_size > buf->size) {
-		buf->size = new_size;
-		buf->data = realloc(buf->data, new_size);
-		if (buf->data == NULL) {
-			PANIC("unable to allocate memory for buffer");
-		}
-	}
-}
 static void ensure(Buffer* buf, long n) {
 	long new_size = buf->size || 1;
 	while (new_size < buf->length + n) {
 		new_size *= 2;
 	}
-	extend(buf, new_size);
+	if (new_size > buf->size) {
+		buf->size = new_size;
+		buf->data = allocate(buf->data, new_size);
+	}
 }
 void buf_grow(Buffer* buf) {
-	extend(buf, buf->size * 2);
+	buf->size *= 2;
+	allocate(buf, buf->size);
 }
 
 void buf_append(Buffer* buf, char* data, long n) {
@@ -174,7 +164,8 @@ char* buf_advance_read(Buffer* buf, long offset) {
 
 char* buf_as_str(Buffer* buf) {
 	if (buf->length == buf->size) {
-		extend(buf, buf->size + 1);
+		buf->size += 1;
+		allocate(buf, buf->size);
 	}
 	buf->data[buf->length] = '\0';
 	return buf->data;

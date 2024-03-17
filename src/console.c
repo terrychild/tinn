@@ -39,7 +39,7 @@ static void print_prefix(FILE *stream, ConsoleLevel level) {
 }
 
 void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...) {
-	if (level >= CONSOLE_OUTPUT_LEVEL) {
+	if (level >= CLEVEL) {
 		if (inc_time) {
 			print_time(stream);
 		} else {
@@ -55,7 +55,7 @@ void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, co
 		if (inc_errno && errno != 0) {
 			fprintf(stream, " -> %s", strerror(errno));
 		}
-		fputs("\n" RESET, stream);
+		fputs(RESET "\n", stream);
 	}
 }
 

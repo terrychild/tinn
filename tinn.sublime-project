@@ -1,0 +1,21 @@
+{
+	"folders":
+	[
+		{
+			"path": "src"
+		},
+		{
+			"name": "settings",
+			"path": ".",
+			"folder_exclude_patterns": ["*"]
+		}
+	],
+	"build_systems": [
+		{
+			"name": "tinn: build",
+			"working_dir": "$project_path",
+			"shell_cmd": "make build",
+			"file_patterns": ["*.c", "*.h"]
+		}
+	]
+}

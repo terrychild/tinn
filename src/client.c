@@ -1,25 +1,15 @@
 #include <string.h>
 #include <time.h>
 
+#include "utils.h"
 #include "console.h"
 #include "client.h"
 #include "buffer.h"
 
 ClientState* client_state_new() {
-	ClientState* state;
-
-	if ((state = malloc(sizeof(*state))) == NULL) {
-		PANIC("unable to allocate memory for client state");
-	}
-
-	if ((state->in = buf_new(1024)) == NULL) {
-		PANIC("unable to allocate memory for client state");
-	}
-
-	if ((state->out = buf_new(1024)) == NULL) {
-		PANIC("unable to allocate memory for client state");
-	}
-
+	ClientState* state = allocate(NULL, sizeof(*state));
+	state->in = buf_new(1024);
+	state->out = buf_new(1024);
 	return state;
 }
 void client_state_free(ClientState* state) {

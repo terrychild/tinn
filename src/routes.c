@@ -2,13 +2,11 @@
 #include <string.h>
 #include <fts.h> // for file system access stuff
 
+#include "utils.h"
 #include "routes.h"
 
 Routes* routes_new() {
-	Routes* list = malloc(sizeof(*list));
-	if (list == NULL) {
-		PANIC("unable to allocate memory for routes");
-	}
+	Routes* list = allocate(NULL, sizeof(*list));
 	list->head = NULL;
 	list->tail_next = &list->head;
 	return list;
@@ -35,11 +33,8 @@ void routes_free(Routes* list) {
 }
 
 static Route* add(Routes* list) {
-	Route* new_route  = malloc(sizeof(*new_route));
-	if (new_route == NULL) {
-		PANIC("unable to allocate memory for route");
-	}
-
+	Route* new_route  = allocate(NULL, sizeof(*new_route));
+	
 	new_route->next = NULL;
 	*list->tail_next = new_route;
 	list->tail_next = &new_route->next;
@@ -49,12 +44,8 @@ static Route* add(Routes* list) {
 
 static Route* add_str(Routes* list, char* from, size_t from_len, char* to, size_t to_len) {
 	Route* new_route = add(list);
-	new_route->from = malloc(from_len+1);
-	new_route->to = malloc(to_len+1);
-
-	if (new_route->from == NULL || new_route->to == NULL) {
-		PANIC("unable to allocate memory for route");
-	}
+	new_route->from = allocate(NULL, from_len+1);
+	new_route->to = allocate(NULL, to_len+1);
 
 	strncpy(new_route->from, from, from_len);
 	new_route->from[from_len] = '\0';
@@ -76,12 +67,8 @@ static void add_redirect(Routes* list, char* from, size_t from_len, char* to, si
 static Buffer* add_buf(Routes* list, char* from, size_t from_len, size_t buf_len) {
 	Route* new_route = add(list);
 	new_route->type = RT_BUFFER;
-	new_route->from = malloc(from_len+1);
+	new_route->from = allocate(NULL, from_len+1);
 	new_route->to = buf_new(buf_len);
-
-	if (new_route->from == NULL || new_route->to == NULL) {
-		PANIC("unable to allocate memory for route");
-	}
 
 	strncpy(new_route->from, from, from_len);
 	new_route->from[from_len] = '\0';
@@ -94,6 +81,7 @@ Buffer* routes_new_buf(Routes* list, char* from, size_t buf_len) {
 }
 
 void routes_add_static(Routes* list) {
+	TRACE("build static routes");
 
 	// read the file system
 	FTS* file_system = NULL;

@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "utils.h"
 #include "console.h"
 #include "routes.h"
 #include "blog.h"
@@ -7,6 +8,8 @@
 
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
+	LOG("Tinn v0.8.0-alpha");
+
 	// validate arguments
 	if (argc != 3) {
 		ERROR("correct usage is -> %s port content_directory", argv[0]);
@@ -18,9 +21,9 @@ int main(int argc, char* argv[]) {
 		ERROR("invalid content directory (%s)", argv[2]);
 		return EXIT_FAILURE;
 	}
-
 	
 	// build routes
+	TRACE("building routes");
 	Routes* routes = routes_new();
 	routes_add_static(routes);
 	
@@ -28,13 +31,14 @@ int main(int argc, char* argv[]) {
 		ERROR("loading blog");
 		return EXIT_FAILURE;
 	}
-
 	routes_log(routes, CL_TRACE);
 	
 	// create list of sockets
+	TRACE("creating list of sockets");
 	Sockets* sockets = sockets_new();
 	
 	// open server socket
+	TRACE("opening server socket");
 	int server_socket = get_server_socket(argv[1]);
 	if (server_socket < 0) {
 		ERROR("getting server socket");

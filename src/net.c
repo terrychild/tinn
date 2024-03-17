@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "utils.h"
 #include "net.h"
 #include "console.h"
 
@@ -63,21 +64,14 @@ int get_server_socket(char* port) {
 }
 
 Sockets* sockets_new() {
-	Sockets* list = malloc(sizeof(*list));
-	if (list  == NULL) {
-		PANIC("unable to allocate memory for sockets list");
-	}
-
-	list->size = 5;
+	Sockets* list = allocate(NULL, sizeof(*list));
+	
+	list->size = 8;
 	list->count = 0;
 
-	list->pollfds = malloc(sizeof(*list->pollfds) * list->size);
-	list->listeners = malloc(sizeof(*list->listeners) * list->size);
-	list->states = malloc(sizeof(*list->states) * list->size);
-
-	if (list->pollfds == NULL || list->listeners == NULL || list->states == NULL) {
-		PANIC("unable to allocate memory for sockets list");
-	}
+	list->pollfds = allocate(NULL, sizeof(*list->pollfds) * list->size);
+	list->listeners = allocate(NULL, sizeof(*list->listeners) * list->size);
+	list->states = allocate(NULL, sizeof(*list->states) * list->size);
 
 	return list;
 }
@@ -87,13 +81,9 @@ int sockets_add(Sockets* list, int new_socket, socket_listener new_listener) {
 	if (list->count == list->size) {
 		list->size *= 2;
 
-		list->pollfds = realloc(list->pollfds, sizeof(*list->pollfds) * list->size);
-		list->listeners = realloc(list->listeners, sizeof(*list->listeners) * list->size);
-		list->states = realloc(list->states, sizeof(*list->states) * list->size);
-
-		if (list->pollfds == NULL || list->listeners == NULL || list->states == NULL) {
-			PANIC("unable to allocate memory for sockets list");
-		}
+		list->pollfds = allocate(list->pollfds, sizeof(*list->pollfds) * list->size);
+		list->listeners = allocate(list->listeners, sizeof(*list->listeners) * list->size);
+		list->states = allocate(list->states, sizeof(*list->states) * list->size);
 	}
 
 	// add new socket

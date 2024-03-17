@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "utils.h"
 #include "console.h"
 #include "blog.h"
 #include "buffer.h"
@@ -24,16 +25,10 @@ struct posts_list {
 };
 
 static struct posts_list* posts_list_new() {
-	struct posts_list* list = malloc(sizeof(*list));
-	if (list == NULL) {
-		PANIC("unable to allocate memory for posts list");
-	}
+	struct posts_list* list = allocate(NULL, sizeof(*list));
 	list->size = 32;
 	list->count = 0;
-	list->data = malloc(sizeof(*list->data) * list->size);
-	if (list->data == NULL) {
-		PANIC("unable to allocate memory for posts list");
-	}
+	list->data = allocate(NULL, sizeof(*list->data) * list->size);
 	return list;
 }
 static void posts_list_free(struct posts_list* list) {
@@ -47,10 +42,7 @@ static void posts_list_free(struct posts_list* list) {
 }
 static void posts_list_extend(struct posts_list* list, size_t new_size) {
 	list->size = new_size;
-	list->data = realloc(list->data, sizeof(*list->data) * new_size);
-	if (list->data == NULL) {
-		PANIC("unable to allocate memory for posts list");
-	}
+	list->data = allocate(list->data, sizeof(*list->data) * new_size);
 }
 static struct post* posts_list_draft(struct posts_list* list) {
 	if (list->count == list->size) {
@@ -109,9 +101,11 @@ static void compose_article(Buffer* buf, struct post post) {
 }
 
 bool blog_build(Routes* routes) {
+	TRACE("build blog posts");
 	bool ok = true;
 
 	// load html fragments
+	TRACE("loading html fragments");
 	Buffer* header1 = buf_new_file(".header1.html");
 	Buffer* header2 = buf_new_file(".header2.html");
 	Buffer* footer = buf_new_file(".footer.html");
@@ -119,6 +113,7 @@ bool blog_build(Routes* routes) {
 	ok = header1 != NULL && header2 != NULL && footer != NULL;
 
 	// read blog list
+	TRACE("read blog list");
 	struct posts_list* posts = NULL;
 	if (ok) {
 		posts = posts_list_new();
@@ -128,7 +123,9 @@ bool blog_build(Routes* routes) {
 	// build pages
 	if (ok) {
 		// build blog pages
+		TRACE("build blog pages");
 		for (size_t i=0; i<posts->count; i++) {
+			TRACE("post %d", i);
 			Buffer* post = routes_new_buf(routes, posts->data[i].server_path, 10240);
 			buf_append_buf(post, header1);
 			buf_append_format(post, " - %s", posts->data[i].title);
@@ -149,6 +146,7 @@ bool blog_build(Routes* routes) {
 		}
 
 		// build archive page
+		TRACE("build archive page");
 		Buffer* archive = routes_new_buf(routes, "/" BLOG_DIR, 10240);
 		buf_append_buf(archive, header1);
 		buf_append_str(archive, " - Blog");
@@ -159,6 +157,7 @@ bool blog_build(Routes* routes) {
 		char archive_date[15] = "";
 
 		for (size_t i=0; i<posts->count; i++) {
+			TRACE("post %d", i);
 			if (strcmp(archive_date, strchr(posts->data[i].date, ' ')+1) != 0) {
 				strcpy(archive_date, strchr(posts->data[i].date, ' ')+1);
 
@@ -171,11 +170,13 @@ bool blog_build(Routes* routes) {
 		buf_append_buf(archive, footer);
 
 		// build home page
+		TRACE("build home page");
 		Buffer* home = routes_new_buf(routes, "/", 10240);
 		buf_append_buf(home, header1);
 		buf_append_buf(home, header2);
 
 		for (size_t i=0; i<posts->count; i++) {
+			TRACE("post %d", i);
 			if (i > 0) {
 				buf_append_str(home, "<hr>\n");
 			}
@@ -185,11 +186,13 @@ bool blog_build(Routes* routes) {
 		buf_append_buf(home, footer);
 
 		// build log page
+		TRACE("build log page");
 		Buffer* log = routes_new_buf(routes, "/log", 10240);
 		buf_append_buf(log, header1);
 		buf_append_buf(log, header2);
-
+		
 		for (size_t i=posts->count; i>0; i--) {
+			TRACE("post %d", i);
 			if (i < posts->count) {
 				buf_append_str(log, "<hr>\n");
 			}
@@ -200,6 +203,7 @@ bool blog_build(Routes* routes) {
 	}
 	
 	// clean up
+	TRACE("build blog clean up");
 	posts_list_free(posts);
 	buf_free(header1);
 	buf_free(header2);
