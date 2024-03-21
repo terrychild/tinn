@@ -48,7 +48,7 @@ static void ensure(Buffer* buf, long n) {
 }
 void buf_grow(Buffer* buf) {
 	buf->size *= 2;
-	allocate(buf, buf->size);
+	buf->data = allocate(buf->data, buf->size);
 }
 
 void buf_append(Buffer* buf, char* data, long n) {
@@ -163,10 +163,7 @@ char* buf_advance_read(Buffer* buf, long offset) {
 }
 
 char* buf_as_str(Buffer* buf) {
-	if (buf->length == buf->size) {
-		buf->size += 1;
-		allocate(buf, buf->size);
-	}
+	ensure(buf, 1);
 	buf->data[buf->length] = '\0';
 	return buf->data;
 }

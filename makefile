@@ -1,6 +1,6 @@
 # config
 TARGET := tinn
-RUN_ARGS := 8080 ../moohar/www
+RUN_ARGS := ../moohar/www
 
 COMP_ARGS := -Wall -Wextra -Werror -std=c17 -pedantic
 
@@ -25,8 +25,8 @@ INC_ARGS := $(addprefix -I,$(INC))
 build: $(BUILD)/$(TARGET)
 run: build
 	@$(BUILD)/$(TARGET) $(RUN_ARGS)
-trace: COMP_ARGS += -DCLEVEL=CL_TRACE
-trace: run
+trace: build
+	@$(BUILD)/$(TARGET) -v $(RUN_ARGS)
 clean:
 	@rm -r $(BUILD)
 

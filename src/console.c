@@ -12,6 +12,8 @@
 #define CYAN "\x1B[36m"
 #define RESET "\x1B[0m"
 
+ConsoleLevel clevel = CL_DEBUG;
+
 static void print_time(FILE *stream) {
 	time_t seconds = time(NULL);
 	struct tm* gmt = gmtime(&seconds);
@@ -39,7 +41,7 @@ static void print_prefix(FILE *stream, ConsoleLevel level) {
 }
 
 void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...) {
-	if (level >= CLEVEL) {
+	if (level >= clevel) {
 		if (inc_time) {
 			print_time(stream);
 		} else {
