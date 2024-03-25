@@ -1,5 +1,4 @@
-#include <stdlib.h>
-
+#include "utils.h"
 #include "console.h"
 
 void* allocate(void* data, size_t size) {

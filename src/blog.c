@@ -7,7 +7,7 @@
 #include "blog.h"
 #include "buffer.h"
 
-#include "scanner.h"
+#include "posts_parser.h"
 
 #define BLOG_DIR "blog"
 #define MAX_PATH_LEN 256
@@ -58,18 +58,13 @@ static bool read_posts(struct posts_list* posts) {
 
 	char path[MAX_PATH_LEN];
 	Buffer* buf = buf_new_file(BLOG_DIR "/.posts.dat");
-	Scanner scanner = scanner_new(buf->data, buf->length);
+	PostsParser parser = posts_parser_new(buf->data, buf->length);
 
-	for (;;) {
-		Token dir = scan_token(&scanner);
-		Token title = scan_token(&scanner);
-		Token date = scan_token(&scanner);
+	PostsToken dir;
+	PostsToken title;
+	PostsToken date;
 
-		if (dir.type != TOKEN_FIELD || title.type != TOKEN_FIELD || date.type != TOKEN_FIELD) {
-			// done reading file
-			break;
-		}
-
+	while (read_post(&parser, &dir, &title, &date)) {
 		// validate
 		int len = snprintf(path, MAX_PATH_LEN, "%s/%.*s/.post.html", BLOG_DIR, dir.length, dir.start);
 		if (len < 0 || len >= MAX_PATH_LEN) {
@@ -207,7 +202,7 @@ bool blog_build(Routes* routes) {
 		
 		for (int i=posts->count-1; i>=0; i--) {
 			TRACE("post %d \"%s\"", i, posts->data[i].title);
-			if (i < posts->count) {
+			if (i < posts->count-1) {
 				buf_append_str(log, "<hr>\n");
 			}
 			compose_article(log, posts->data[i]);

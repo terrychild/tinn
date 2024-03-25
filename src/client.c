@@ -6,6 +6,8 @@
 #include "client.h"
 #include "buffer.h"
 
+#include "request_parser.h"
+
 ClientState* client_state_new() {
 	ClientState* state = allocate(NULL, sizeof(*state));
 	state->in = buf_new(1024);
@@ -162,6 +164,24 @@ static bool send_response(struct pollfd* pfd, ClientState* state) {
 	return true;
 }
 
+static int blank_line(Buffer* buf) {
+	for (int i=3; i<buf->length; i++) {
+		if (buf->data[i-3]=='\r' && buf->data[i-2]=='\n' && buf->data[i-1]=='\r' && buf->data[i]=='\n') {
+			return i-1;
+		}
+	}
+	return -1;
+}
+static int end_of_line(const char* buf, int max) {
+	for (int i=0; i<max; i++) {
+		char c = buf[i];
+		if (c=='\r' || c=='\n' || c=='\0') {
+			return i;
+		}
+	}
+	return max;
+}
+
 static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes) {
 	int recvied = recv(pfd->fd, buf_write_ptr(state->in), buf_write_max(state->in), 0);
 	if (recvied <= 0) {
@@ -174,6 +194,70 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 	} else {
 		// update buffer
 		buf_advance_write(state->in, recvied);
+
+		// check for end of line
+		int end = blank_line(state->in);
+
+		// make buffer bigger ?
+		if (end<0) {			
+			buf_grow(state->in);
+			return true;
+		}
+
+		TRACE("%.*s", end_of_line(state->in->data, end), state->in->data);
+
+		RequestParser parser = request_parser_new(state->in->data, end);
+
+		RequestToken method = parser_read_token(&parser);
+		RequestToken path = parser_read_token(&parser);
+		RequestToken query = parser_read_token(&parser);
+		RequestToken version = parser_read_token(&parser);
+
+		if (method.type == TOKEN_ERROR || path.type == TOKEN_ERROR || version.type == TOKEN_ERROR) {
+			WARN("Bad request from %s (%d)", state->address, pfd->fd);
+			TRACE_DETAIL("method: %.*s", method.length, method.start);
+			TRACE_DETAIL("path: %.*s", path.length, path.start);
+			TRACE_DETAIL("query: %.*s", query.length, query.start);
+			TRACE_DETAIL("version: %.*s", version.length, version.start);
+			prep_simple_status(state, "400", "Bad Request", "Opps, that request made no sense.");
+
+		} else if (memcmp(version.start+5, "1.0", 3)!=0 && memcmp(version.start+5, "1.1", 3)!=0) {
+			WARN("Unsupported HTTP version (%.*s) from %s (%d)", version.length, version.start, state->address, pfd->fd);
+			prep_simple_status(state, "505", "HTTP Version Not Supported", "Opps, that version of HTTP is not supported.");
+
+		} else {
+			LOG("\"%.*s\" \"%.*s\" from %s (%d)", method.length, method.start, path.length, path.start, state->address, pfd->fd);		
+
+			if (method.type == TOKEN_METHOD_GET) {
+				Route* route = routes_find(routes, token_to_str(path));
+				route_log(route, CL_DEBUG);
+				if (route == NULL) {
+					prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
+				} else if (route->type == RT_FILE) {
+					if (!prep_file(state, route->to)) {
+						prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
+					}
+				} else if (route->type == RT_REDIRECT) {
+					prep_redirect(state, route->to);
+				} else if (route->type == RT_BUFFER) {
+					prep_buffer(state, route->to);
+				} else {
+					prep_simple_status(state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
+				}
+			} else {
+				prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
+			}
+
+			//TODO: free(path);
+		}
+
+		// done reading request so reset buffer
+		buf_consume(state->in, end+2);
+
+		// send
+		return send_response(pfd, state);
+
+		/*
 
 		// parse request
 		int space_1 = -1;
@@ -252,7 +336,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 		buf_consume(state->in, end+1);
 
 		// send
-		return send_response(pfd, state);
+		return send_response(pfd, state);*/
 	}
 }
 

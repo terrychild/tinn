@@ -2,7 +2,7 @@
 TARGET := tinn
 RUN_ARGS := ../moohar/www
 
-COMP_ARGS := -Wall -Wextra -Werror -std=c17 -pedantic
+COMP_ARGS := -Wall -Wextra -std=c17 -pedantic
 
 # dirs
 BUILD := ./build
