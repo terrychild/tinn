@@ -7,7 +7,7 @@
 #include "blog.h"
 #include "buffer.h"
 
-#include "posts_parser.h"
+#include "scanner.h"
 
 #define BLOG_DIR "blog"
 #define MAX_PATH_LEN 256
@@ -58,14 +58,22 @@ static bool read_posts(struct posts_list* posts) {
 
 	char path[MAX_PATH_LEN];
 	Buffer* buf = buf_new_file(BLOG_DIR "/.posts.dat");
-	PostsParser parser = posts_parser_new(buf->data, buf->length);
+	Scanner line_scanner = scanner_new(buf->data, buf->length);
 
-	PostsToken dir;
-	PostsToken title;
-	PostsToken date;
+	Token line;
+	while ((line = scan_token(&line_scanner, "\r\n")).length>0) {
+		Scanner field_scanner = scanner_new(line.start, line.length);
 
-	while (read_post(&parser, &dir, &title, &date)) {
+		Token dir = scan_token(&field_scanner, "\t");
+		Token title = scan_token(&field_scanner, "\t");
+		Token date = scan_token(&field_scanner, "\t");
+
 		// validate
+		if (dir.length==0 || title.length==0 || date.length==0) {
+			ERROR("Error, post line is invalid \"%.*s\"\n", line.length, line.start);
+			ok = false;
+			break;
+		}
 		int len = snprintf(path, MAX_PATH_LEN, "%s/%.*s/.post.html", BLOG_DIR, dir.length, dir.start);
 		if (len < 0 || len >= MAX_PATH_LEN) {
 			ERROR("Error, unable to create path for \"%.*s\"\n", dir.length, dir.start);

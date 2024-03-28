@@ -6,7 +6,7 @@
 #include "client.h"
 #include "buffer.h"
 
-#include "request_parser.h"
+#include "scanner.h"
 
 ClientState* client_state_new() {
 	ClientState* state = allocate(NULL, sizeof(*state));
@@ -172,15 +172,6 @@ static int blank_line(Buffer* buf) {
 	}
 	return -1;
 }
-static int end_of_line(const char* buf, int max) {
-	for (int i=0; i<max; i++) {
-		char c = buf[i];
-		if (c=='\r' || c=='\n' || c=='\0') {
-			return i;
-		}
-	}
-	return max;
-}
 
 static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes) {
 	int recvied = recv(pfd->fd, buf_write_ptr(state->in), buf_write_max(state->in), 0);
@@ -204,101 +195,29 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			return true;
 		}
 
-		TRACE("%.*s", end_of_line(state->in->data, end), state->in->data);
+		//TRACE("%.*s", end, state->in->data);
 
-		RequestParser parser = request_parser_new(state->in->data, end);
+		Scanner scanner = scanner_new(state->in->data, end);
 
-		RequestToken method = parser_read_token(&parser);
-		RequestToken path = parser_read_token(&parser);
-		RequestToken query = parser_read_token(&parser);
-		RequestToken version = parser_read_token(&parser);
+		Token method = scan_token(&scanner, " ");
+		Token target = scan_token(&scanner, " ");
+		Token version = scan_token(&scanner, "\r\n");
 
-		if (method.type == TOKEN_ERROR || path.type == TOKEN_ERROR || version.type == TOKEN_ERROR) {
+		if (method.length==0 || target.length==0 || version.length==0) {
 			WARN("Bad request from %s (%d)", state->address, pfd->fd);
 			TRACE_DETAIL("method: %.*s", method.length, method.start);
-			TRACE_DETAIL("path: %.*s", path.length, path.start);
-			TRACE_DETAIL("query: %.*s", query.length, query.start);
+			TRACE_DETAIL("target: %.*s", target.length, target.start);
 			TRACE_DETAIL("version: %.*s", version.length, version.start);
 			prep_simple_status(state, "400", "Bad Request", "Opps, that request made no sense.");
 
-		} else if (memcmp(version.start+5, "1.0", 3)!=0 && memcmp(version.start+5, "1.1", 3)!=0) {
+		} else if (!token_is(version, "HTTP/1.0") && !token_is(version, "HTTP/1.1")) {
 			WARN("Unsupported HTTP version (%.*s) from %s (%d)", version.length, version.start, state->address, pfd->fd);
 			prep_simple_status(state, "505", "HTTP Version Not Supported", "Opps, that version of HTTP is not supported.");
 
 		} else {
-			LOG("\"%.*s\" \"%.*s\" from %s (%d)", method.length, method.start, path.length, path.start, state->address, pfd->fd);		
-
-			if (method.type == TOKEN_METHOD_GET) {
-				Route* route = routes_find(routes, token_to_str(path));
-				route_log(route, CL_DEBUG);
-				if (route == NULL) {
-					prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
-				} else if (route->type == RT_FILE) {
-					if (!prep_file(state, route->to)) {
-						prep_simple_status(state, "404", "Not Found", "Opps, that resource can not be found.");
-					}
-				} else if (route->type == RT_REDIRECT) {
-					prep_redirect(state, route->to);
-				} else if (route->type == RT_BUFFER) {
-					prep_buffer(state, route->to);
-				} else {
-					prep_simple_status(state, "500", "Internal Server Error", "Opps, something went wrong that is probably not your fault, probably.");
-				}
-			} else {
-				prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
-			}
-
-			//TODO: free(path);
-		}
-
-		// done reading request so reset buffer
-		buf_consume(state->in, end+2);
-
-		// send
-		return send_response(pfd, state);
-
-		/*
-
-		// parse request
-		int space_1 = -1;
-		int space_2 = -1;
-		int end = -1;
-		for (int i=0; i<state->in->length; i++) {
-			if (space_1<0) {
-				if (state->in->data[i]==' ') {
-					space_1 = i;
-				}
-			} else if (space_2<0) {
-				if (state->in->data[i]==' ') {
-					space_2 = i;
-				}
-			}
-			// look for a blank line
-			if (i>2 && state->in->data[i-3]=='\r' && state->in->data[i-2]=='\n' && state->in->data[i-1]=='\r' && state->in->data[i]=='\n') {
-				end = i;
-			}
-		}
-
-		// make buffer bigger ?
-		if (end<0) {			
-			buf_grow(state->in);
-			return true;
-		}
-
-		if (space_1>0 && space_2>space_1+1) {
-			char method[space_1+1];
-			memcpy(method, state->in->data, space_1);
-			method[space_1] = '\0';
-
-			char path[space_2-space_1+10]; // extra 10 is for index.html
-			memcpy(path, state->in->data+space_1+1, space_2-space_1-1);
-			path[space_2-space_1-1] = '\0';
-
-			char* anchor = strchr(path, '#');
-			if (anchor != NULL) {
-				*(anchor) = '\0';
-				anchor++;
-			}
+			char path[target.length + 1];
+			memcpy(path, target.start, target.length);
+			path[target.length] = '\0';
 
 			char* query = strchr(path, '?');
 			if (query != NULL) {
@@ -306,8 +225,21 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 				query++;
 			}
 
-			LOG("\"%s\" \"%s\" from %s (%d)", method, path, state->address, pfd->fd);
-			if (strcmp(method, "GET")==0) {
+			LOG("\"%.*s\" \"%s\" from %s (%d)", method.length, method.start, path, state->address, pfd->fd);
+
+			Token line;
+			while ((line = scan_token(&scanner, "\r\n")).length>0) {
+				Scanner header_scanner = scanner_new(line.start, line.length);
+				Token name = scan_token(&header_scanner, ": \t");
+				Token value = scan_token(&header_scanner, "");
+
+				TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
+			}		
+
+			bool is_get = token_is(method, "GET");
+			//bool is_head = token_is(method, "HEAD");
+
+			if (is_get) {
 				Route* route = routes_find(routes, path);
 				route_log(route, CL_DEBUG);
 				if (route == NULL) {
@@ -326,17 +258,13 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			} else {
 				prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
 			}
-		} else {
-			WARN("Bad request from %s (%d)\n", state->address, pfd->fd);
-			//DEBUG(buf_as_str(state->in));
-			prep_simple_status(state, "400", "Bad Request", "Opps, that request made no sense.");
 		}
 
 		// done reading request so reset buffer
-		buf_consume(state->in, end+1);
+		buf_consume(state->in, end+2);
 
 		// send
-		return send_response(pfd, state);*/
+		return send_response(pfd, state);
 	}
 }
 
