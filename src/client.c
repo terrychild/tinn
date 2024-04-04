@@ -1,17 +1,18 @@
 #include <string.h>
-#include <time.h>
+#include <sys/stat.h>
 
-#include "utils.h"
 #include "console.h"
 #include "client.h"
 #include "buffer.h"
 
-#include "scanner.h"
-
+void client_reset_headers(ClientState* state) {
+	state->h_if_modified_Since = 0;
+}
 ClientState* client_state_new() {
 	ClientState* state = allocate(NULL, sizeof(*state));
 	state->in = buf_new(1024);
 	state->out = buf_new(1024);
+	client_reset_headers(state);
 	return state;
 }
 void client_state_free(ClientState* state) {
@@ -20,27 +21,25 @@ void client_state_free(ClientState* state) {
 	free(state);
 }
 
-// generate a date stamp in Internet Messaging Format
-#define IMF_DATE_LEN 30 // length of a date in Internet Messaging Format with null terminator
-static char* imf_date(char* buf, size_t max_len) {
-	time_t seconds = time(NULL);
-	struct tm* gmt = gmtime(&seconds);
-	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmt);
-	return buf;
+static void header(Buffer* buf, const char* name, const char* value) {
+	buf_append_format(buf, "%s: %s\r\n", name, value);
 }
 
-static void start_headers(Buffer* buf, char *status_code, char *status_text) {
+static void date_header(Buffer* buf, const char* name, time_t date) {
+	buf_append_str(buf, name);
+	buf_append_str(buf, ": ");
+	to_imf_date(buf_reserve(buf, IMF_DATE_LEN), IMF_DATE_LEN, date);
+	buf_advance_write(buf, -1);
+	buf_append_str(buf, "\r\n");
+}
+
+static void start_headers(Buffer* buf, const char* status_code, const char* status_text) {
 	// status line
 	buf_append_format(buf, "HTTP/1.1 %s %s\r\n", status_code, status_text);
 
-	// date
-	buf_append_str(buf, "Date: ");
-	imf_date(buf_reserve(buf, IMF_DATE_LEN), IMF_DATE_LEN);
-	buf_advance_write(buf, -1);
-	buf_append_str(buf, "\r\n");
-
-	// server
-	buf_append_str(buf, "Server: Tinn\r\n");
+	// default headers
+	date_header(buf, "Date", time(NULL));
+	header(buf, "Server", "Tinn");
 }
 
 static void end_headers(Buffer* buf) {
@@ -109,6 +108,17 @@ static void prep_redirect(ClientState* state, char* location) {
 }
 
 static bool prep_file(ClientState* state, char* path) {
+	// check modified time
+	struct stat attrib;
+    stat(path, &attrib);
+
+    if (state->h_if_modified_Since>0 && state->h_if_modified_Since>=attrib.st_mtime) {
+    	TRACE_DETAIL("not modified");
+    	start_headers(state->out, "304", "Not Modified");
+    	end_headers(state->out);
+    	return true;
+    }
+
 	// open file and get content length
 	long length;
 	FILE *file = fopen(path, "rb");
@@ -123,6 +133,9 @@ static bool prep_file(ClientState* state, char* path) {
 
 	// populate header
 	start_headers(state->out, "200", "OK");
+	//header(state->out, "Cache-Control", "max-age=604800"); // one week
+	header(state->out, "Cache-Control", "no-cache");
+	date_header(state->out, "Last-Modified", attrib.st_mtime);
 	content_type(state->out, strrchr(path, '.'));
 	content_length(state->out, length);
 	end_headers(state->out);
@@ -227,6 +240,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 
 			LOG("\"%.*s\" \"%s\" from %s (%d)", method.length, method.start, path, state->address, pfd->fd);
 
+			client_reset_headers(state);
 			Token line;
 			while ((line = scan_token(&scanner, "\r\n")).length>0) {
 				Scanner header_scanner = scanner_new(line.start, line.length);
@@ -234,6 +248,9 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 				Token value = scan_token(&header_scanner, "");
 
 				TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
+				if (token_is(name, "If-Modified-Since")) {
+					state->h_if_modified_Since = from_imf_date(value.start, value.length);
+				}				
 			}		
 
 			bool is_get = token_is(method, "GET");

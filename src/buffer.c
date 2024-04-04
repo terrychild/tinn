@@ -14,7 +14,7 @@ Buffer* buf_new(long size) {
 	buf->data = allocate(NULL, buf->size);
 	return buf;
 }
-Buffer* buf_new_file(char* path) {
+Buffer* buf_new_file(const char* path) {
 	Buffer* buf = buf_new(0);
 	if (!buf_append_file(buf, path)) {
 		ERROR("reading %s\n", path);
@@ -51,16 +51,16 @@ void buf_grow(Buffer* buf) {
 	buf->data = allocate(buf->data, buf->size);
 }
 
-void buf_append(Buffer* buf, char* data, long n) {
+void buf_append(Buffer* buf, const char* data, long n) {
 	ensure(buf, n);
 
 	memcpy(buf->data + buf->length, data, n);
 	buf->length += n;
 }
-void buf_append_str(Buffer* buf, char* str) {
+void buf_append_str(Buffer* buf, const char* str) {
 	buf_append(buf, str, strlen(str));	
 }
-void buf_append_format(Buffer* buf, char* format, ...) {
+void buf_append_format(Buffer* buf, const char* format, ...) {
 	long max = buf_write_max(buf);
 
 	va_list args;
@@ -89,7 +89,7 @@ void buf_append_buf(Buffer* target, Buffer* source) {
 	memcpy(target->data + target->length, source->data, len);
 	target->length += len;
 }
-bool buf_append_file(Buffer* buf, char* path) {
+bool buf_append_file(Buffer* buf, const char* path) {
 	FILE *file = fopen(path, "rb");	
 	if (file == NULL) {
 		return false;

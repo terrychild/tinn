@@ -12,18 +12,18 @@ typedef struct {
 } Buffer;
 
 Buffer* buf_new(long size);
-Buffer* buf_new_file(char* path);
+Buffer* buf_new_file(const char* path);
 void buf_free(Buffer* buf);
 
 void buf_reset(Buffer* buf);
 
 void buf_grow(Buffer* buf);
 
-void buf_append(Buffer* buf, char* data, long n);
-void buf_append_str(Buffer* buf, char* str);
-void buf_append_format(Buffer* buf, char* format, ...);
+void buf_append(Buffer* buf, const char* data, long n);
+void buf_append_str(Buffer* buf, const char* str);
+void buf_append_format(Buffer* buf, const char* format, ...);
 void buf_append_buf(Buffer* target, Buffer* source);
-bool buf_append_file(Buffer* buf, char* path);
+bool buf_append_file(Buffer* buf, const char* path);
 
 char* buf_reserve(Buffer* buf, long n);
 void buf_consume(Buffer* buf, long n);

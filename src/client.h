@@ -1,7 +1,9 @@
 #ifndef TINN_CLIENT_H
 #define TINN_CLIENT_H
 
+#include "utils.h"
 #include "net.h"
+#include "scanner.h"
 
 #define CLIENT_READ 1;
 #define CLIENT_WRITE 2;
@@ -11,6 +13,7 @@ typedef struct {
 	unsigned short mode;
 	Buffer* in;
 	Buffer* out;
+	time_t h_if_modified_Since;
 } ClientState;
 
 ClientState* client_state_new();
