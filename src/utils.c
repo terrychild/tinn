@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "utils.h"
 #include "console.h"
 
