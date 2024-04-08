@@ -1,4 +1,4 @@
-#define TINN_VERSION "v0.8.0-alpha"
+#define TINN_VERSION "v0.8.0"
 
 #include <stdlib.h>
 #include <string.h>
