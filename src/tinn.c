@@ -1,5 +1,3 @@
-#define TINN_VERSION "v0.8.0"
-
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,9 +6,21 @@
 #include "routes.h"
 #include "blog.h"
 #include "server.h"
+#include "version.h"
 
 static void usage_exit() {
-	puts("usage: tinn [-v[erbose]] [-p port] [content_directory]");
+	puts("usage: tinn [OPTIONS] [content_directory]\n");
+	puts("When not specified the content directory defaults to the current directory.\n");
+	puts("Options:");
+	puts("  -h, --help         Display this help.");
+	puts("      --version      Display version.");
+	puts("  -v, --verbose      Enable verbose logging.");
+	puts("  -p port            Port to listen on, defaults to 8080.");
+	exit(EXIT_SUCCESS);
+}
+
+static void version_exit() {
+	printf("Tinn %s (%s)\n", VERSION, BUILD_DATE);
 	exit(EXIT_SUCCESS);
 }
 
@@ -28,23 +38,32 @@ static struct settings_t parse_arguments(int count, char* values[]) {
 
 	for (int i=1; i<count; i++) {
 		if (values[i][0] == '-') {
-			if (strlen(values[i])==1) {
+			int len = strlen(values[i]);
+			if (len==1) {
 				usage_exit();
 			}
-			switch(values[i][1]) {
-				case 'h':
+			if (values[i][1] == '-') {
+				if (strcmp(values[i], "--help")==0) {
 					usage_exit();
-					break;
-				case 'v':
+				} else if (strcmp(values[i], "--version")==0) {
+					version_exit();
+				} else if (strcmp(values[i], "--verbose")==0) {
 					clevel = CL_TRACE;
-					break;
-				case 'p':
+				}
+			} else {
+				if (values[i][1] == 'h') {
+					usage_exit();
+				} else if (values[i][1] == 'v') {
+					clevel = CL_TRACE;
+				} else if (values[i][1] == 'p') {
 					if (i==count-1) {
 						usage_exit();
 					}
 					settings.port = values[i+1];
 					i++;
-					break;
+				} else {
+					usage_exit();
+				}
 			}
 		} else {
 			if (set_content_dir) {
@@ -63,7 +82,7 @@ int main(int argc, char* argv[]) {
 	// parse/validate settings
 	struct settings_t settings = parse_arguments(argc, argv);
 
-	LOG("Tinn %s", TINN_VERSION);
+	LOG("Tinn %s (%s)", VERSION, BUILD_DATE);
 	
 	// change working directory to content directory
 	if (chdir(settings.content_dir) != 0) {

@@ -1,5 +1,8 @@
-#ifndef TINN_UTILS_H
-#define TINN_UTILS_H
+#ifndef UTILS_H
+#define UTILS_H
+
+#define STRINGIZER(x) #x
+#define STR(x) STRINGIZER(x)
 
 #define __USE_XOPEN
 

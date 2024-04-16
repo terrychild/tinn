@@ -20,6 +20,8 @@ DEPS := $(OBJS:.o=.d)
 INC := $(shell find $(SRC) -type d)
 INC_ARGS := $(addprefix -I,$(INC))
 
+VERSION := $(BUILD)"/tmp/version.o"
+
 # short cuts
 .PHONY: build run trace clean
 build: $(BUILD)/$(TARGET)
@@ -32,7 +34,8 @@ clean:
 
 # link .o objects into an executible
 $(BUILD)/$(TARGET): $(OBJS)
-	@$(CC) $(COMP_ARGS) $(OBJS) -o $@
+	@echo "const char* BUILD_DATE = \""$(shell date -u "+%Y-%m-%dT%H:%MZ")"\";" | $(CC) -xc -c - -o $(VERSION)
+	@$(CC) $(COMP_ARGS) $(OBJS) $(VERSION) -o $@
 
 # complile .c source into .o object files
 $(BUILD)/tmp/%.o: $(SRC)/%.c
