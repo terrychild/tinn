@@ -32,7 +32,7 @@ trace: build
 clean:
 	@rm -r $(BUILD)
 
-# link .o objects into an executible
+# link .o objects into an executable
 $(BUILD)/$(TARGET): $(OBJS)
 	@echo "const char* BUILD_DATE = \""$(shell date -u "+%Y-%m-%dT%H:%MZ")"\";" | $(CC) -xc -c - -o $(VERSION)
 	@$(CC) $(COMP_ARGS) $(OBJS) $(VERSION) -o $@
