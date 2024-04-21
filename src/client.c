@@ -4,6 +4,8 @@
 #include "console.h"
 #include "client.h"
 #include "buffer.h"
+#include "scanner.h"
+#include "uri.h"
 
 void client_reset_headers(ClientState* state) {
 	state->h_if_modified_Since = 0;
@@ -228,7 +230,24 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			prep_simple_status(state, "505", "HTTP Version Not Supported", "Opps, that version of HTTP is not supported.");
 
 		} else {
-			char path[target.length + 1];
+			// parse URL
+			URI* uri = uri_new(target);
+			
+			if (!uri->valid) {
+				WARN("Invalid URL (%.*s) from %s (%d)", target.length, target.start, state->address, pfd->fd);
+				prep_simple_status(state, "400", "Bad Request", "Opps, that request target seems invalid.");
+			} else {
+				DEBUG("segments: %d", uri->segments_count);
+				for (int s=0; s<uri->segments_count; s++) {
+					DEBUG("segment %d: %s", s, uri->segments[s]);
+				}
+				DEBUG("query: %s", uri->query);
+				prep_simple_status(state, "200", "OK", uri->path);
+			}
+
+			uri_free(uri);
+			
+			/*char path[target.length + 1];
 			memcpy(path, target.start, target.length);
 			path[target.length] = '\0';
 
@@ -274,7 +293,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 				}
 			} else {
 				prep_simple_status(state, "501", "Not Implemented", "Opps, that functionality has not been implemented.");
-			}
+			}*/
 		}
 
 		// done reading request so reset buffer

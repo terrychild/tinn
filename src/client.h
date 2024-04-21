@@ -3,7 +3,6 @@
 
 #include "utils.h"
 #include "net.h"
-#include "scanner.h"
 
 #define CLIENT_READ 1;
 #define CLIENT_WRITE 2;
