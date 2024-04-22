@@ -7,17 +7,17 @@
 #include "scanner.h"
 #include "uri.h"
 
-void client_reset_headers(ClientState* state) {
-	state->h_if_modified_Since = 0;
-}
 ClientState* client_state_new() {
 	ClientState* state = allocate(NULL, sizeof(*state));
+	state->request = request_new();
+	state->response = response_new();
 	state->in = buf_new(1024);
 	state->out = buf_new(1024);
-	client_reset_headers(state);
 	return state;
 }
 void client_state_free(ClientState* state) {
+	request_free(state->request);
+	response_free(state->response);
 	buf_free(state->in);
 	buf_free(state->out);
 	free(state);
@@ -114,12 +114,14 @@ static bool prep_file(ClientState* state, char* path) {
 	struct stat attrib;
     stat(path, &attrib);
 
+    /*TODO:
     if (state->h_if_modified_Since>0 && state->h_if_modified_Since>=attrib.st_mtime) {
     	TRACE_DETAIL("not modified");
     	start_headers(state->out, "304", "Not Modified");
     	end_headers(state->out);
     	return true;
     }
+    */
 
 	// open file and get content length
 	long length;
@@ -188,7 +190,7 @@ static int blank_line(Buffer* buf) {
 	return -1;
 }
 
-static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes) {
+static bool read_request(struct pollfd* pfd, ClientState* state) {
 	int recvied = recv(pfd->fd, buf_write_ptr(state->in), buf_write_max(state->in), 0);
 	if (recvied <= 0) {
 		if (recvied < 0) {
@@ -246,6 +248,10 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 			}
 
 			uri_free(uri);
+
+			for (int i=0; i<state->content->count; i++) {
+				state->content->generators[i](state->request, state->response);
+			}
 			
 			/*char path[target.length + 1];
 			memcpy(path, target.start, target.length);
@@ -304,7 +310,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state, Routes* routes)
 	}
 }
 
-void client_listener(Sockets* sockets, int index, Routes* routes) {
+void client_listener(Sockets* sockets, int index) {
 	struct pollfd* pfd = &sockets->pollfds[index];
 	ClientState* state = sockets->states[index];
 
@@ -317,7 +323,7 @@ void client_listener(Sockets* sockets, int index, Routes* routes) {
 		flag = false;
 	} else {
 		if (pfd->revents & POLLIN) {
-			flag = read_request(pfd, state, routes);
+			flag = read_request(pfd, state);
 		} else if (pfd->revents & POLLOUT) {
 			flag = send_response(pfd, state);
 		}

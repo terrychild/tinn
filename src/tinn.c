@@ -3,8 +3,9 @@
 
 #include "utils.h"
 #include "console.h"
-#include "routes.h"
+#include "content_generator.h"
 #include "blog.h"
+#include "static.h"
 #include "server.h"
 #include "version.h"
 
@@ -90,16 +91,11 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 	
-	// build routes
-	TRACE("building routes");
-	Routes* routes = routes_new();
-	routes_add_static(routes);
-	
-	if (!blog_build(routes)) {
-		ERROR("loading blog");
-		return EXIT_FAILURE;
-	}
-	routes_log(routes, CL_TRACE);
+	// create content generators
+	TRACE("creating list of content generators");
+	ContentGenerators* content = content_generators_new(2);
+	content->generators[0] = blog_content;
+	content->generators[1] = static_content;
 	
 	// create list of sockets
 	TRACE("creating list of sockets");
@@ -113,7 +109,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	sockets_add(sockets, server_socket, server_listener);
+	server_new(sockets, server_socket, content);
 	LOG("waiting for connections");
 
 	// loop forever directing network traffic
@@ -124,14 +120,14 @@ int main(int argc, char* argv[]) {
 
 		for (size_t i = 0; i < sockets->count; i++) {
 			if (sockets->pollfds[i].revents) {
-				sockets->listeners[i](sockets, i, routes);
+				sockets->listeners[i](sockets, i);
 			}
 		}
 	}
 
 	// tidy up, but we should never get here?
 	close(server_socket);
-	routes_free(routes);	
+	content_generators_free(content);
 	
 	return EXIT_SUCCESS;
 }

@@ -2,9 +2,10 @@
 #define TINN_BLOH_H
 
 #include <stdbool.h>
+#include "request.h"
+#include "response.h"
 
-#include "routes.h"
-
-bool blog_build(Routes* routes);
+bool blog_build();
+bool blog_content(Request* request, Response* Response);
 
 #endif

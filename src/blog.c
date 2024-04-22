@@ -117,7 +117,7 @@ static void compose_article(Buffer* buf, struct post post) {
 	buf_append_str(buf, "</article>\n");
 }
 
-bool blog_build(Routes* routes) {
+bool blog_build() {
 	TRACE("build blog posts");
 	bool ok = true;
 
@@ -143,7 +143,7 @@ bool blog_build(Routes* routes) {
 		TRACE("build blog pages");
 		for (int i=0; i<posts->count; i++) {
 			TRACE("post %d \"%s\"", i, posts->data[i].title);
-			Buffer* post = routes_new_buf(routes, posts->data[i].path, 10240);
+			Buffer* post = buf_new(10240); //TODO: routes_new_buf(routes, posts->data[i].path, 10240);
 			buf_append_buf(post, header1);
 			buf_append_format(post, " - %s", posts->data[i].title);
 			buf_append_buf(post, header2);
@@ -164,7 +164,7 @@ bool blog_build(Routes* routes) {
 
 		// build archive page
 		TRACE("build archive page");
-		Buffer* archive = routes_new_buf(routes, "/" BLOG_DIR, 10240);
+		Buffer* archive = buf_new(10240); //TODO: routes_new_buf(routes, "/" BLOG_DIR, 10240);
 		buf_append_buf(archive, header1);
 		buf_append_str(archive, " - Blog");
 		buf_append_buf(archive, header2);
@@ -188,7 +188,7 @@ bool blog_build(Routes* routes) {
 
 		// build home page
 		TRACE("build home page");
-		Buffer* home = routes_new_buf(routes, "/", 10240);
+		Buffer* home = buf_new(10240); //TODO: routes_new_buf(routes, "/", 10240);
 		buf_append_buf(home, header1);
 		buf_append_buf(home, header2);
 
@@ -204,7 +204,7 @@ bool blog_build(Routes* routes) {
 
 		// build log page
 		TRACE("build log page");
-		Buffer* log = routes_new_buf(routes, "/log", 10240);
+		Buffer* log = buf_new(10240); //TODO: routes_new_buf(routes, "/log", 10240);
 		buf_append_buf(log, header1);
 		buf_append_buf(log, header2);
 		
@@ -228,6 +228,11 @@ bool blog_build(Routes* routes) {
 
 	// success?
 	return ok;
+}
+
+bool blog_content(Request* request, Response* Response) {
+	DEBUG("blog_content");
+	return NULL;
 }
 
 #undef BLOG_DIR

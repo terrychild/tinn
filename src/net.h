@@ -1,5 +1,5 @@
-#ifndef TINN_NET_H
-#define TINN_NET_H
+#ifndef NET_H
+#define NET_H
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -8,10 +8,8 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include "routes.h"
-
 typedef struct sockets_list Sockets;
-typedef void (*socket_listener)(Sockets* sockets, int index, Routes* routes);
+typedef void (*socket_listener)(Sockets* sockets, int index);
 
 struct sockets_list {
 	size_t  size;
