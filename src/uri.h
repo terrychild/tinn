@@ -10,7 +10,7 @@ typedef struct {
 	char* path;
 	char* query;
 	char** segments;
-	int segments_count;
+	size_t segments_count;
 } URI;
 
 URI* uri_new(Token token);

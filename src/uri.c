@@ -41,7 +41,7 @@ URI* uri_new(Token token) {
 	uri->path = NULL;
 	uri->query = uri->data + token.length;
 
-	int max_segments = 8;
+	size_t max_segments = 8;
 	uri->segments = allocate(NULL, max_segments * sizeof(*uri->segments));
 	uri->segments_count = 0;
 
@@ -93,14 +93,14 @@ URI* uri_new(Token token) {
 	// build complete and rationalised path
 	size_t lens[uri->segments_count];
 	size_t len = 0;
-	for (int i=0; i<uri->segments_count; i++) {
+	for (size_t i=0; i<uri->segments_count; i++) {
 		lens[i] = strlen(uri->segments[i]);
 		len += 1 + lens[i];
 	}
 	uri->path = allocate(NULL, len + 1);
 
 	size_t pos = 0;
-	for (int i=0; i<uri->segments_count; i++) {
+	for (size_t i=0; i<uri->segments_count; i++) {
 		uri->path[pos] = '/';
 		strcpy(uri->path + pos + 1, uri->segments[i]);
 		pos += 1 + lens[i];

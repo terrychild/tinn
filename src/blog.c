@@ -230,9 +230,9 @@ bool blog_build() {
 	return ok;
 }
 
-bool blog_content(Request* request, Response* Response) {
-	DEBUG("blog_content");
-	return NULL;
+bool blog_content(Request* request, Response* response) {
+	TRACE("checking blog content");
+	return false;
 }
 
 #undef BLOG_DIR

@@ -16,4 +16,6 @@ void* allocate(void* data, size_t size);
 char* to_imf_date(char* buf, size_t max_len, time_t seconds);
 time_t from_imf_date(const char* date, size_t len);
 
+const char* content_type(char* ext);
+
 #endif

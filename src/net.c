@@ -56,7 +56,7 @@ int get_server_socket(char* port) {
 
 	// listen to socket
 	if (listen(sock, 10) != 0) {
-		ERROR("uable to listen to a socket");
+		ERROR("unable to listen to a socket");
 		return -1;
 	}
 

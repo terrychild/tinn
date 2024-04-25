@@ -6,7 +6,6 @@
 #include "net.h"
 #include "request.h"
 #include "response.h"
-#include "buffer.h"
 
 #define CLIENT_READ 1;
 #define CLIENT_WRITE 2;
@@ -17,8 +16,6 @@ typedef struct {
 	unsigned short mode;
 	Request* request;
 	Response* response;
-	Buffer* in;
-	Buffer* out;
 } ClientState;
 
 ClientState* client_state_new();
