@@ -28,8 +28,7 @@ static bool send_response(struct pollfd* pfd, ClientState* state) {
 		buf_advance_read(buf, sent);
 		pfd->events = POLLOUT;
 	} else {
-		//request_reset(state->request);
-		//buf_reset(state->response->buf);
+		response_reset(state->response);
 		pfd->events = POLLIN;
 	}
 	return true;

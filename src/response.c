@@ -39,7 +39,6 @@ void response_free(Response* response) {
 }
 
 void response_reset(Response* response) {
-	TRACE("reset response");
 	response->status_code = 500;
 
 	for (size_t i=0; i<response->headers_count; i++) {
@@ -147,7 +146,6 @@ Buffer* response_buf(Response* response) {
 }
 
 void response_simple_status(Response* response, int status_code, char *description) {
-	response_reset(response);
 	response_status(response, status_code);
 	buf_append_format(response_content(response, "html"), "<html><body><h1>%d - %s</h1><p>%s</p></body></html>", status_code, status_text(status_code), description);
 }
