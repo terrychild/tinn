@@ -53,11 +53,11 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			TRACE_DETAIL("method: %.*s", request->method.length, request->method.start);
 			TRACE_DETAIL("target: %s", request->target->data);
 			TRACE_DETAIL("version: %.*s", request->version.length, request->version.start);
-			response_simple_status(response, 400, "Opps, that request made no sense.");
+			response_simple_status(response, 400, "Oops, that request made no sense.");
 
 		} else if (!token_is(request->version, "HTTP/1.0") && !token_is(request->version, "HTTP/1.1")) {
 			WARN("Unsupported HTTP version (%.*s) from %s (%d)", request->version.length, request->version.start, state->address, pfd->fd);
-			response_simple_status(response, 505, "Opps, that version of HTTP is not supported.");
+			response_simple_status(response, 505, "Oops, that version of HTTP is not supported.");
 
 		} else {
 			LOG("\"%.*s\" \"%s\" from %s (%d)", request->method.length, request->method.start, request->target->path, state->address, pfd->fd);
@@ -68,7 +68,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			}
 
 			if (!ready) {
-				response_simple_status(response, 404, "Opps, that resource can not be found.");
+				response_simple_status(response, 404, "Oops, that resource can not be found.");
 			}
 		}
 

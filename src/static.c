@@ -11,7 +11,7 @@ bool static_content(Request* request, Response* response) {
 
 	/*TODO
 	token_is(method, "GET");
-	response_simple_status(response, 405, "Opps, that method is not allowed.");
+	response_simple_status(response, 405, "Oops, that method is not allowed.");
 	*/
 
 	struct stat attrib;
