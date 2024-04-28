@@ -94,7 +94,7 @@ int main(int argc, char* argv[]) {
 	// create content generators
 	TRACE("creating list of content generators");
 	ContentGenerators* content = content_generators_new(2);
-	content_generators_add(content, blog_content, NULL);
+	content_generators_add(content, blog_content, blog_new());
 	content_generators_add(content, static_content, NULL);
 	
 	// create list of sockets
