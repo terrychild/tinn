@@ -4,7 +4,9 @@
 #include "static.h"
 #include "console.h"
 
-bool static_content(Request* request, Response* response) {
+bool static_content(void* state, Request* request, Response* response) {
+	(void)state; //un-used
+
 	TRACE("checking static content");
 
 	// build a local path
@@ -54,6 +56,7 @@ bool static_content(Request* request, Response* response) {
 		FILE *file = fopen(local_path, "rb");
 		
 		if (file == NULL) {
+			ERROR("unable to open file \"%s\"", local_path);
 			return false;
 		}
 
@@ -89,9 +92,10 @@ bool static_content(Request* request, Response* response) {
 				return true;
 			}
 		}
+		TRACE("no index");
+		return false;
 	} else {
-		ERROR("Unknown file type for \"%s\": %d", local_path, attrib.st_mode);
+		ERROR("unknown file mode for \"%s\": %d", local_path, attrib.st_mode);
+		return false;
 	}
-
-	return false;
 }

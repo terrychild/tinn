@@ -62,8 +62,8 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			LOG("\"%.*s\" \"%s\" from %s (%d)", request->method.length, request->method.start, request->target->path, state->address, pfd->fd);
 
 			bool ready = false;
-			for (int i=0; !ready && i<state->content->count; i++) {
-				ready = state->content->generators[i](request, response);
+			for (size_t i=0; !ready && i<state->content->count; i++) {
+				ready = state->content->generators[i](state->content->states[i], request, response);
 			}
 
 			if (!ready) {

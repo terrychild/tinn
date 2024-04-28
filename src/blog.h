@@ -6,6 +6,6 @@
 #include "response.h"
 
 bool blog_build();
-bool blog_content(Request* request, Response* Response);
+bool blog_content(void* blog, Request* request, Response* Response);
 
 #endif

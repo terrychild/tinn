@@ -230,7 +230,7 @@ bool blog_build() {
 	return ok;
 }
 
-bool blog_content(Request* request, Response* response) {
+bool blog_content(void* blog, Request* request, Response* response) {
 	TRACE("checking blog content");
 	return false;
 }

@@ -5,6 +5,6 @@
 #include "request.h"
 #include "response.h"
 
-bool static_content(Request* request, Response* Response);
+bool static_content(void* state, Request* request, Response* Response);
 
 #endif
