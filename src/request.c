@@ -51,6 +51,8 @@ static int find_content(Buffer* buf) {
 ssize_t request_recv(Request* request, int socket) {
 	int recvied = recv(socket, buf_write_ptr(request->buf), buf_write_max(request->buf), 0);
 	if (recvied > 0) {
+		TRACE("recived: %d", recvied);
+
 		// update buffer
 		buf_advance_write(request->buf, recvied);
 
@@ -61,6 +63,8 @@ ssize_t request_recv(Request* request, int socket) {
 			if (request->content_start < 0) {
 				buf_grow(request->buf);
 			} else {
+				TRACE("header complete");
+
 				// read header
 				Scanner scanner = scanner_new(request->buf->data, request->content_start);
 
@@ -68,6 +72,8 @@ ssize_t request_recv(Request* request, int socket) {
 				request->method = scan_token(&scanner, " ");
 				request->target = uri_new(scan_token(&scanner, " "));
 				request->version = scan_token(&scanner, "\r\n");
+
+				TRACE_DETAIL("%.*s: %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
 
 				// other headers
 				Token line;
@@ -79,7 +85,7 @@ ssize_t request_recv(Request* request, int socket) {
 					TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
 					if (token_is(name, "If-Modified-Since")) {
 						request->if_modified_Since = from_imf_date(value.start, value.length);
-					}				
+					}
 				}
 
 				// complete?

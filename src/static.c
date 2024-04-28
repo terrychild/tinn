@@ -38,7 +38,7 @@ bool static_content(Request* request, Response* response) {
 		// check this is a GET request
 		// TODO: what about HEAD requests?
 		if (!token_is(request->method, "GET")) {
-			response_simple_status(response, 405, "Oops, that method is not allowed.");
+			response_error(response, 405);
 			return true;
 		}
 
@@ -85,8 +85,7 @@ bool static_content(Request* request, Response* response) {
 				strcpy(new_path, request->target->path);
 				strcpy(new_path + request->target->path_len, "/");
 
-				response_status(response, 301);
-				response_header(response, "Location", new_path);
+				response_redirect(response, new_path);
 				return true;
 			}
 		}

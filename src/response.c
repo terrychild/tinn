@@ -145,18 +145,36 @@ Buffer* response_buf(Response* response) {
 	return response->buf;
 }
 
-void response_simple_status(Response* response, int status_code, char *description) {
+#define ERROR_TEMPLATE \
+	"<!DOCTYPE html>" \
+	"<html lang=\"en\">" \
+	"<head>" \
+	"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0\">" \
+	"<style>" \
+	"body {color: #ffffff; background: #0000aa; font-family: monospace, monospace; margin: 10px;} " \
+	".title {color: #0000aa; background: #aaaaaa; padding-left: 1em; padding-right: 1em} " \
+	"@media (width >= 660px) { .error {width: 640px; margin: 30vh auto 0;} } " \
+	"@media (width < 660px) { .error {margin-top: 30px;} } " \
+	"p {margin: 1em 0;} " \
+	"</style>" \
+	"<title>Error</title>" \
+	"</head>" \
+	"<body><div class=\"error\">" \
+	"<p style=\"text-align: center;\"><span class=\"title\">Tinn</span></p>" \
+	"<p>An error has occurred.  To continue:</p>" \
+	"<p>Press F5 to refresh the page, it might work if you try again, or</p>" \
+	"<p>Press ALT+F4 to quit your browser.  It's an extreme response but the error will go away, at least temporarily.</p>" \
+	"<p>Error: %d : %s</p>" \
+	"</div>" \
+	"</body>" \
+	"</html>"
+
+void response_error(Response* response, int status_code) {
 	response_status(response, status_code);
-	buf_append_format(response_content(response, "html"), "<html><body><h1>%d - %s</h1><p>%s</p></body></html>", status_code, status_text(status_code), description);
+	buf_append_format(response_content(response, "html"), ERROR_TEMPLATE, status_code, status_text(status_code));
 }
 
-/*
-static void prep_redirect(ClientState* state, char* location) {
-	start_headers(state->out, "301", "Moved Permanently");
-	buf_append_format(state->out, "Location: %s\r\n", location);
-	end_headers(state->out);
+void response_redirect(Response* response, char* location) {
+	response_status(response, 301);
+	response_header(response, "Location", location);
 }
-
-
-
-*/

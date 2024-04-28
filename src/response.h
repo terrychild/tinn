@@ -31,6 +31,7 @@ Buffer* response_content(Response* response, char* type);
 
 Buffer* response_buf(Response* response);
 
-void response_simple_status(Response* response, int status_code, char *description);
+void response_error(Response* response, int status_code);
+void response_redirect(Response* response, char* location);
 
 #endif
