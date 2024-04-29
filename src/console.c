@@ -9,6 +9,7 @@
 #define INTENSE_BOLD_RED "\x1B[1;91m"
 #define YELLOW "\x1B[33m"
 #define BLUE "\x1B[34m"
+#define MAGENTA "\x1B[35m"
 #define CYAN "\x1B[36m"
 #define RESET "\x1B[0m"
 
@@ -23,8 +24,10 @@ static void print_time(FILE *stream) {
 static void print_prefix(FILE *stream, ConsoleLevel level) {
 	switch(level) {
 		case CL_TRACE:
-		case CL_DEBUG:
 			fputs(CYAN, stream);
+			break;
+		case CL_DEBUG:
+			fputs(MAGENTA, stream);
 			break;
 		case CL_INFO:
 			break;
@@ -65,5 +68,6 @@ void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, co
 #undef INTENSE_BOLD_RED
 #undef YELLOW
 #undef BLUE
+#undef MAGENTA
 #undef CYAN
 #undef RESET

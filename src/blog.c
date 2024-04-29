@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/stat.h>
 
 #include "utils.h"
 #include "console.h"
@@ -10,6 +11,19 @@
 #include "scanner.h"
 
 #define BLOG_DIR "blog"
+#define POSTS_PATH BLOG_DIR "/.posts.dat"
+
+static time_t get_mod_date(const char* path) {
+	struct stat attrib;
+	if (stat(path, &attrib) == 0) {
+		return attrib.st_mtime;
+	}
+	return 0;
+}
+
+static time_t max_time_t(time_t a, time_t b) {
+	return a>=b ? a : b;
+}
 
 static struct post* add_post(Blog* blog) {
 	if (blog->count == blog->size) {
@@ -23,12 +37,21 @@ static struct post* add_post(Blog* blog) {
 
 static void read_posts(Blog* blog) {
 	TRACE("read blog posts");
-	
-	char path[BLOG_MAX_PATH_LEN];
-	Buffer* buf = buf_new_file(BLOG_DIR "/.posts.dat");
-	Scanner line_scanner = scanner_new(buf->data, buf->length);
 
+	// read file
+	Buffer* buf = buf_new_file(POSTS_PATH);
+	if (buf==NULL) {
+		return;
+	}
+
+	// mod date
+	blog->mod_date = max_time_t(blog->mod_date, get_mod_date(POSTS_PATH));
+
+	// scan lines
+	char path[BLOG_MAX_PATH_LEN];
+	Scanner line_scanner = scanner_new(buf->data, buf->length);
 	Token line;
+
 	while ((line = scan_token(&line_scanner, "\r\n")).length>0) {
 		Scanner field_scanner = scanner_new(line.start, line.length);
 
@@ -70,28 +93,54 @@ static void read_posts(Blog* blog) {
 		memcpy(post->title, title.start, title.length);
 		memcpy(post->date, date.start, date.length);
 
+		post->mod_date = get_mod_date(path);
 		post->content = content;
 	}
 	
 	buf_free(buf);
 }
 
+static void reread_posts(Blog* blog) {
+	for (size_t i=0; i<blog->count; i++) {
+		buf_free(blog->posts[i].content);
+	}
+	blog->count = 0;
+	read_posts(blog);
+}
+
+static void check_post_date(struct post* post) {
+	time_t mod_date = get_mod_date(post->source);
+	if (mod_date > post->mod_date) {
+		buf_reset(post->content);
+		buf_append_file(post->content, post->source);
+		post->mod_date = mod_date;
+	}
+}
+
+static bool read_fragment(Blog* blog, size_t fragment, const char* path) {
+	blog->fragments[fragment].path = path;
+	blog->fragments[fragment].buf = buf_new_file(path);
+	blog->mod_date = max_time_t(blog->mod_date, get_mod_date(path));
+
+	return blog->fragments[fragment].buf != NULL;
+}
+
 Blog* blog_new() {
 	Blog* blog = allocate(NULL, sizeof(*blog));
+	blog->mod_date = 0;
+
 	blog->size = 32;
 	blog->count = 0;
 	blog->posts = allocate(NULL, sizeof(*blog->posts) * blog->size);
 
 	// load html fragments
 	TRACE("loading html fragments");
-	blog->header1 = buf_new_file(".header1.html");
-	blog->header2 = buf_new_file(".header2.html");
-	blog->footer = buf_new_file(".footer.html");
-
-	if (blog->header1 == NULL || blog->header2 == NULL || blog->footer == NULL) {
-		buf_free(blog->header1);
-		buf_free(blog->header2);
-		buf_free(blog->footer);
+	bool ok = true;
+	ok = read_fragment(blog, HF_HEADER_1, ".header1.html") && ok;
+	ok = read_fragment(blog, HF_HEADER_2, ".header2.html") && ok;
+	ok = read_fragment(blog, HF_FOOTER, ".footer.html") && ok;
+	if (!ok) {
+		blog_free(blog);
 		return NULL;
 	}
 
@@ -102,22 +151,22 @@ Blog* blog_new() {
 }
 void blog_free(Blog* blog) {
 	if (blog != NULL) {
+		for (size_t i=0; i<HF_COUNT; i++) {
+			buf_free(blog->fragments[i].buf);
+		}
 		for (size_t i=0; i<blog->count; i++) {
 			buf_free(blog->posts[i].content);
 		}
-		free(blog->posts);
-		buf_free(blog->header1);
-		buf_free(blog->header2);
-		buf_free(blog->footer);
+		free(blog->posts);		
 		free(blog);
 	}
 }
 
-static void compose_article(Buffer* buf, struct post post) {
+static void compose_article(Buffer* buf, struct post* post) {
 	buf_append_str(buf, "<article>");
-	buf_append_format(buf, "<h1><a href=\"%s\">%s</a></h1>", post.path, post.title);
-	buf_append_format(buf, "<h2>%s</h2>", post.date);
-	buf_append_buf(buf, post.content);
+	buf_append_format(buf, "<h1><a href=\"%s\">%s</a></h1>", post->path, post->title);
+	buf_append_format(buf, "<h2>%s</h2>", post->date);
+	buf_append_buf(buf, post->content);
 	buf_append_str(buf, "</article>\n");
 }
 
@@ -126,63 +175,115 @@ bool blog_content(void* state, Request* request, Response* response) {
 
 	Blog* blog = (Blog*)state;
 
+	// check for changes
+	if (get_mod_date(POSTS_PATH) > blog->mod_date) {
+		reread_posts(blog);
+	}
+	for (size_t i=0; i<HF_COUNT; i++) {
+		time_t mod_date = get_mod_date(blog->fragments[i].path);
+		if (mod_date > blog->mod_date) {
+			buf_reset(blog->fragments[i].buf);
+			buf_append_file(blog->fragments[i].buf, blog->fragments[i].path);
+			blog->mod_date = mod_date;
+		}
+	}
+
+	// check home page
 	if (strcmp(request->target->path, "/")==0) {
 		TRACE("generate home page");
 
+		// check modified date
+		time_t mod_date = blog->mod_date;
+		for (size_t i=0; i<blog->count; i++) {
+			check_post_date(&(blog->posts[i]));
+			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
+		}
+
+		if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+			TRACE("not modified, use cached version");
+			response_status(response, 304);
+			return true;
+		}
+		
+		// generate page
 		response_status(response, 200);
-		//response_header(response, "Cache-Control", "no-cache");
-		//response_date(response, "Last-Modified", attrib.st_mtime);
+		response_header(response, "Cache-Control", "no-cache");
+		response_date(response, "Last-Modified", mod_date);
 
 		Buffer* content = response_content(response, "html");
-		buf_append_buf(content, blog->header1);
-		buf_append_buf(content, blog->header2);
+		buf_append_buf(content, blog->fragments[HF_HEADER_1].buf);
+		buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 
 		for (size_t i=0; i<blog->count; i++) {
 			TRACE_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
 			if (i > 0) {
 				buf_append_str(content, "<hr>\n");
 			}
-			compose_article(content, blog->posts[i]);
+			compose_article(content, &(blog->posts[i]));
 		}
 
-		buf_append_buf(content, blog->footer);
+		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
 		return true;
 	}
 
+	// check log page
 	if (strcmp(request->target->path, "/log")==0) {
 		TRACE("generate log page");
 
+		// check modified date
+		time_t mod_date = blog->mod_date;
+		for (size_t i=0; i<blog->count; i++) {
+			check_post_date(&(blog->posts[i]));
+			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
+		}
+
+		if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+			TRACE("not modified, use cached version");
+			response_status(response, 304);
+			return true;
+		}
+		
+		// generate page
 		response_status(response, 200);
-		//response_header(response, "Cache-Control", "no-cache");
-		//response_date(response, "Last-Modified", attrib.st_mtime);
+		response_header(response, "Cache-Control", "no-cache");
+		response_date(response, "Last-Modified", mod_date);
 
 		Buffer* content = response_content(response, "html");
-		buf_append_buf(content, blog->header1);
-		buf_append_buf(content, blog->header2);
+		buf_append_buf(content, blog->fragments[HF_HEADER_1].buf);
+		buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 
 		for (ssize_t i=blog->count-1; i>=0; i--) {
 			TRACE_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
 			if (i < (ssize_t)blog->count-1) {
 				buf_append_str(content, "<hr>\n");
 			}
-			compose_article(content, blog->posts[i]);
+			compose_article(content, &(blog->posts[i]));
 		}
 
-		buf_append_buf(content, blog->footer);
+		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
 		return true;
 	}
 
+	// check archive page
 	if (strcmp(request->target->path, "/" BLOG_DIR)==0) {
 		TRACE("generate archive page");
 
+		// check modified date
+		if (request->if_modified_Since>0 && request->if_modified_Since>=blog->mod_date) {
+			TRACE("not modified, use cached version");
+			response_status(response, 304);
+			return true;
+		}
+		
+		// generate page
 		response_status(response, 200);
-		//response_header(response, "Cache-Control", "no-cache");
-		//response_date(response, "Last-Modified", attrib.st_mtime);
+		response_header(response, "Cache-Control", "no-cache");
+		response_date(response, "Last-Modified", blog->mod_date);
 
 		Buffer* content = response_content(response, "html");
-		buf_append_buf(content, blog->header1);
+		buf_append_buf(content, blog->fragments[HF_HEADER_1].buf);
 		buf_append_str(content, " - Blog");
-		buf_append_buf(content, blog->header2);
+		buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 		buf_append_str(content, "<article><h1>Blog Archive</h1>\n");
 		buf_append_str(content, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
 
@@ -199,22 +300,34 @@ bool blog_content(void* state, Request* request, Response* response) {
 		}
 
 		buf_append_str(content, "</article>");
-		buf_append_buf(content, blog->footer);
+		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
 		return true;
 	}
 
+	// look for blog pages
 	for (size_t i=0; i<blog->count; i++) {
 		if (strcmp(request->target->path, blog->posts[i].path)==0) {
 			TRACE("generate \"%s\" page", blog->posts[i].title);
+
+			// check modified date
+			check_post_date(&(blog->posts[i]));
+			time_t mod_date = max_time_t(blog->mod_date, blog->posts[i].mod_date);
+
+			if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+				TRACE("not modified, use cached version");
+				response_status(response, 304);
+				return true;
+			}
 			
+			// generate page
 			response_status(response, 200);
-			//response_header(response, "Cache-Control", "no-cache");
-			//response_date(response, "Last-Modified", attrib.st_mtime);
+			response_header(response, "Cache-Control", "no-cache");
+			response_date(response, "Last-Modified", mod_date);
 
 			Buffer* content = response_content(response, "html");
-			buf_append_buf(content, blog->header1);
+			buf_append_buf(content, blog->fragments[HF_HEADER_1].buf);
 			buf_append_format(content, " - %s", blog->posts[i].title);
-			buf_append_buf(content, blog->header2);
+			buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 			buf_append_format(content, "<article><h1>%s</h1><h2>%s</h2>\n", blog->posts[i].title, blog->posts[i].date);
 			buf_append_buf(content, blog->posts[i].content);
 			buf_append_str(content, "<nav>");
@@ -227,7 +340,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 				buf_append_format(content, "<a href=\"%s\">next</a>", blog->posts[i-1].path);
 			}
 			buf_append_str(content, "</nav></article>\n");
-			buf_append_buf(content, blog->footer);
+			buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
 			return true;
 		}
 	}
@@ -236,3 +349,4 @@ bool blog_content(void* state, Request* request, Response* response) {
 }
 
 #undef BLOG_DIR
+#undef POSTS_PATH
