@@ -1,41 +1,30 @@
 #include <string.h>
+#include <sys/socket.h>
 
 #include "response.h"
 #include "utils.h"
 #include "console.h"
 
+#define RC_NONE 0
+#define RC_INTERNAL 1
+#define RC_EXTERNAL 2
+
 Response* response_new() {
 	Response* response = allocate(NULL, sizeof(*response));
+
+	response->status_code = 500;
 
 	response->headers_size = 8;
 	response->headers_count = 0;
 	response->header_names = allocate(NULL, sizeof(*response->header_names) * response->headers_size);
 	response->header_values = allocate(NULL, sizeof(*response->header_values) * response->headers_size);
 
-	response->content = buf_new(1024);
+	response->content_source = RC_NONE;
 
-	response->buf = buf_new(1024);
-
-	response_reset(response);
+	response->headers = buf_new(1024);
+	response->stage = RESPONSE_PREP;
 
 	return response;	
-}
-
-void response_free(Response* response) {
-	if (response!=NULL) {
-		for (size_t i=0; i<response->headers_count; i++) {
-			free(response->header_names[i]);
-			free(response->header_values[i]);
-		}
-		free(response->header_names);
-		free(response->header_values);
-
-		buf_free(response->content);
-
-		buf_free(response->buf);
-
-		free(response);
-	}
 }
 
 void response_reset(Response* response) {
@@ -47,11 +36,32 @@ void response_reset(Response* response) {
 	}
 	response->headers_count = 0;
 
-	response->type = content_type(NULL);
-	buf_reset(response->content);
+	if (response->content_source == RC_INTERNAL) {
+		buf_free(response->content);
+	}
+	response->content_source = RC_NONE;
 	
-	response->built = false;
-	buf_reset(response->buf);
+	buf_reset(response->headers);
+	response->stage = RESPONSE_PREP;
+}
+
+void response_free(Response* response) {
+	if (response!=NULL) {
+		for (size_t i=0; i<response->headers_count; i++) {
+			free(response->header_names[i]);
+			free(response->header_values[i]);
+		}
+		free(response->header_names);
+		free(response->header_values);
+
+		if (response->content_source == RC_INTERNAL) {
+			buf_free(response->content);
+		}
+
+		buf_free(response->headers);
+
+		free(response);
+	}
 }
 
 void response_status(Response* response, int status_code) {
@@ -108,41 +118,89 @@ void response_date(Response* response, const char* name, time_t date) {
 	response_header(response, name, buffer);
 }
 
+void repsonse_no_content(Response* response) {
+	if (response->content_source == RC_INTERNAL) {
+		buf_free(response->content);
+	}
+	response->content_source = RC_NONE;
+}
+
 Buffer* response_content(Response* response, char* type) {
+	if (response->content_source != RC_INTERNAL) {
+		response->content = buf_new(1024);
+	}
+	response->content_source = RC_INTERNAL;
 	response->type = content_type(type);
 	return response->content;
 }
 
-Buffer* response_buf(Response* response) {
-	if (!response->built) {
-		TRACE("build response");
-
-		// status line
-		buf_append_format(response->buf, "HTTP/1.1 %d %s\r\n", response->status_code, status_text(response->status_code));
-
-		// date header
-		buf_append_str(response->buf, ": ");
-		to_imf_date(buf_reserve(response->buf, IMF_DATE_LEN), IMF_DATE_LEN, time(NULL));
-		buf_advance_write(response->buf, -1);
-		buf_append_str(response->buf, "\r\n");
-
-		// standard headers
-		buf_append_str(response->buf, "Server: Tinn\r\n");
-		buf_append_format(response->buf, "Content-Type: %s\r\n", response->type);
-		buf_append_format(response->buf, "Content-Length: %ld\r\n", response->content->length);
-
-		// other headers
-		for (size_t i=0; i<response->headers_count; i++) {
-			buf_append_format(response->buf, "%s: %s\r\n", response->header_names[i], response->header_values[i]);
-		}
-
-		// close header
-		buf_append_str(response->buf, "\r\n");
-
-		// content
-		buf_append_buf(response->buf, response->content);
+void repsonse_link_content(Response* response, Buffer* buf, char* type) {
+	if (response->content_source == RC_INTERNAL) {
+		buf_free(response->content);
 	}
-	return response->buf;
+	response->content_source = RC_EXTERNAL;
+	response->content = buf;
+	response->type = content_type(type);
+}
+
+static void build_headers(Response* response) {
+	TRACE("build response headers");
+
+	// status line
+	buf_append_format(response->headers, "HTTP/1.1 %d %s\r\n", response->status_code, status_text(response->status_code));
+
+	// date header
+	buf_append_str(response->headers, ": ");
+	to_imf_date(buf_reserve(response->headers, IMF_DATE_LEN), IMF_DATE_LEN, time(NULL));
+	buf_advance_write(response->headers, -1);
+	buf_append_str(response->headers, "\r\n");
+
+	// server header
+	buf_append_str(response->headers, "Server: Tinn\r\n");
+
+	// content headers
+	if (response->content_source != RC_NONE) {
+		buf_append_format(response->headers, "Content-Type: %s\r\n", response->type);
+		buf_append_format(response->headers, "Content-Length: %ld\r\n", response->content->length);
+	}
+
+	// other headers
+	for (size_t i=0; i<response->headers_count; i++) {
+		buf_append_format(response->headers, "%s: %s\r\n", response->header_names[i], response->header_values[i]);
+	}
+
+	// close with empty line
+	buf_append_str(response->headers, "\r\n");
+
+	response->stage++;
+}
+
+ssize_t response_send(Response* response, int socket) {
+	if (response->stage == RESPONSE_PREP) {
+		build_headers(response);
+	}
+
+	if (response->stage == RC_NONE) { // just in case?
+		WARN("trying to send a request that is finished");
+		return 0;
+	}
+
+	Buffer* buf = (response->stage == RESPONSE_HEADERS) ? response->headers : response->content;
+	
+	size_t len = buf_read_max(buf);
+	ssize_t sent = send(socket, buf_read_ptr(buf), len, MSG_DONTWAIT);
+	if (sent >= 0) {
+		TRACE("sent %d: %ld/%ld", response->stage, sent, len);
+		if ((size_t)sent < len) {
+			buf_advance_read(buf, sent);
+		} else {
+			response->stage++;
+			if (response->stage == RESPONSE_CONTENT && response->content_source == RC_NONE) {
+				response->stage++;
+			}
+		}
+	}
+	return sent;	
 }
 
 #define ERROR_TEMPLATE \
@@ -178,3 +236,7 @@ void response_redirect(Response* response, char* location) {
 	response_status(response, 301);
 	response_header(response, "Location", location);
 }
+
+#undef RC_NONE
+#undef RC_INTERNAL
+#undef RC_EXTERNAL

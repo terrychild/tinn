@@ -4,6 +4,11 @@
 #include "buffer.h"
 #include <time.h>
 
+#define RESPONSE_PREP 0
+#define RESPONSE_HEADERS 1
+#define RESPONSE_CONTENT 2
+#define RESPONSE_DONE 3
+
 typedef struct {
 	int status_code;
 
@@ -12,24 +17,27 @@ typedef struct {
 	char** header_names;
 	char** header_values;
 
+	unsigned short content_source;
 	const char* type;
 	Buffer* content;
 
-	bool built;
-	Buffer* buf;
+	Buffer* headers;
+	unsigned short stage;
 } Response;
 
 Response* response_new();
-void response_free(Response* response);
-
 void response_reset(Response* response);
+void response_free(Response* response);
 
 void response_status(Response* response, int status_code);
 void response_header(Response* response, const char* name, const char* value);
 void response_date(Response* response, const char* name, time_t date);
-Buffer* response_content(Response* response, char* type);
 
-Buffer* response_buf(Response* response);
+void repsonse_no_content(Response* response);
+Buffer* response_content(Response* response, char* type);
+void repsonse_link_content(Response* response, Buffer* buf, char* type);
+
+ssize_t response_send(Response* response, int socket);
 
 void response_error(Response* response, int status_code);
 void response_redirect(Response* response, char* location);

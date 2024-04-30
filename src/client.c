@@ -15,21 +15,18 @@ void client_state_free(ClientState* state) {
 }
 
 static bool send_response(struct pollfd* pfd, ClientState* state) {
-	Buffer* buf = response_buf(state->response);
+	Response* response = state->response;
 
-	long len = (long)buf_read_max(buf);
-	long sent = send(pfd->fd, buf_read_ptr(buf), len, MSG_DONTWAIT);
-	TRACE("sent: %ld/%ld", sent, len);
+	ssize_t sent = response_send(response, pfd->fd);
 	if (sent < 0) {
 		ERROR("send error for %s (%d)", state->address, pfd->fd);
 		return false;
 	}
-	if (sent < len) {
-		buf_advance_read(buf, sent);
-		pfd->events = POLLOUT;
-	} else {
-		response_reset(state->response);
+	if (response->stage == RESPONSE_DONE) {
+		response_reset(response);
 		pfd->events = POLLIN;
+	} else {
+		pfd->events = POLLOUT;
 	}
 	return true;
 }
