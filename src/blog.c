@@ -199,7 +199,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
 		}
 
-		if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+		if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
 			TRACE("not modified, use cached version");
 			response_status(response, 304);
 			return true;
@@ -237,7 +237,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
 		}
 
-		if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+		if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
 			TRACE("not modified, use cached version");
 			response_status(response, 304);
 			return true;
@@ -269,7 +269,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 		TRACE("generate archive page");
 
 		// check modified date
-		if (request->if_modified_Since>0 && request->if_modified_Since>=blog->mod_date) {
+		if (request->if_modified_since>0 && request->if_modified_since>=blog->mod_date) {
 			TRACE("not modified, use cached version");
 			response_status(response, 304);
 			return true;
@@ -313,7 +313,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 			check_post_date(&(blog->posts[i]));
 			time_t mod_date = max_time_t(blog->mod_date, blog->posts[i].mod_date);
 
-			if (request->if_modified_Since>0 && request->if_modified_Since>=mod_date) {
+			if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
 				TRACE("not modified, use cached version");
 				response_status(response, 304);
 				return true;

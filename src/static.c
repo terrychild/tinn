@@ -45,7 +45,7 @@ bool static_content(void* state, Request* request, Response* response) {
 		}
 
 		// check modified date
-		if (request->if_modified_Since>0 && request->if_modified_Since>=attrib.st_mtime) {
+		if (request->if_modified_since>0 && request->if_modified_since>=attrib.st_mtime) {
 			TRACE("not modified, use cached version");
 			response_status(response, 304);
 			return true;

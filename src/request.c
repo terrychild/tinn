@@ -36,7 +36,7 @@ void request_reset(Request* request) {
 	}
 	request->version.length = 0;
 
-	request->if_modified_Since = 0;
+	request->if_modified_since = 0;
 }
 
 static int find_content(Buffer* buf) {
@@ -84,7 +84,7 @@ ssize_t request_recv(Request* request, int socket) {
 
 					TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
 					if (token_is(name, "If-Modified-Since")) {
-						request->if_modified_Since = from_imf_date(value.start, value.length);
+						request->if_modified_since = from_imf_date(value.start, value.length);
 					}
 				}
 
