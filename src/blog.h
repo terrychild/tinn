@@ -10,12 +10,13 @@
 
 struct html_fragment {
 	const char* path;
+	time_t mod_date;
 	Buffer* buf;
 };
-#define HF_COUNT 3
-#define HF_HEADER_1 0
-#define HF_HEADER_2 1
-#define HF_FOOTER 2
+#define HF_HEADER_1	0
+#define HF_HEADER_2	1
+#define HF_FOOTER	2
+#define HF_COUNT	3
 
 struct post {
 	char source[BLOG_MAX_PATH_LEN];

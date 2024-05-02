@@ -45,7 +45,7 @@ static void read_posts(Blog* blog) {
 	}
 
 	// mod date
-	blog->mod_date = max_time_t(blog->mod_date, get_mod_date(POSTS_PATH));
+	blog->mod_date = get_mod_date(POSTS_PATH);
 
 	// scan lines
 	char path[BLOG_MAX_PATH_LEN];
@@ -119,8 +119,8 @@ static void check_post_date(struct post* post) {
 
 static bool read_fragment(Blog* blog, size_t fragment, const char* path) {
 	blog->fragments[fragment].path = path;
+	blog->fragments[fragment].mod_date = get_mod_date(path);
 	blog->fragments[fragment].buf = buf_new_file(path);
-	blog->mod_date = max_time_t(blog->mod_date, get_mod_date(path));
 
 	return blog->fragments[fragment].buf != NULL;
 }
@@ -179,13 +179,16 @@ bool blog_content(void* state, Request* request, Response* response) {
 	if (get_mod_date(POSTS_PATH) > blog->mod_date) {
 		reread_posts(blog);
 	}
+
+	time_t mod_date = blog->mod_date;
 	for (size_t i=0; i<HF_COUNT; i++) {
-		time_t mod_date = get_mod_date(blog->fragments[i].path);
-		if (mod_date > blog->mod_date) {
+		time_t fragment_mod_date = get_mod_date(blog->fragments[i].path);
+		if (fragment_mod_date > blog->fragments[i].mod_date) {
 			buf_reset(blog->fragments[i].buf);
 			buf_append_file(blog->fragments[i].buf, blog->fragments[i].path);
-			blog->mod_date = mod_date;
+			blog->fragments[i].mod_date = fragment_mod_date;
 		}
+		mod_date = max_time_t(mod_date, fragment_mod_date);
 	}
 
 	// check home page
@@ -193,7 +196,6 @@ bool blog_content(void* state, Request* request, Response* response) {
 		TRACE("generate home page");
 
 		// check modified date
-		time_t mod_date = blog->mod_date;
 		for (size_t i=0; i<blog->count; i++) {
 			check_post_date(&(blog->posts[i]));
 			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
@@ -231,7 +233,6 @@ bool blog_content(void* state, Request* request, Response* response) {
 		TRACE("generate log page");
 
 		// check modified date
-		time_t mod_date = blog->mod_date;
 		for (size_t i=0; i<blog->count; i++) {
 			check_post_date(&(blog->posts[i]));
 			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
@@ -269,7 +270,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 		TRACE("generate archive page");
 
 		// check modified date
-		if (request->if_modified_since>0 && request->if_modified_since>=blog->mod_date) {
+		if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
 			TRACE("not modified, use cached version");
 			response_status(response, 304);
 			return true;
@@ -278,7 +279,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 		// generate page
 		response_status(response, 200);
 		response_header(response, "Cache-Control", "no-cache");
-		response_date(response, "Last-Modified", blog->mod_date);
+		response_date(response, "Last-Modified", mod_date);
 
 		Buffer* content = response_content(response, "html");
 		buf_append_buf(content, blog->fragments[HF_HEADER_1].buf);
@@ -311,7 +312,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 
 			// check modified date
 			check_post_date(&(blog->posts[i]));
-			time_t mod_date = max_time_t(blog->mod_date, blog->posts[i].mod_date);
+			mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
 
 			if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
 				TRACE("not modified, use cached version");

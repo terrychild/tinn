@@ -16,13 +16,13 @@ bool static_content(void* state, Request* request, Response* response) {
 
 	char* last_segment = request->target->segments[request->target->segments_count-1];
 
-	if (strcmp(last_segment, "")==0) {
+	if (strlen(last_segment)==0) {
 		last_segment = "index.html";
 		strcpy(local_path + 1 + request->target->path_len, last_segment);
 	}
 
 	// ignore dot files
-	if (strlen(last_segment)>1 && last_segment[0]=='.') {
+	if (last_segment[0]=='.') {
 		TRACE("ignoring dot file \"%s\"", local_path);
 		return false;
 	}
