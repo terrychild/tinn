@@ -48,7 +48,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 	} else {
 		if (request->method.length==0 || !request->target->valid || request->version.length==0) {
 			WARN("Bad request from %s (%d)", state->address, pfd->fd);
-			DEBUG_DETAIL("start line: %.*s", request->start_line.length, request->start_line.start);
+			DEBUG_DETAIL("%.*s", request->start_line.length, request->start_line.start);
 			response_error(response, 400);
 
 		} else if (!token_is(request->version, "HTTP/1.0") && !token_is(request->version, "HTTP/1.1")) {

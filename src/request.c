@@ -77,7 +77,7 @@ ssize_t request_recv(Request* request, int socket) {
 				request->target = uri_new(scan_token(&start_scanner, " "));
 				request->version = scan_token(&start_scanner, "");
 
-				TRACE_DETAIL("%.*s: %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
+				TRACE_DETAIL("%.*s %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
 
 				// other headers
 				Token line;
