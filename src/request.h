@@ -14,6 +14,7 @@ typedef struct {
 	Buffer* buf;
 	int content_start;
 
+	Token start_line;
 	Token method;
 	URI* target;
 	Token version;

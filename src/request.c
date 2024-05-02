@@ -61,7 +61,9 @@ ssize_t request_recv(Request* request, int socket) {
 			request->content_start = find_content(request->buf);
 
 			if (request->content_start < 0) {
-				buf_grow(request->buf);
+				if (buf_write_max(request->buf) < 128) {
+					buf_grow(request->buf);
+				}
 			} else {
 				TRACE("header complete");
 
@@ -69,9 +71,11 @@ ssize_t request_recv(Request* request, int socket) {
 				Scanner scanner = scanner_new(request->buf->data, request->content_start);
 
 				// start line
-				request->method = scan_token(&scanner, " ");
-				request->target = uri_new(scan_token(&scanner, " "));
-				request->version = scan_token(&scanner, "\r\n");
+				request->start_line = scan_token(&scanner, "\r\n");
+				Scanner start_scanner = scanner_new(request->start_line.start, request->start_line.length);
+				request->method = scan_token(&start_scanner, " ");
+				request->target = uri_new(scan_token(&start_scanner, " "));
+				request->version = scan_token(&start_scanner, "");
 
 				TRACE_DETAIL("%.*s: %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
 

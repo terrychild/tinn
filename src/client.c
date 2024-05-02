@@ -43,12 +43,12 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			LOG("connection from %s (%d) closed", state->address, pfd->fd);
 		}
 		return false;
+	} else if (!request->complete) {
+		return true;
 	} else {
 		if (request->method.length==0 || !request->target->valid || request->version.length==0) {
 			WARN("Bad request from %s (%d)", state->address, pfd->fd);
-			TRACE_DETAIL("method: %.*s", request->method.length, request->method.start);
-			TRACE_DETAIL("target: %s", request->target->data);
-			TRACE_DETAIL("version: %.*s", request->version.length, request->version.start);
+			DEBUG_DETAIL("start line: %.*s", request->start_line.length, request->start_line.start);
 			response_error(response, 400);
 
 		} else if (!token_is(request->version, "HTTP/1.0") && !token_is(request->version, "HTTP/1.1")) {
