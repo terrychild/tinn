@@ -5,9 +5,10 @@
 #include "utils.h"
 #include "console.h"
 
-#define RC_NONE 0
-#define RC_INTERNAL 1
-#define RC_EXTERNAL 2
+#define RC_NONE		0
+#define RC_HEADERS	1
+#define RC_INTERNAL	2
+#define RC_EXTERNAL	3
 
 Response* response_new() {
 	Response* response = allocate(NULL, sizeof(*response));
@@ -125,6 +126,15 @@ void repsonse_no_content(Response* response) {
 	response->content_source = RC_NONE;
 }
 
+void repsonse_content_headers(Response* response, char* type, size_t length) {
+	if (response->content_source == RC_INTERNAL) {
+		buf_free(response->content);
+	}
+	response->content_source = RC_HEADERS;
+	response->type = content_type(type);
+	response->content_length = length;
+}
+
 Buffer* response_content(Response* response, char* type) {
 	if (response->content_source != RC_INTERNAL) {
 		response->content = buf_new(1024);
@@ -141,6 +151,15 @@ void repsonse_link_content(Response* response, Buffer* buf, char* type) {
 	response->content_source = RC_EXTERNAL;
 	response->content = buf;
 	response->type = content_type(type);
+}
+
+static void next_stage(Response* response) {
+	response->stage++;
+	if (response->stage == RESPONSE_CONTENT) {
+		if (response->content_source == RC_NONE || response->content_source == RC_HEADERS) {
+			response->stage++;
+		}
+	}
 }
 
 static void build_headers(Response* response) {
@@ -161,7 +180,12 @@ static void build_headers(Response* response) {
 	// content headers
 	if (response->content_source != RC_NONE) {
 		buf_append_format(response->headers, "Content-Type: %s\r\n", response->type);
-		buf_append_format(response->headers, "Content-Length: %ld\r\n", response->content->length);
+		if (response->content_source == RC_HEADERS) {
+			buf_append_format(response->headers, "Content-Length: %ld\r\n", response->content_length);
+		} else {
+			buf_append_format(response->headers, "Content-Length: %ld\r\n", response->content->length);
+		}
+		
 	}
 
 	// other headers
@@ -172,7 +196,7 @@ static void build_headers(Response* response) {
 	// close with empty line
 	buf_append_str(response->headers, "\r\n");
 
-	response->stage++;
+	next_stage(response);
 }
 
 ssize_t response_send(Response* response, int socket) {
@@ -180,7 +204,7 @@ ssize_t response_send(Response* response, int socket) {
 		build_headers(response);
 	}
 
-	if (response->stage == RC_NONE) { // just in case?
+	if (response->stage == RESPONSE_DONE) { // just in case?
 		WARN("trying to send a request that is finished");
 		return 0;
 	}
@@ -194,13 +218,10 @@ ssize_t response_send(Response* response, int socket) {
 		if ((size_t)sent < len) {
 			buf_advance_read(buf, sent);
 		} else {
-			response->stage++;
-			if (response->stage == RESPONSE_CONTENT && response->content_source == RC_NONE) {
-				response->stage++;
-			}
+			next_stage(response);
 		}
 	}
-	return sent;	
+	return sent;
 }
 
 #define ERROR_TEMPLATE \

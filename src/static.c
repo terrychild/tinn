@@ -37,10 +37,11 @@ bool static_content(void* state, Request* request, Response* response) {
 	if (S_ISREG(attrib.st_mode)) {
 		TRACE("found \"%s\"", local_path);
 
-		// check this is a GET request
-		// TODO: what about HEAD requests?
-		if (!token_is(request->method, "GET")) {
+		// check this is a GET or HEAD request
+		if (!token_is(request->method, "GET") && !token_is(request->method, "HEAD")) {
+			TRACE("method not allowed");
 			response_error(response, 405);
+			response_header(response, "Allow", "GET, HEAD");
 			return true;
 		}
 
@@ -69,8 +70,13 @@ bool static_content(void* state, Request* request, Response* response) {
 		response_header(response, "Cache-Control", "no-cache");
 		response_date(response, "Last-Modified", attrib.st_mtime);
 
-		char* body = buf_reserve(response_content(response, strrchr(last_segment, '.')), length);
-		fread(body, 1, length, file);
+		char* ext = strrchr(last_segment, '.');
+		if (token_is(request->method, "HEAD")) {
+			repsonse_content_headers(response, ext, length);
+		} else {
+			char* body = buf_reserve(response_content(response, ext), length);
+			fread(body, 1, length, file);
+		}
 		fclose(file);
 
 		return true;

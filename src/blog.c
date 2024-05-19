@@ -170,6 +170,16 @@ static void compose_article(Buffer* buf, struct post* post) {
 	buf_append_str(buf, "</article>\n");
 }
 
+static bool method_allowed(Request* request, Response* response) {
+	if (!token_is(request->method, "GET") && !token_is(request->method, "HEAD")) {
+		TRACE("method not allowed");
+		response_error(response, 405);
+		response_header(response, "Allow", "GET, HEAD");
+		return false;
+	}
+	return true;
+}
+
 bool blog_content(void* state, Request* request, Response* response) {
 	TRACE("checking blog content");
 
@@ -193,6 +203,11 @@ bool blog_content(void* state, Request* request, Response* response) {
 
 	// check home page
 	if (strcmp(request->target->path, "/")==0) {
+		// check this is a GET or HEAD request
+		if (!method_allowed(request, response)) {
+			return true;
+		}
+
 		TRACE("generate home page");
 
 		// check modified date
@@ -225,11 +240,21 @@ bool blog_content(void* state, Request* request, Response* response) {
 		}
 
 		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
+		
+		if (token_is(request->method, "HEAD")) {
+			repsonse_content_headers(response, "html", content->length);
+		}
+
 		return true;
 	}
 
 	// check log page
 	if (strcmp(request->target->path, "/log")==0) {
+		// check this is a GET or HEAD request
+		if (!method_allowed(request, response)) {
+			return true;
+		}
+
 		TRACE("generate log page");
 
 		// check modified date
@@ -262,11 +287,21 @@ bool blog_content(void* state, Request* request, Response* response) {
 		}
 
 		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
+		
+		if (token_is(request->method, "HEAD")) {
+			repsonse_content_headers(response, "html", content->length);
+		}
+
 		return true;
 	}
 
 	// check archive page
 	if (strcmp(request->target->path, "/" BLOG_DIR)==0) {
+		// check this is a GET or HEAD request
+		if (!method_allowed(request, response)) {
+			return true;
+		}
+
 		TRACE("generate archive page");
 
 		// check modified date
@@ -302,12 +337,22 @@ bool blog_content(void* state, Request* request, Response* response) {
 
 		buf_append_str(content, "</article>");
 		buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
+		
+		if (token_is(request->method, "HEAD")) {
+			repsonse_content_headers(response, "html", content->length);
+		}
+
 		return true;
 	}
 
 	// look for blog pages
 	for (size_t i=0; i<blog->count; i++) {
 		if (strcmp(request->target->path, blog->posts[i].path)==0) {
+			// check this is a GET or HEAD request
+			if (!method_allowed(request, response)) {
+				return true;
+			}
+
 			TRACE("generate \"%s\" page", blog->posts[i].title);
 
 			// check modified date
@@ -342,6 +387,11 @@ bool blog_content(void* state, Request* request, Response* response) {
 			}
 			buf_append_str(content, "</nav></article>\n");
 			buf_append_buf(content, blog->fragments[HF_FOOTER].buf);
+			
+			if (token_is(request->method, "HEAD")) {
+				repsonse_content_headers(response, "html", content->length);
+			}
+
 			return true;
 		}
 	}
