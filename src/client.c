@@ -60,6 +60,10 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			WARN("Unsupported HTTP version (%.*s) from %s (%d)", request->version.length, request->version.start, state->address, pfd->fd);
 			response_error(response, 505);
 
+		} else if (token_is(request->version, "HTTP/1.1") && request->host.length==0) {
+			WARN("No host header from %s (%d)", state->address, pfd->fd);
+			response_error(response, 400);
+			
 		} else {
 			LOG("\"%.*s\" \"%s\" from %s (%d)", request->method.length, request->method.start, request->target->path, state->address, pfd->fd);
 

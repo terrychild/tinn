@@ -19,6 +19,7 @@ typedef struct {
 	URI* target;
 	Token version;
 
+	Token host;
 	Token connection;
 	time_t if_modified_since;
 } Request;

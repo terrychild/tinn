@@ -44,6 +44,7 @@ void request_reset(Request* request) {
 	}
 	request->version.length = 0;
 
+	request->host = default_header("");
 	request->connection = default_header("");
 	request->if_modified_since = 0;
 }
@@ -96,10 +97,11 @@ ssize_t request_recv(Request* request, int socket) {
 					Token value = scan_token(&header_scanner, "");
 
 					TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
-					if (token_is(name, "Connection")) {
+					if (token_is(name, "Host")) {
+						request->host = value;
+					} else if (token_is(name, "Connection")) {
 						request->connection = value;
-					}
-					if (token_is(name, "If-Modified-Since")) {
+					} else if (token_is(name, "If-Modified-Since")) {
 						request->if_modified_since = from_imf_date(value.start, value.length);
 					}
 				}
