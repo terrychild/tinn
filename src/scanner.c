@@ -2,7 +2,7 @@
 
 #include "scanner.h"
 
-Scanner scanner_new(const char* source, const int length) {
+Scanner scanner_new(const char* source, const size_t length) {
 	Scanner scanner = {
 		.start = source,
 		.current = source,
@@ -41,5 +41,5 @@ Token scan_token(Scanner* scanner, const char* delims) {
 }
 
 bool token_is(Token token, const char* str) {
-	return strncmp(token.start, str, token.length)==0;
+	return strlen(str)==token.length && strncmp(token.start, str, token.length)==0;
 }

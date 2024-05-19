@@ -22,11 +22,16 @@ static bool send_response(struct pollfd* pfd, ClientState* state) {
 		ERROR("send error for %s (%d)", state->address, pfd->fd);
 		return false;
 	}
-	if (response->stage == RESPONSE_DONE) {
+	if (response->stage != RESPONSE_DONE) {
+		pfd->events = POLLOUT;
+	} else {
+		Request* request = state->request;
+		if (token_is(request->connection, "close")) {
+			return false;
+		}
+		request_reset(request);
 		response_reset(response);
 		pfd->events = POLLIN;
-	} else {
-		pfd->events = POLLOUT;
 	}
 	return true;
 }
@@ -66,10 +71,7 @@ static bool read_request(struct pollfd* pfd, ClientState* state) {
 			if (!ready) {
 				response_error(response, 404);
 			}
-		}
-
-		// done reading request so reset?
-		request_reset(state->request);
+		}		
 
 		// send
 		return send_response(pfd, state);

@@ -23,6 +23,14 @@ void request_free(Request* request) {
 	}
 }
 
+Token default_header(char* value) {
+	Token rv = {
+		.start = value,
+		.length = strlen(value)
+	};
+	return rv;
+}
+
 void request_reset(Request* request) {
 	request->complete = false;
 
@@ -36,6 +44,7 @@ void request_reset(Request* request) {
 	}
 	request->version.length = 0;
 
+	request->connection = default_header("");
 	request->if_modified_since = 0;
 }
 
@@ -87,8 +96,19 @@ ssize_t request_recv(Request* request, int socket) {
 					Token value = scan_token(&header_scanner, "");
 
 					TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
+					if (token_is(name, "Connection")) {
+						request->connection = value;
+					}
 					if (token_is(name, "If-Modified-Since")) {
 						request->if_modified_since = from_imf_date(value.start, value.length);
+					}
+				}
+
+				if (request->connection.length==0) {
+					if (token_is(request->version, "HTTP/1.0")) {
+						request->connection = default_header("close");
+					} else {
+						request->connection = default_header("keep-alive");
 					}
 				}
 

@@ -57,7 +57,7 @@ URI* uri_new(Token token) {
 
 	// scan the URI looking for segments (directories), the start of the query and invalid characters
 	bool in_path = true;
-	for (int i=0; i<token.length; i++) {
+	for (size_t i=0; i<token.length; i++) {
 		switch (uri->data[i]) {
 			case '/':
 				if (in_path) {

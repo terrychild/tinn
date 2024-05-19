@@ -64,7 +64,7 @@ static void read_posts(Blog* blog) {
 			ERROR("post line is invalid \"%.*s\"\n", line.length, line.start);
 			continue;
 		}
-		int len = snprintf(path, BLOG_MAX_PATH_LEN, "%s/%.*s/.post.html", BLOG_DIR, dir.length, dir.start);
+		int len = snprintf(path, BLOG_MAX_PATH_LEN, "%s/%.*s/.post.html", BLOG_DIR, (int)dir.length, dir.start);
 		if (len < 0 || len >= BLOG_MAX_PATH_LEN) {
 			ERROR("unable to create path for \"%.*s\"\n", dir.length, dir.start);
 			continue;
@@ -89,7 +89,7 @@ static void read_posts(Blog* blog) {
 		struct post* post = add_post(blog);
 
 		memcpy(post->source, path, len);
-		snprintf(post->path, BLOG_MAX_PATH_LEN, "/%s/%.*s", BLOG_DIR, dir.length, dir.start);
+		snprintf(post->path, BLOG_MAX_PATH_LEN, "/%s/%.*s", BLOG_DIR, (int)dir.length, dir.start);
 		memcpy(post->title, title.start, title.length);
 		memcpy(post->date, date.start, date.length);
 
