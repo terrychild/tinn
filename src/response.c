@@ -150,7 +150,7 @@ static void build_headers(Response* response) {
 	buf_append_format(response->headers, "HTTP/1.1 %d %s\r\n", response->status_code, status_text(response->status_code));
 
 	// date header
-	buf_append_str(response->headers, ": ");
+	buf_append_str(response->headers, "Date: ");
 	to_imf_date(buf_reserve(response->headers, IMF_DATE_LEN), IMF_DATE_LEN, time(NULL));
 	buf_advance_write(response->headers, -1);
 	buf_append_str(response->headers, "\r\n");
