@@ -71,7 +71,7 @@ void response_status(Response* response, int status_code) {
 
 static char* status_text(int status) {
 	switch (status) {
-		case 200: return "Continue";
+		case 200: return "OK";
 		case 301: return "Moved Permanently";
 		case 304: return "Not Modified";
 		case 400: return "Bad Request";
