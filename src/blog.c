@@ -378,7 +378,7 @@ bool blog_content(void* state, Request* request, Response* response) {
 			buf_append_buf(content, blog->posts[i].content);
 			buf_append_str(content, "<nav>");
 			if (i < blog->count-1) {
-				buf_append_format(content, "<a href=\"%s\">prev</a>", blog->posts[i+1].path);
+				buf_append_format(content, "<a href=\"%s\">previous</a>", blog->posts[i+1].path);
 			} else {
 				buf_append_str(content, "<span>&nbsp;</span>");
 			}
