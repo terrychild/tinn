@@ -10,12 +10,24 @@
 			"folder_exclude_patterns": ["*"]
 		}
 	],
-	"build_systems": [
+	"build_systems":
+	[
 		{
-			"name": "tinn: build",
+			"name": "Build Project",
+
+			"target": "terminus_exec",
+			"cancel": "terminus_cancel_build",
+
 			"working_dir": "$project_path",
-			"shell_cmd": "make build",
-			"file_patterns": ["*.c", "*.h"]
+			"cmd": ["make"],
+
+			"variants":			
+			[
+				{
+					"name": "run",
+					"cmd": ["make", "run"],
+				}
+			]
 		}
 	]
 }

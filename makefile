@@ -1,8 +1,8 @@
 # config
 TARGET := tinn
-RUN_ARGS := ../moohar/www
+RUN_ARGS := -s ../moohar/www
 
-COMP_ARGS := -Wall -Wextra -std=c17 -pedantic
+COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
 
 # dirs
 BUILD := ./build

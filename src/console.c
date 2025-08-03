@@ -47,8 +47,6 @@ void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, co
 	if (level >= clevel) {
 		if (inc_time) {
 			print_time(stream);
-		} else {
-			fputs("  ", stream);
 		}
 		print_prefix(stream, level);
 		

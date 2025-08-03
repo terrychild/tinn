@@ -109,6 +109,11 @@ bool buf_append_file(Buffer* buf, const char* path) {
 
 	return true;
 }
+void buf_append_char(Buffer* buf, const char ch) {
+	ensure(buf, 1);
+	buf->data[buf->length] = ch;
+	buf->length += 1;
+}
 
 char* buf_reserve(Buffer* buf, long n) {
 	ensure(buf, n);
@@ -160,6 +165,14 @@ char* buf_advance_read(Buffer* buf, long offset) {
 		buf-> read_pos += offset;
 	}
 	return buf_read_ptr(buf);
+}
+
+char buf_read_char(Buffer* buf) {
+	if (buf->read_pos < buf->length) {
+		buf-> read_pos += 1;
+		return buf->data[buf->read_pos-1];
+	}
+	return '\0';
 }
 
 char* buf_as_str(Buffer* buf) {

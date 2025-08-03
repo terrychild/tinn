@@ -1,6 +1,7 @@
-#include "console.h"
 #include "server.h"
-#include "client.h"
+#include "utils.h"
+#include "console.h"
+#include "session.h"
 
 ServerState* server_state_new() {
 	ServerState* state = allocate(NULL, sizeof(*state));
@@ -25,8 +26,8 @@ static void server_listener(Sockets* sockets, int index) {
 	struct sockaddr_storage address;
 	socklen_t address_size;
 	int client_socket;
-	ClientState* client_state;
 	int client_index;
+	Session* session;
 
 	if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
 		PANIC("error on server socket: %d", pfd->revents);
@@ -36,21 +37,23 @@ static void server_listener(Sockets* sockets, int index) {
 	if ((client_socket = accept(pfd->fd, (struct sockaddr *)&address, &address_size)) < 0) {
 		ERROR("accept");
 	} else {
-		client_index = sockets_add(sockets, client_socket, client_listener);
+		client_index = sockets_add(sockets, client_socket, session_listener);
 
-		client_state = client_state_new();
-		client_state->content = server_state->content;
-		inet_ntop(address.ss_family, get_in_addr((struct sockaddr *)&address), client_state->address, INET6_ADDRSTRLEN);
-		sockets->states[client_index] = client_state;		
+		session = session_new();
+		session->content = server_state->content;
+		session->tls = server_state->tls;
+		inet_ntop(address.ss_family, get_in_addr((struct sockaddr *)&address), session->address, INET6_ADDRSTRLEN);
+		sockets->states[client_index] = session;		
 
-		LOG("connection from %s (%d) opened", client_state->address, client_socket);
+		LOG("connection from %s (%d) opened", session->address, client_socket);
 	}
 }
 
-void server_new(Sockets* sockets, int socket, ContentGenerators* content) {
+void server_new(Sockets* sockets, int socket, bool tls, ContentGenerators* content) {
 	int index = sockets_add(sockets, socket, server_listener);
 
 	ServerState* state = server_state_new();
 	state->content = content;
+	state->tls = tls;
 	sockets->states[index] = state;	
 }

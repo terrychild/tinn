@@ -24,6 +24,7 @@ void buf_append_str(Buffer* buf, const char* str);
 void buf_append_format(Buffer* buf, const char* format, ...);
 void buf_append_buf(Buffer* target, Buffer* source);
 bool buf_append_file(Buffer* buf, const char* path);
+void buf_append_char(Buffer* buf, const char ch);
 
 char* buf_reserve(Buffer* buf, long n);
 void buf_consume(Buffer* buf, long n);
@@ -35,6 +36,8 @@ char* buf_advance_write(Buffer* buf, long offset);
 char* buf_read_ptr(Buffer* buf);
 long buf_read_max(Buffer* buf);
 char* buf_advance_read(Buffer* buf, long offset);
+
+char buf_read_char(Buffer* buf);
 
 char* buf_as_str(Buffer* buf);
 

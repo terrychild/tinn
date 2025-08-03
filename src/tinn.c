@@ -17,6 +17,7 @@ static void usage_exit() {
 	puts("      --version      Display version.");
 	puts("  -v, --verbose      Enable verbose logging.");
 	puts("  -p port            Port to listen on, defaults to 8080.");
+	puts("      --tls1.3       Enable tls 1.3.");
 	exit(EXIT_SUCCESS);
 }
 
@@ -28,12 +29,14 @@ static void version_exit() {
 struct settings_t {
 	char* port;
 	char* content_dir;
+	bool tls;
 };
 
 static struct settings_t parse_arguments(int count, char* values[]) {
 	struct settings_t settings = {
 		.port = "8080",
-		.content_dir = "."
+		.content_dir = ".",
+		.tls = false
 	};
 	bool set_content_dir = false;
 
@@ -50,6 +53,10 @@ static struct settings_t parse_arguments(int count, char* values[]) {
 					version_exit();
 				} else if (strcmp(values[i], "--verbose")==0) {
 					clevel = CL_TRACE;
+				} else if (strcmp(values[i], "--tls1.3")==0) {
+					settings.tls = true;
+				} else {
+					usage_exit();
 				}
 			} else {
 				if (values[i][1] == 'h') {
@@ -114,7 +121,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	server_new(sockets, server_socket, content);
+	server_new(sockets, server_socket, settings.tls, content);
 	LOG("waiting for connections");
 
 	// loop forever directing network traffic

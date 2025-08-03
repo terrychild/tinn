@@ -6,9 +6,9 @@
 
 typedef struct {
 	ContentGenerators* content;
+	bool tls;
 } ServerState;
 
-void server_new(Sockets* sockets, int socket, ContentGenerators* content);
-//void server_listener(Sockets* sockets, int index);
+void server_new(Sockets* sockets, int socket, bool tls, ContentGenerators* content);
 
 #endif
