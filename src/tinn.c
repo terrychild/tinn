@@ -1,15 +1,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils.h"
-#include "console.h"
+#include "lib/console.h"
+/*#include "utils.h"
 #include "content_generator.h"
 #include "blog.h"
 #include "static.h"
-#include "server.h"
+#include "server.h"*/
+#include "help.h"
 #include "version.h"
 
-static void usage_exit() {
+/*static void usage_exit() {
 	puts("usage: tinn [OPTIONS] [content_directory]\n");
 	puts("When not specified the content directory defaults to the current directory.\n");
 	puts("Options:");
@@ -76,15 +77,29 @@ static struct settings_t parse_arguments(int count, char* values[]) {
 	}
 
 	return settings;
-}
+}*/
 
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
 	// parse/validate settings
-	struct settings_t settings = parse_arguments(argc, argv);
+	//struct settings_t settings = parse_arguments(argc, argv);
 
-	LOG("Tinn %s (%s)", VERSION, BUILD_DATE);
-	
+	PRINT(CC_BRIGHT_WHITE, "Tinn %s", VERSION);
+	PRINT(CC_BRIGHT_BLACK, " (%s)\n", BUILD_DATE);
+
+	if (argc<2) {
+		print_usage();	
+		return EXIT_FAILURE;
+	}
+
+	if (strcmp(argv[1], "help")==0) {
+		return print_help(argc, argv);
+	}
+
+	console(stdout, CL_ERROR, false, false, "Unknown command \"%s\".", argv[1]);
+	return EXIT_FAILURE;
+
+	/*
 	// change working directory to content directory
 	if (chdir(settings.content_dir) != 0) {
 		ERROR("invalid content directory (%s)", settings.content_dir);
@@ -134,5 +149,5 @@ int main(int argc, char* argv[]) {
 	close(server_socket);
 	content_generators_free(content);
 	
-	return EXIT_SUCCESS;
+	return EXIT_SUCCESS;*/
 }

@@ -3,7 +3,35 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
+
+typedef enum {
+	CC_BLACK,
+	CC_RED,
+	CC_GREEN,
+	CC_YELLOW,
+	CC_BLUE,
+	CC_MAGENTA,
+	CC_CYAN,
+	CC_WHITE,
+
+	CC_BRIGHT_BLACK,
+	CC_BRIGHT_RED,
+	CC_BRIGHT_GREEN,
+	CC_BRIGHT_YELLOW,
+	CC_BRIGHT_BLUE,
+	CC_BRIGHT_MAGENTA,
+	CC_BRIGHT_CYAN,
+	CC_BRIGHT_WHITE,
+	
+	CC_BOLD_BLACK,
+	CC_BOLD_RED,
+	CC_BOLD_GREEN,
+	CC_BOLD_YELLOW,
+	CC_BOLD_BLUE,
+	CC_BOLD_MAGENTA,
+	CC_BOLD_CYAN,
+	CC_BOLD_WHITE
+} ConsoleColour;
 
 typedef enum {
 	CL_TRACE =	0,
@@ -16,7 +44,10 @@ typedef enum {
 
 extern ConsoleLevel clevel;
 
-void console(FILE *stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...);
+void print(FILE* stream, ConsoleColour colour, const char* format, ...);
+void console(FILE* stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...);
+
+#define PRINT(colour, ...) print(stdout, colour, __VA_ARGS__);
 
 #define TRACE(...) console(stdout, CL_TRACE, true, false, __VA_ARGS__)
 #define TRACE_DETAIL(...) console(stdout, CL_TRACE, false, false, __VA_ARGS__)
