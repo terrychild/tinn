@@ -11,11 +11,11 @@
 #define CLIENT_WRITE 2;
 
 typedef struct {
-	ContentGenerators* content;
-	char address[INET6_ADDRSTRLEN];
-	unsigned short mode;
-	Request* request;
-	Response* response;
+    ContentGenerators* content;
+    char address[INET6_ADDRSTRLEN];
+    unsigned short mode;
+    Request* request;
+    Response* response;
 } ClientState;
 
 ClientState* client_state_new();

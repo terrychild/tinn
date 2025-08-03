@@ -12,11 +12,11 @@ typedef struct sockets_list Sockets;
 typedef void (*socket_listener)(Sockets* sockets, int index);
 
 struct sockets_list {
-	size_t  size;
-	size_t  count;
-	struct pollfd* pollfds;
-	socket_listener* listeners;
-	void** states;
+    size_t  size;
+    size_t  count;
+    struct pollfd* pollfds;
+    socket_listener* listeners;
+    void** states;
 };
 
 int get_server_socket(char* port);

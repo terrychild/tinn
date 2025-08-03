@@ -8,10 +8,10 @@
 typedef bool (*content_generator)(void* state, Request* request, Response* response);
 
 typedef struct {
-	size_t size;
-	size_t count;
-	content_generator* generators;
-	void** states;
+    size_t size;
+    size_t count;
+    content_generator* generators;
+    void** states;
 } ContentGenerators;
 
 ContentGenerators* content_generators_new(size_t size);

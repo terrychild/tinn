@@ -9,19 +9,19 @@
 #include <sys/types.h>
 
 typedef struct {
-	bool complete;
+    bool complete;
 
-	Buffer* buf;
-	int content_start;
+    Buffer* buf;
+    int content_start;
 
-	Token start_line;
-	Token method;
-	URI* target;
-	Token version;
+    Token start_line;
+    Token method;
+    URI* target;
+    Token version;
 
-	Token host;
-	Token connection;
-	time_t if_modified_since;
+    Token host;
+    Token connection;
+    time_t if_modified_since;
 } Request;
 
 Request* request_new();

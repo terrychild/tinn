@@ -5,7 +5,7 @@
 #include "net.h"
 
 typedef struct {
-	ContentGenerators* content;
+    ContentGenerators* content;
 } ServerState;
 
 void server_new(Sockets* sockets, int socket, ContentGenerators* content);

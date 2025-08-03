@@ -10,20 +10,20 @@
 #define RESPONSE_DONE 3
 
 typedef struct {
-	int status_code;
+    int status_code;
 
-	size_t headers_size;
-	size_t headers_count;
-	char** header_names;
-	char** header_values;
+    size_t headers_size;
+    size_t headers_count;
+    char** header_names;
+    char** header_values;
 
-	unsigned short content_source;
-	const char* type;
-	Buffer* content;
-	size_t content_length;
+    unsigned short content_source;
+    const char* type;
+    Buffer* content;
+    size_t content_length;
 
-	Buffer* headers;
-	unsigned short stage;
+    Buffer* headers;
+    unsigned short stage;
 } Response;
 
 Response* response_new();

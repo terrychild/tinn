@@ -5,10 +5,10 @@
 #include <stdbool.h>
 
 typedef struct {
-	long size;
-	long length;
-	long read_pos;
-	char* data;
+    long size;
+    long length;
+    long read_pos;
+    char* data;
 } Buffer;
 
 Buffer* buf_new(long size);

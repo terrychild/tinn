@@ -4,15 +4,15 @@
 #include <stdbool.h>
 
 typedef struct {
-	const char* start;
-	const char* current;
-	size_t length;
-	size_t read;
+    const char* start;
+    const char* current;
+    size_t length;
+    size_t read;
 } Scanner;
 
 typedef struct {
-	const char* start;
-	size_t length;
+    const char* start;
+    size_t length;
 } Token;
 
 Scanner scanner_new(const char* source, const size_t length);
