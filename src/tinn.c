@@ -9,22 +9,9 @@
 #include "server.h"*/
 #include "help.h"
 #include "version.h"
+#include "test.h"
 
-/*static void usage_exit() {
-    puts("usage: tinn [OPTIONS] [content_directory]\n");
-    puts("When not specified the content directory defaults to the current directory.\n");
-    puts("Options:");
-    puts("  -h, --help         Display this help.");
-    puts("      --version      Display version.");
-    puts("  -v, --verbose      Enable verbose logging.");
-    puts("  -p port            Port to listen on, defaults to 8080.");
-    exit(EXIT_SUCCESS);
-}
-
-static void version_exit() {
-    printf("Tinn %s (%s)\n", VERSION, BUILD_DATE);
-    exit(EXIT_SUCCESS);
-}
+/*
 
 struct settings_t {
     char* port;
@@ -79,13 +66,15 @@ static struct settings_t parse_arguments(int count, char* values[]) {
     return settings;
 }*/
 
+static void print_version() {
+    PRINT(CC_BRIGHT_WHITE, "Tinn %s ", VERSION);
+    PRINT(CC_BRIGHT_BLACK, "(%s)\n", BUILD_DATE);
+}
+
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
     // parse/validate settings
     //struct settings_t settings = parse_arguments(argc, argv);
-
-    PRINT(CC_BRIGHT_WHITE, "Tinn %s", VERSION);
-    PRINT(CC_BRIGHT_BLACK, " (%s)\n", BUILD_DATE);
 
     if (argc<2) {
         print_usage();  
@@ -96,7 +85,18 @@ int main(int argc, char* argv[]) {
         return print_help(argc, argv);
     }
 
-    console(stdout, CL_ERROR, false, false, "Unknown command \"%s\".", argv[1]);
+    if (strcmp(argv[1], "version")==0) {
+        print_version();
+        return EXIT_SUCCESS;
+    }
+
+    if (strcmp(argv[1], "test")==0) {
+        return test();
+    }
+
+    PRINT(CC_BRIGHT_RED, "Error: ");
+    PRINT(CC_WHITE, "Unknown command ");
+    PRINT(CC_CYAN, "%s\n", argv[1]);
     return EXIT_FAILURE;
 
     /*

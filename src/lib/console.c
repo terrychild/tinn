@@ -72,7 +72,7 @@ static void print_prefix(FILE* stream, ConsoleLevel level) {
             print(stream, CC_YELLOW, "warning: ");
             break;
         case CL_ERROR:
-            print(stream, CC_RED, "error: ");
+            print(stream, CC_BRIGHT_RED, "error: ");
             break;
         case CL_PANIC:
             print(stream, CC_BOLD_RED, "PANIC: ");

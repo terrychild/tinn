@@ -1,6 +1,6 @@
 # config
 TARGET := tinn
-RUN_ARGS := ../moohar/www
+RUN_ARGS := test
 
 COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
 

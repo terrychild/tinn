@@ -1,6 +1,5 @@
 {
-    "folders":
-    [
+    "folders": [
         {
             "path": "src"
         },
@@ -12,10 +11,33 @@
     ],
     "build_systems": [
         {
-            "name": "tinn: build",
+            "name": "Build Project",
+
+            "target": "terminus_exec",
+            "cancel": "terminus_cancel_build",
+
             "working_dir": "$project_path",
-            "shell_cmd": "make build",
-            "file_patterns": ["*.c", "*.h"]
+            "cmd": ["make"],
+
+            "variants":         
+            [
+                {
+                    "name": "run",
+                    "cmd": ["make", "run"],
+                },
+                {
+                    "name": "debug",
+                    "target": "exec",
+                    "cancel": null,
+                    "shell_cmd": "make && kdbg -a test ./build/tinn"
+                },
+                {
+                    "name": "profile",
+                    "target": "exec",
+                    "cancel": null,
+                    "shell_cmd": "make && gprofng collect app -O profile.er ./build/tinn test && gprofng display text -metrics name:i.%totalcpu:e.%totalcpu -limit 10 -functions profile.er"
+                }
+            ]
         }
     ]
 }
