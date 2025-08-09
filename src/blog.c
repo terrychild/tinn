@@ -36,7 +36,7 @@ static struct post* add_post(Blog* blog) {
 }
 
 static void read_posts(Blog* blog) {
-    TRACE("read blog posts");
+    DEBUG("read blog posts");
 
     // read file
     Buffer* buf = buf_new_file(POSTS_PATH);
@@ -134,7 +134,7 @@ Blog* blog_new() {
     blog->posts = allocate(NULL, sizeof(*blog->posts) * blog->size);
 
     // load html fragments
-    TRACE("loading html fragments");
+    DEBUG("loading html fragments");
     bool ok = true;
     ok = read_fragment(blog, HF_HEADER_1, ".header1.html") && ok;
     ok = read_fragment(blog, HF_HEADER_2, ".header2.html") && ok;
@@ -172,7 +172,7 @@ static void compose_article(Buffer* buf, struct post* post) {
 
 static bool method_allowed(Request* request, Response* response) {
     if (!token_is(request->method, "GET") && !token_is(request->method, "HEAD")) {
-        TRACE("method not allowed");
+        DEBUG("method not allowed");
         response_error(response, 405);
         response_header(response, "Allow", "GET, HEAD");
         return false;
@@ -181,7 +181,7 @@ static bool method_allowed(Request* request, Response* response) {
 }
 
 bool blog_content(void* state, Request* request, Response* response) {
-    TRACE("checking blog content");
+    DEBUG("checking blog content");
 
     Blog* blog = (Blog*)state;
 
@@ -208,7 +208,7 @@ bool blog_content(void* state, Request* request, Response* response) {
             return true;
         }
 
-        TRACE("generate home page");
+        DEBUG("generate home page");
 
         // check modified date
         for (size_t i=0; i<blog->count; i++) {
@@ -217,7 +217,7 @@ bool blog_content(void* state, Request* request, Response* response) {
         }
 
         if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
-            TRACE("not modified, use cached version");
+            DEBUG("not modified, use cached version");
             response_status(response, 304);
             return true;
         }
@@ -232,7 +232,7 @@ bool blog_content(void* state, Request* request, Response* response) {
         buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 
         for (size_t i=0; i<blog->count; i++) {
-            TRACE_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
+            DEBUG_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
             if (i > 0) {
                 buf_append_str(content, "<hr>\n");
             }
@@ -255,7 +255,7 @@ bool blog_content(void* state, Request* request, Response* response) {
             return true;
         }
 
-        TRACE("generate log page");
+        DEBUG("generate log page");
 
         // check modified date
         for (size_t i=0; i<blog->count; i++) {
@@ -264,7 +264,7 @@ bool blog_content(void* state, Request* request, Response* response) {
         }
 
         if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
-            TRACE("not modified, use cached version");
+            DEBUG("not modified, use cached version");
             response_status(response, 304);
             return true;
         }
@@ -279,7 +279,7 @@ bool blog_content(void* state, Request* request, Response* response) {
         buf_append_buf(content, blog->fragments[HF_HEADER_2].buf);
 
         for (ssize_t i=blog->count-1; i>=0; i--) {
-            TRACE_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
+            DEBUG_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
             if (i < (ssize_t)blog->count-1) {
                 buf_append_str(content, "<hr>\n");
             }
@@ -302,11 +302,11 @@ bool blog_content(void* state, Request* request, Response* response) {
             return true;
         }
 
-        TRACE("generate archive page");
+        DEBUG("generate archive page");
 
         // check modified date
         if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
-            TRACE("not modified, use cached version");
+            DEBUG("not modified, use cached version");
             response_status(response, 304);
             return true;
         }
@@ -326,7 +326,7 @@ bool blog_content(void* state, Request* request, Response* response) {
         char archive_date[15] = "";
 
         for (size_t i=0; i<blog->count; i++) {
-            TRACE_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
+            DEBUG_DETAIL("post %d \"%s\"", i, blog->posts[i].title);
             if (strcmp(archive_date, strchr(blog->posts[i].date, ' ')+1) != 0) {
                 strcpy(archive_date, strchr(blog->posts[i].date, ' ')+1);
 
@@ -353,14 +353,14 @@ bool blog_content(void* state, Request* request, Response* response) {
                 return true;
             }
 
-            TRACE("generate \"%s\" page", blog->posts[i].title);
+            DEBUG("generate \"%s\" page", blog->posts[i].title);
 
             // check modified date
             check_post_date(&(blog->posts[i]));
             mod_date = max_time_t(mod_date, blog->posts[i].mod_date);
 
             if (request->if_modified_since>0 && request->if_modified_since>=mod_date) {
-                TRACE("not modified, use cached version");
+                DEBUG("not modified, use cached version");
                 response_status(response, 304);
                 return true;
             }

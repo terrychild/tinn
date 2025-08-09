@@ -3,6 +3,6 @@
 
 #include <stdlib.h>
 
-void* allocate(void* data, size_t size)
+void* allocate(void* data, size_t size);
 
 #endif

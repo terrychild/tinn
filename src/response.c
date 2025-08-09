@@ -163,7 +163,7 @@ static void next_stage(Response* response) {
 }
 
 static void build_headers(Response* response) {
-    TRACE("build response headers");
+    DEBUG("build response headers");
 
     // status line
     buf_append_format(response->headers, "HTTP/1.1 %d %s\r\n", response->status_code, status_text(response->status_code));
@@ -214,7 +214,7 @@ ssize_t response_send(Response* response, int socket) {
     size_t len = buf_read_max(buf);
     ssize_t sent = send(socket, buf_read_ptr(buf), len, MSG_DONTWAIT);
     if (sent >= 0) {
-        TRACE("sent %d: %ld/%ld", response->stage, sent, len);
+        DEBUG("sent %d: %ld/%ld", response->stage, sent, len);
         if ((size_t)sent < len) {
             buf_advance_read(buf, sent);
         } else {

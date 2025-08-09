@@ -61,7 +61,7 @@ static int find_content(Buffer* buf) {
 ssize_t request_recv(Request* request, int socket) {
     int recvied = recv(socket, buf_write_ptr(request->buf), buf_write_max(request->buf), 0);
     if (recvied > 0) {
-        TRACE("recived: %d", recvied);
+        DEBUG("recived: %d", recvied);
 
         // update buffer
         buf_advance_write(request->buf, recvied);
@@ -75,7 +75,7 @@ ssize_t request_recv(Request* request, int socket) {
                     buf_grow(request->buf);
                 }
             } else {
-                TRACE("header complete");
+                DEBUG("header complete");
 
                 // read header
                 Scanner scanner = scanner_new(request->buf->data, request->content_start);
@@ -87,7 +87,7 @@ ssize_t request_recv(Request* request, int socket) {
                 request->target = uri_new(scan_token(&start_scanner, " "));
                 request->version = scan_token(&start_scanner, "");
 
-                TRACE_DETAIL("%.*s %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
+                DEBUG_DETAIL("%.*s %s %.*s", request->method.length, request->method.start, request->target->path, request->version.length, request->version.start);
 
                 // other headers
                 Token line;
@@ -96,7 +96,7 @@ ssize_t request_recv(Request* request, int socket) {
                     Token name = scan_token(&header_scanner, ": \t");
                     Token value = scan_token(&header_scanner, "");
 
-                    TRACE_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
+                    DEBUG_DETAIL("%.*s: %.*s", name.length, name.start, value.length, value.start);
                     if (token_is(name, "Host")) {
                         request->host = value;
                     } else if (token_is(name, "Connection")) {

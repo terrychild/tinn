@@ -7,7 +7,7 @@
 bool static_content(void* state, Request* request, Response* response) {
     (void)state; //un-used
 
-    TRACE("checking static content");
+    DEBUG("checking static content");
 
     // build a local path
     char local_path[request->target->path_len + 1 + 11 + 1]; // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
@@ -23,23 +23,23 @@ bool static_content(void* state, Request* request, Response* response) {
 
     // ignore dot files
     if (last_segment[0]=='.') {
-        TRACE("ignoring dot file \"%s\"", local_path);
+        DEBUG("ignoring dot file \"%s\"", local_path);
         return false;
     }
 
     // get file information
     struct stat attrib;
     if (stat(local_path, &attrib) != 0) {
-        TRACE("could not find \"%s\"", local_path);
+        DEBUG("could not find \"%s\"", local_path);
         return false;
     }
 
     if (S_ISREG(attrib.st_mode)) {
-        TRACE("found \"%s\"", local_path);
+        DEBUG("found \"%s\"", local_path);
 
         // check this is a GET or HEAD request
         if (!token_is(request->method, "GET") && !token_is(request->method, "HEAD")) {
-            TRACE("method not allowed");
+            DEBUG("method not allowed");
             response_error(response, 405);
             response_header(response, "Allow", "GET, HEAD");
             return true;
@@ -47,7 +47,7 @@ bool static_content(void* state, Request* request, Response* response) {
 
         // check modified date
         if (request->if_modified_since>0 && request->if_modified_since>=attrib.st_mtime) {
-            TRACE("not modified, use cached version");
+            DEBUG("not modified, use cached version");
             response_status(response, 304);
             return true;
         }
@@ -82,13 +82,13 @@ bool static_content(void* state, Request* request, Response* response) {
         return true;
 
     } else if (S_ISDIR(attrib.st_mode)) {
-        TRACE("found a directory \"%s\"", local_path);
+        DEBUG("found a directory \"%s\"", local_path);
 
         // check for index
         strcpy(local_path + 1 + request->target->path_len, "/index.html");
         if (stat(local_path, &attrib) == 0) {
             if (S_ISREG(attrib.st_mode)) {
-                TRACE("found index, redirecting");
+                DEBUG("found index, redirecting");
 
                 char new_path[request->target->path_len+2];
                 strcpy(new_path, request->target->path);
@@ -98,7 +98,7 @@ bool static_content(void* state, Request* request, Response* response) {
                 return true;
             }
         }
-        TRACE("no index");
+        DEBUG("no index");
         return false;
     } else {
         ERROR("unknown file mode for \"%s\": %d", local_path, attrib.st_mode);
