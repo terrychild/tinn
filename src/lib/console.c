@@ -60,11 +60,8 @@ static void print_time(FILE* stream) {
 
 static void print_prefix(FILE* stream, ConsoleLevel level) {
     switch(level) {
-        case CL_TRACE:
-            set_colour(stream, CC_CYAN);
-            break;
         case CL_DEBUG:
-            set_colour(stream, CC_MAGENTA);
+            set_colour(stream, CC_CYAN);
             break;
         case CL_INFO:
             break;
@@ -81,14 +78,13 @@ static void print_prefix(FILE* stream, ConsoleLevel level) {
 }
 static void print_postfix(FILE* stream, ConsoleLevel level) {
     switch(level) {
-        case CL_TRACE:
         case CL_DEBUG:
-            reset_colour(stream);
-            break;
-        case CL_INFO:
         case CL_WARN:
         case CL_ERROR:
         case CL_PANIC:
+            reset_colour(stream);
+            break;
+        case CL_INFO:
             break;
     }
 }

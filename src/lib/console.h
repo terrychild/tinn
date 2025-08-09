@@ -1,5 +1,5 @@
-#ifndef TINN_CONSOLE_H
-#define TINN_CONSOLE_H
+#ifndef LIB_CONSOLE_H
+#define LIB_CONSOLE_H
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -34,12 +34,11 @@ typedef enum {
 } ConsoleColour;
 
 typedef enum {
-    CL_TRACE =  0,
-    CL_DEBUG =  1,
-    CL_INFO =   2,
-    CL_WARN =   3,
-    CL_ERROR =  4,
-    CL_PANIC =  5
+    CL_DEBUG =  0,
+    CL_INFO =   1,
+    CL_WARN =   2,
+    CL_ERROR =  3,
+    CL_PANIC =  4
 } ConsoleLevel;
 
 extern ConsoleLevel clevel;
@@ -49,8 +48,6 @@ void console(FILE* stream, ConsoleLevel level, bool inc_time, bool inc_errno, co
 
 #define PRINT(colour, ...) print(stdout, colour, __VA_ARGS__);
 
-#define TRACE(...) console(stdout, CL_TRACE, true, false, __VA_ARGS__)
-#define TRACE_DETAIL(...) console(stdout, CL_TRACE, false, false, __VA_ARGS__)
 #define DEBUG(...) console(stdout, CL_DEBUG, true, false, __VA_ARGS__)
 #define DEBUG_DETAIL(...) console(stdout, CL_DEBUG, false, false, __VA_ARGS__)
 #define LOG(...) console(stdout, CL_INFO, true, false, __VA_ARGS__)
