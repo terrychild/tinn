@@ -9,7 +9,7 @@
 #include "server.h"*/
 #include "help.h"
 #include "version.h"
-#include "test.h"
+#include "tests.h"
 
 /*
 
@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (strcmp(argv[1], "test")==0) {
-        return test();
+        return run_tests();
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");

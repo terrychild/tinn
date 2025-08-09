@@ -2,8 +2,10 @@
 #define LIB_H
 
 #include "lib/macros.h"
+#include "lib/types.h"
 #include "lib/console.h"
 #include "lib/args.h"
 #include "lib/mem.h"
+#include "lib/test.h"
 
 #endif

@@ -4,6 +4,9 @@
             "path": "src"
         },
         {
+            "path": "old"
+        },
+        {
             "name": "settings",
             "path": ".",
             "folder_exclude_patterns": ["*"]
