@@ -1,7 +1,7 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-#include "utils.h"
+#include "lib/macros.h"
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 12

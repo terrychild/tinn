@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lib/console.h"
+#include "lib.h"
 /*#include "utils.h"
 #include "content_generator.h"
 #include "blog.h"
