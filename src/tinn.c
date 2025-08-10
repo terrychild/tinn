@@ -66,7 +66,7 @@ static struct settings_t parse_arguments(int count, char* values[]) {
     return settings;
 }*/
 
-static void print_version() {
+static void printVersion() {
     PRINT(CC_BRIGHT_WHITE, "Tinn %s ", VERSION);
     PRINT(CC_BRIGHT_BLACK, "(%s)\n", BUILD_DATE);
 }
@@ -77,21 +77,21 @@ int main(int argc, char* argv[]) {
     //struct settings_t settings = parse_arguments(argc, argv);
 
     if (argc<2) {
-        print_usage();  
+        printUsage();  
         return EXIT_FAILURE;
     }
 
     if (strcmp(argv[1], "help")==0) {
-        return print_help(argc, argv);
+        return printHelp(argc, argv);
     }
 
     if (strcmp(argv[1], "version")==0) {
-        print_version();
+        printVersion();
         return EXIT_SUCCESS;
     }
 
     if (strcmp(argv[1], "test")==0) {
-        return run_tests();
+        return runTests();
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");

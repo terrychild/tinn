@@ -7,7 +7,7 @@
 
 ConsoleLevel clevel = CL_DEBUG;
 
-static void set_colour(FILE* stream, ConsoleColour colour) {
+static void setColour(FILE* stream, ConsoleColour colour) {
     switch(colour) {
         case CC_BLACK: fputs("\x1B[30m", stream); break;
         case CC_RED: fputs("\x1B[31m", stream); break;
@@ -37,31 +37,31 @@ static void set_colour(FILE* stream, ConsoleColour colour) {
         case CC_BOLD_WHITE: fputs("\x1B[1;97m", stream); break;
     }
 }
-static void reset_colour(FILE* stream) {
+static void resetColour(FILE* stream) {
     fputs("\x1B[0m", stream);
 }
 
 void print(FILE *stream, ConsoleColour colour, const char* format, ...) {
-    set_colour(stream, colour);
+    setColour(stream, colour);
         
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    reset_colour(stream);
+    resetColour(stream);
 }
 
-static void print_time(FILE* stream) {
+static void printTime(FILE* stream) {
     time_t seconds = time(NULL);
     struct tm* gmt = gmtime(&seconds);
     print(stream, CC_BLUE, "%02d:%02d:%02d ", gmt->tm_hour, gmt->tm_min, gmt->tm_sec);
 }
 
-static void print_prefix(FILE* stream, ConsoleLevel level) {
+static void printPrefix(FILE* stream, ConsoleLevel level) {
     switch(level) {
         case CL_DEBUG:
-            set_colour(stream, CC_CYAN);
+            setColour(stream, CC_CYAN);
             break;
         case CL_INFO:
             break;
@@ -76,13 +76,13 @@ static void print_prefix(FILE* stream, ConsoleLevel level) {
             break;
     }
 }
-static void print_postfix(FILE* stream, ConsoleLevel level) {
+static void printPostfix(FILE* stream, ConsoleLevel level) {
     switch(level) {
         case CL_DEBUG:
         case CL_WARN:
         case CL_ERROR:
         case CL_PANIC:
-            reset_colour(stream);
+            resetColour(stream);
             break;
         case CL_INFO:
             break;
@@ -92,9 +92,9 @@ static void print_postfix(FILE* stream, ConsoleLevel level) {
 void console(FILE* stream, ConsoleLevel level, bool inc_time, bool inc_errno, const char* format, ...) {
     if (level >= clevel) {
         if (inc_time) {
-            print_time(stream);
+            printTime(stream);
         }
-        print_prefix(stream, level);
+        printPrefix(stream, level);
         
         va_list args;
         va_start(args, format);
@@ -104,7 +104,7 @@ void console(FILE* stream, ConsoleLevel level, bool inc_time, bool inc_errno, co
         if (inc_errno && errno != 0) {
             fprintf(stream, " -> %s", strerror(errno));
         }
-        print_postfix(stream, level);
+        printPostfix(stream, level);
         fputs("\n", stream);
     }
 }

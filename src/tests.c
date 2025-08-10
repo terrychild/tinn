@@ -3,7 +3,7 @@
 
 #include "lib.h"
 
-int run_tests() {
+int runTests() {
     // type tests
     expect("u64 size", sizeof(u64), 8);
     expect("u8 range", (u8)(-1), 255);
