@@ -2,7 +2,7 @@
 
 #include "mem.h"
 
-Buffer* buf_new(long size) {
+/*Buffer* buf_new(long size) {
     Buffer* buf = allocate(NULL, sizeof(*buf));
     buf->size = size;
     buf->length = 0;
@@ -14,4 +14,4 @@ void buf_free(Buffer* buf) {
         free(buf->data);
         free(buf);
     }
-}
+}*/

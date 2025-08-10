@@ -9,7 +9,7 @@ typedef struct {
     uint8_t* data;
 } Buffer;
 
-Buffer* buf_new(long size);
+/*Buffer* buf_new(long size);
 void buf_free(Buffer* buf);
-
+*/
 #endif

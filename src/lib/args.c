@@ -1,7 +1,4 @@
-#include <stdlib.h>
 #include <string.h>
-
-#include "args.h"
 
 int arg(int argc, char* argv[], const char* name) {
     size_t len = strlen(name);

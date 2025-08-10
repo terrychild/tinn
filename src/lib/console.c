@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <string.h>
 
-#include "console.h"
+#include "lib/console.h"
 
 ConsoleLevel clevel = CL_DEBUG;
 
