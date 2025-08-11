@@ -13,6 +13,7 @@ typedef struct {
 void arenaInit(ArenaAllocator* arena, u64 size);
 void arenaFree(ArenaAllocator* arena);
 
-//void* allocate(void* data, u64 size);
+void* arenaAlloc(ArenaAllocator* arena, u64 size);
+void* arenaAllocZero(ArenaAllocator* arena, u64 size);
 
 #endif

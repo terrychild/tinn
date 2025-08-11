@@ -1,4 +1,5 @@
-#include "lib.h"
+#include "lib/types.h"
+#include "lib/console.h"
 
 bool expect_failed = false;
 

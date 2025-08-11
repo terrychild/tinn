@@ -11,9 +11,19 @@ int runTests() {
 
     // mem tests
     ArenaAllocator arena;
-    arenaInit(&arena, 100);
+    arenaInit(&arena, 1);
     expect("arena page size", arena.size, 4096);
+    arenaFree(&arena);
 
+    arenaInit(&arena, 0);
+    expect("default arena size", arena.size, GB(1));
+    u8* data = arenaAllocZero(&arena, 12);
+    expect("arena commit size", arena.committed, KB(8));
+    expect("arena allocate size", arena.allocated, 16);
+
+    expect("arena zero data", data[11], 0);
+    data[11] = 14;
+    expect("arena data", data[11], 14);
     arenaFree(&arena);
 
     // report
