@@ -3,16 +3,16 @@
 
 #include "lib/types.h"
 
-void expect_i8(const char* name, i8 value, i8 expected);
-void expect_i64(const char* name, i64 value, i64 expected);
-void expect_u8(const char* name, u8 value, u8 expected);
-void expect_u64(const char* name, u64 value, u64 expected);
+void expectI8(const char* name, U8 value, U8 expected);
+void expectI64(const char* name, I64 value, I64 expected);
+void expectU8(const char* name, U8 value, U8 expected);
+void expectU64(const char* name, U64 value, U64 expected);
 
 #define expect(name, value, expected) _Generic((value), \
-        i8: expect_u8, \
-        u8: expect_u8, \
-        u64: expect_u64, \
-        default: expect_i64  \
+        I8: expectI8, \
+        U8: expectU8, \
+        U64: expectU64, \
+        default: expectI64  \
     )(name, value, expected)
 
 extern bool expect_failed;

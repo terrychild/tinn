@@ -4,7 +4,7 @@
 bool expect_failed = false;
 
 #define MAKE_EXPECT(T, F) \
-void expect_##T(const char* name, T value, T expected) { \
+void expect##T(const char* name, T value, T expected) { \
     if (value == expected) { \
         PRINT(CC_GREEN, "Passed"); \
         PRINT(CC_BRIGHT_WHITE, ": %s\n", name); \
@@ -18,7 +18,7 @@ void expect_##T(const char* name, T value, T expected) { \
     } \
 }
 
-MAKE_EXPECT(i8, "%d")
-MAKE_EXPECT(i64, "%ld")
-MAKE_EXPECT(u8, "%u")
-MAKE_EXPECT(u64, "%lu")
+MAKE_EXPECT(I8, "%d")
+MAKE_EXPECT(I64, "%ld")
+MAKE_EXPECT(U8, "%u")
+MAKE_EXPECT(U64, "%lu")

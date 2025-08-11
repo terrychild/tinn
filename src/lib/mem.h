@@ -4,16 +4,16 @@
 #include "lib/types.h"
 
 typedef struct {
-    u8* data;
-    u64 size;
-    u64 committed;
-    u64 allocated;
+    U8* data;
+    U64 size;
+    U64 committed;
+    U64 allocated;
 } ArenaAllocator;
 
-void arenaInit(ArenaAllocator* arena, u64 size);
+void arenaInit(ArenaAllocator* arena, U64 size);
 void arenaFree(ArenaAllocator* arena);
 
-void* arenaAlloc(ArenaAllocator* arena, u64 size);
-void* arenaAllocZero(ArenaAllocator* arena, u64 size);
+void* arenaAlloc(ArenaAllocator* arena, U64 size);
+void* arenaAllocZero(ArenaAllocator* arena, U64 size);
 
 #endif
