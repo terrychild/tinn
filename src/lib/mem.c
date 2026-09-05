@@ -98,3 +98,12 @@ void* arenaAllocZero(ArenaAllocator* arena, U64 size) {
     memset(new_data, 0, size);
     return new_data;
 }
+
+// simple memory management
+void* allocate(void* data, U64 size) {
+    void* new_data = realloc(data, size);
+    if (new_data == NULL) {
+        PANIC("unable to allocate memory");
+    }
+    return new_data;
+}

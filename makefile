@@ -1,6 +1,6 @@
 # config
 TARGET := tinn
-RUN_ARGS := test
+RUN_ARGS := host --verbose
 
 COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
 
@@ -27,8 +27,8 @@ VERSION := $(BUILD)"/tmp/version.o"
 build: $(BUILD)/$(TARGET)
 run: build
 	@$(BUILD)/$(TARGET) $(RUN_ARGS)
-trace: build
-	@$(BUILD)/$(TARGET) -v $(RUN_ARGS)
+test: build
+	@$(BUILD)/$(TARGET) test
 clean:
 	@rm -r $(BUILD)
 

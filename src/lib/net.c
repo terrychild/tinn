@@ -2,12 +2,18 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <poll.h>
+#include <unistd.h>
 
-#include "utils.h"
-#include "net.h"
-#include "console.h"
+#include "lib/net.h"
+#include "lib/console.h"
+#include "lib/mem.h"
 
-int get_server_socket(char* port) {
+int getLocalSocket(char* port) {
     int status;
 
     struct addrinfo hints;
@@ -63,48 +69,41 @@ int get_server_socket(char* port) {
     return sock;
 }
 
-Sockets* sockets_new() {
-    Sockets* list = allocate(NULL, sizeof(*list));
-    
+void socketsInit(Sockets* list) {
     list->size = 8;
     list->count = 0;
-
-    list->pollfds = allocate(NULL, sizeof(*list->pollfds) * list->size);
-    list->listeners = allocate(NULL, sizeof(*list->listeners) * list->size);
-    list->states = allocate(NULL, sizeof(*list->states) * list->size);
-
-    return list;
+    list->sockets = allocate(NULL, sizeof(*list->sockets) * list->size);
 }
 
-int sockets_add(Sockets* list, int new_socket, socket_listener new_listener) {
+void socketsFree(Sockets* list) {
+    free(list->sockets);
+}
+
+void socketsAdd(Sockets* list, int new_socket, SocketListener new_listener, void* new_state) {
     // do we need to expand the arrays
     if (list->count == list->size) {
         list->size *= 2;
-
-        list->pollfds = allocate(list->pollfds, sizeof(*list->pollfds) * list->size);
-        list->listeners = allocate(list->listeners, sizeof(*list->listeners) * list->size);
-        list->states = allocate(list->states, sizeof(*list->states) * list->size);
+        list->sockets = allocate(list->sockets, sizeof(*list->sockets) * list->size);
     }
 
     // add new socket
-    list->pollfds[list->count].fd = new_socket;
-    list->pollfds[list->count].events = POLLIN;
-    list->pollfds[list->count].revents = 0;
+    list->sockets[list->count].pollfd.fd = new_socket;
+    list->sockets[list->count].pollfd.events = POLLIN;
+    list->sockets[list->count].pollfd.revents = 0;
 
-    list->listeners[list->count] = new_listener;
+    list->sockets[list->count].listener = new_listener;
 
-    list->states[list->count] = NULL;
+    list->sockets[list->count].state = new_state;
 
     // update count
     list->count++;
-    return list->count - 1;
 }
 
-void sockets_rm(Sockets* list, size_t index) {
+void socketsRm(Sockets* list, U64 index) {
     if (index < list->count) {
-        list->pollfds[index] = list->pollfds[list->count-1];
-        list->listeners[index] = list->listeners[list->count-1];
-        list->states[index] = list->states[list->count-1];
+        if (index < list->count-1) {
+            list->sockets[index] = list->sockets[list->count-1];
+        }
         list->count--;
     }
 }

@@ -8,6 +8,7 @@
 #include "lib/console.h"
 #include "lib/args.h"
 #include "lib/mem.h"
+#include "lib/net.h"
 #include "lib/test.h"
 
 #include "lib/crypto/sha.h"

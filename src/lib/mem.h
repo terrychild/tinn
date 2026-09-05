@@ -16,4 +16,6 @@ void arenaFree(ArenaAllocator* arena);
 void* arenaAlloc(ArenaAllocator* arena, U64 size);
 void* arenaAllocZero(ArenaAllocator* arena, U64 size);
 
+void* allocate(void* data, U64 size);
+
 #endif
