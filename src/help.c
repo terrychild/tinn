@@ -30,7 +30,7 @@ void printUsage() {
 }
 
 static void hostHelp() {
-    printCommand("tinn host [<args>]\n\n");
+    printCommand("host [<args>]\n\n");
     PRINT(CC_WHITE, "Host a Tinn web server.\n\n");
     PRINT(CC_GREEN, "Arguments\n");
     printArg("--dir=<path>", "Path for the content directoy, defaults to current");

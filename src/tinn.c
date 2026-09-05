@@ -10,6 +10,7 @@
 #include "help.h"
 #include "version.h"
 #include "tests.h"
+#include "web.h"
 
 /*
 
@@ -73,8 +74,9 @@ static void printVersion() {
 
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
-    // parse/validate settings
-    //struct settings_t settings = parse_arguments(argc, argv);
+    if (arg(argc, argv, "--verbose") >= 0) {
+        clevel = CL_DEBUG;
+    }
 
     if (argc<2) {
         printUsage();  
@@ -92,6 +94,10 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test")==0) {
         return runTests();
+    }
+
+    if (strcmp(argv[1], "host")==0) {
+        return hostWebServer(argc, argv);
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");

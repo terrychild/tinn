@@ -5,7 +5,7 @@
 
 #include "lib/console.h"
 
-ConsoleLevel clevel = CL_DEBUG;
+ConsoleLevel clevel = CL_INFO;
 
 static void setColour(FILE* stream, ConsoleColour colour) {
     switch(colour) {
