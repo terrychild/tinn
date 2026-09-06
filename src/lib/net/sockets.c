@@ -2,7 +2,7 @@
 #include <unistd.h>
 
 #include "lib/net/sockets.h"
-#include "lib/mem.h"
+#include "lib/mem/heap.h"
 #include "lib/console.h"
 
 Sockets* socketsNew() {

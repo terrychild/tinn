@@ -1,5 +1,5 @@
-#ifndef LIB_MEM_H
-#define LIB_MEM_H
+#ifndef LIB_MEM_ARENA_H
+#define LIB_MEM_ARENA_H
 
 #include "lib/types.h"
 
@@ -16,7 +16,5 @@ void arenaRelease(ArenaAllocator* arena);
 
 void* arenaAlloc(ArenaAllocator* arena, U64 size);
 void* arenaAllocRaw(ArenaAllocator* arena, U64 size);
-
-void* allocate(void* data, U64 size);
 
 #endif

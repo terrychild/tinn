@@ -4,7 +4,7 @@
 #include "lib/net/socket.h"
 #include "lib/net/sockets.h"
 #include "lib/net/server.h"
-#include "lib/mem.h"
+#include "lib/mem/heap.h"
 #include "lib/console.h"
 
 static void onConnectionEvent(struct pollfd* pfd, void* context_in, bool* close) {
