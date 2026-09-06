@@ -7,4 +7,8 @@
 #include "lib/cli.h"
 #include "lib/mem.h"
 
+#include "lib/net/socket.h"
+#include "lib/net/sockets.h"
+#include "lib/net/server.h"
+
 #endif

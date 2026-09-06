@@ -5,6 +5,7 @@
 #include "version.h"
 #include "help.h"
 #include "test/tests.h"
+#include "web.h"
 
 static void printVersion() {
     PRINT(CC_BRIGHT_WHITE, "Tinn %s ", VERSION);
@@ -32,6 +33,10 @@ int main(int argc, char* argv[]) {
     if (strcmp(argv[1], "version")==0) {
         printVersion();
         return EXIT_SUCCESS;
+    }
+
+    if (strcmp(argv[1], "host")==0) {
+        return hostWebServer(argc, argv);
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");
