@@ -110,3 +110,12 @@ void* arenaAlloc(ArenaAllocator* arena, U64 size) {
 void* arenaAllocRaw(ArenaAllocator* arena, U64 size) {
     return arenaAllocate(arena, size, false);
 }
+
+// basic heap allocator
+void* allocate(void* data, U64 size) {
+    void* new_data = realloc(data, size);
+    if (new_data == NULL) {
+        PANIC("Unable to allocate memory");
+    }
+    return new_data;
+}
