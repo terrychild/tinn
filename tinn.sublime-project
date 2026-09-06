@@ -12,9 +12,9 @@
 	],
 	"build_systems": [
 		{
-			"name": "tinn: build",
+			"name": "tinn: test",
 			"working_dir": "$project_path",
-			"shell_cmd": "make build",
+			"shell_cmd": "make test",
 			"file_patterns": ["*.c", "*.h"]
 		}
 	]
