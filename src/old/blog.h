@@ -1,5 +1,5 @@
 #ifndef TINN_BLOG_H
-#define TINN_BLOH_H
+#define TINN_BLOG_H
 
 #include <stdbool.h>
 #include "request.h"
