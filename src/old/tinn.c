@@ -79,7 +79,7 @@ static struct settings_t parse_arguments(int count, char* values[]) {
 }
 
 // ================ Main loop etc ================
-int main(int argc, char* argv[]) {
+int not_main(int argc, char* argv[]) {
 	// parse/validate settings
 	struct settings_t settings = parse_arguments(argc, argv);
 
