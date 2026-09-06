@@ -1,8 +1,8 @@
 # config
 TARGET := tinn
-RUN_ARGS := ../moohar/www
+RUN_ARGS := host --verbose
 
-COMP_ARGS := -Wall -Wextra -std=c17 -pedantic
+COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
 
 # dirs
 BUILD := ./build
@@ -27,8 +27,8 @@ VERSION := $(BUILD)"/tmp/version.o"
 build: $(BUILD)/$(TARGET)
 run: build
 	@$(BUILD)/$(TARGET) $(RUN_ARGS)
-trace: build
-	@$(BUILD)/$(TARGET) -v $(RUN_ARGS)
+test: build
+	@$(BUILD)/$(TARGET) test
 clean:
 	@rm -r $(BUILD)
 
