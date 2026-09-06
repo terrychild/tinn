@@ -74,7 +74,7 @@ static void printVersion() {
 
 // ================ Main loop etc ================
 int main(int argc, char* argv[]) {
-    if (arg(argc, argv, "--verbose") >= 0) {
+    if (cliArg(argc, argv, "--verbose")) {
         clevel = CL_DEBUG;
     }
 

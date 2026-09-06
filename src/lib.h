@@ -6,10 +6,12 @@
 #include "lib/bits.h"
 #include "lib/bytes.h"
 #include "lib/console.h"
-#include "lib/args.h"
+#include "lib/cli.h"
 #include "lib/mem.h"
-#include "lib/net.h"
 #include "lib/test.h"
+
+#include "lib/net/sockets.h"
+#include "lib/net/server.h"
 
 #include "lib/crypto/sha.h"
 

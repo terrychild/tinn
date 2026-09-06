@@ -9,11 +9,13 @@
 #include <poll.h>
 #include <unistd.h>
 
-#include "lib/net.h"
+#include "lib/net/sockets.h"
 #include "lib/console.h"
 #include "lib/mem.h"
 
-int getLocalSocket(char* port) {
+// Generic Socket stuff
+
+int getServerSocket(char* port) {
     int status;
 
     struct addrinfo hints;
@@ -69,41 +71,65 @@ int getLocalSocket(char* port) {
     return sock;
 }
 
+// Socket List managment
+
 void socketsInit(Sockets* list) {
     list->size = 8;
     list->count = 0;
-    list->sockets = allocate(NULL, sizeof(*list->sockets) * list->size);
+    list->pollfds = allocate(NULL, sizeof(*list->pollfds) * list->size);
+    list->callbacks = allocate(NULL, sizeof(*list->callbacks) * list->size);
 }
 
 void socketsFree(Sockets* list) {
-    free(list->sockets);
+    free(list->pollfds);
+    free(list->callbacks);
 }
 
-void socketsAdd(Sockets* list, int new_socket, SocketListener new_listener, void* new_state) {
+void socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
     // do we need to expand the arrays
     if (list->count == list->size) {
         list->size *= 2;
-        list->sockets = allocate(list->sockets, sizeof(*list->sockets) * list->size);
+        list->pollfds = allocate(list->pollfds, sizeof(*list->pollfds) * list->size);
+        list->callbacks = allocate(list->callbacks, sizeof(*list->callbacks) * list->size);
     }
 
     // add new socket
-    list->sockets[list->count].pollfd.fd = new_socket;
-    list->sockets[list->count].pollfd.events = POLLIN;
-    list->sockets[list->count].pollfd.revents = 0;
+    list->pollfds[list->count].fd = new_socket;
+    list->pollfds[list->count].events = POLLIN;
+    list->pollfds[list->count].revents = 0;
 
-    list->sockets[list->count].listener = new_listener;
-
-    list->sockets[list->count].state = new_state;
+    list->callbacks[list->count] = callback;
 
     // update count
     list->count++;
 }
 
-void socketsRm(Sockets* list, U64 index) {
-    if (index < list->count) {
-        if (index < list->count-1) {
-            list->sockets[index] = list->sockets[list->count-1];
+void socketsPoll(Sockets* list) {
+    while (list->count > 0) {
+        if (poll(list->pollfds, list->count, -1) < 0 ) {
+            PANIC("when polling");
         }
-        list->count--;
+
+        for (U64 i = 0; i < list->count; i++) {
+            if (list->pollfds[i].revents) {
+                bool close_socket = false;
+
+                list->callbacks[i].eventFunc(&list->pollfds[i], list->callbacks[i].context, &close_socket);
+
+                if (close_socket) {
+                    if (list->callbacks[i].closeFunc) {
+                        list->callbacks[i].closeFunc(list->callbacks[i].context);
+                    }
+                    close(list->pollfds[i].fd);
+
+                    if (i < list->count-1) {
+                        list->pollfds[i] = list->pollfds[list->count-1];
+                        list->callbacks[i] = list->callbacks[list->count-1];
+                    }
+                    list->count--;
+                    i--;
+                }
+            }
+        }
     }
 }
