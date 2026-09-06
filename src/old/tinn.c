@@ -49,13 +49,13 @@ static struct settings_t parse_arguments(int count, char* values[]) {
 				} else if (strcmp(values[i], "--version")==0) {
 					version_exit();
 				} else if (strcmp(values[i], "--verbose")==0) {
-					clevel = CL_TRACE;
+					clevel = CL_DEBUG;
 				}
 			} else {
 				if (values[i][1] == 'h') {
 					usage_exit();
 				} else if (values[i][1] == 'v') {
-					clevel = CL_TRACE;
+					clevel = CL_DEBUG;
 				} else if (values[i][1] == 'p') {
 					if (i==count-1) {
 						usage_exit();
@@ -92,7 +92,7 @@ int not_main(int argc, char* argv[]) {
 	}
 	
 	// create content generators
-	TRACE("creating list of content generators");
+	DEBUG("creating list of content generators");
 	ContentGenerators* content = content_generators_new(2);
 
 	Blog* blog = blog_new();
@@ -103,11 +103,11 @@ int not_main(int argc, char* argv[]) {
 	content_generators_add(content, static_content, NULL);
 	
 	// create list of sockets
-	TRACE("creating list of sockets");
+	DEBUG("creating list of sockets");
 	Sockets* sockets = sockets_new();
 	
 	// open server socket
-	TRACE("opening server socket");
+	DEBUG("opening server socket");
 	int server_socket = get_server_socket(settings.port);
 	if (server_socket < 0) {
 		ERROR("getting server socket");
