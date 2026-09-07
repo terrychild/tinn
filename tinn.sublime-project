@@ -10,12 +10,34 @@
 			"folder_exclude_patterns": ["*"]
 		}
 	],
-	"build_systems": [
+	"build_systems":
+	[
 		{
-			"name": "tinn: test",
+			"name": "Build Project",
+
+			"target": "terminus_exec",
+			"cancel": "terminus_cancel_build",
+
 			"working_dir": "$project_path",
-			"shell_cmd": "make test",
-			"file_patterns": ["*.c", "*.h"]
+			"cmd": ["make"],
+
+			"variants":			
+			[
+				{
+					"name": "run",
+					"cmd": ["make", "run"],
+				},
+				{
+					"name": "test",
+					"cmd": ["make", "test"],
+				},
+				{
+					"name": "debug",
+					"target": "exec",
+					"cancel": null,
+					"shell_cmd": "make && kdbg -a test ./build/tinn"
+				}
+			]
 		}
 	]
 }
