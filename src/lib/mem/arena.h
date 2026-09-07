@@ -10,7 +10,7 @@ typedef struct {
     U64 allocated;
 } ArenaAllocator;
 
-ArenaAllocator* arenaNew(U64 arena_size);
+void arenaInit(ArenaAllocator* arean, U64 size);
 void arenaReset(ArenaAllocator* arena);
 void arenaRelease(ArenaAllocator* arena);
 

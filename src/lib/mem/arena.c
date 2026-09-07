@@ -1,34 +1,73 @@
 #include <string.h>
-#include <assert.h>
+#include <unistd.h>
+#include <sys/mman.h>
 
-#include "lib/mem/sys.h"
 #include "lib/mem/arena.h"
 #include "lib/macros.h"
 #include "lib/console.h"
 
 #define ARENA_DEFAULT_SIZE GB(1)
 
-ArenaAllocator* arenaNew(U64 arena_size) {
-    arena_size = alignToPage(arena_size ? arena_size : ARENA_DEFAULT_SIZE);
+// align pointers/lengths to page/word boundaries
+static bool isPowerOfTwo(U64 ptr) {
+    return (ptr & (ptr-1)) == 0;
+}
+static U64 align(U64 ptr, U64 multiple) {
+    if (!isPowerOfTwo(multiple)) {
+        PANIC("Alignment is not a power of two");
+    }
 
-    ArenaAllocator* arena;
-    U64 struct_size = alignToWord(sizeof(*arena));
-    U64 commit_size = alignToPage(struct_size);
-    assert(arena_size >= commit_size);
+    U64 mod = ptr & (multiple - 1);
+    if (mod != 0) {
+        ptr += multiple - mod;
+    }
+    return ptr;
+}
+static U64 alignToPage(U64 ptr) {
+    return align(ptr, sysconf(_SC_PAGE_SIZE));
+}
+static U64 alignToWord(U64 ptr) {
+    return align(ptr, sizeof(void*));
+}
 
-    void* address = sysMemReserve(arena_size);    
-    sysMemCommit(address, commit_size);
+// system calls
+// TODO: support more than linux?
+static void* sysMemReserve(U64 size) {
+    void* mem = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (mem == MAP_FAILED) {
+        PANIC("Unable to allocate memory");
+    }
+    return mem;
+}
 
-    arena = (ArenaAllocator*)address;
-    arena->data = address;
-    arena->size = arena_size;
-    arena->committed = commit_size;
-    arena->allocated = struct_size;
+static void sysMemCommit(void* memory, U64 size) {
+    if (mprotect(memory, size, PROT_READ | PROT_WRITE)) {
+        PANIC("Unable to commit memory");
+    }
+}
 
-    return arena;
+/*static void sysMemUncommit(void* memory, U64 size) {
+    if (mprotect(memory, size, PROT_NONE)) {
+        PANIC("Unable to uncommit memory");
+    }
+}*/
+
+static void sysMemRelease(void* memory, U64 size) {
+    if (munmap(memory, size)) {
+        ERROR("Unable to free memory");
+    }
+}
+
+// Arena Allocator
+void arenaInit(ArenaAllocator* arena, U64 size) {
+    size = alignToPage(size ? size : ARENA_DEFAULT_SIZE);
+    arena->data = sysMemReserve(size);
+    arena->size = size;
+    arena->committed = 0;
+    arena->allocated = 0;
 }
 void arenaReset(ArenaAllocator* arena) {
-    arena->allocated = alignToWord(sizeof(*arena));
+    arena->allocated = 0;
 }
 void arenaRelease(ArenaAllocator* arena) {
     sysMemRelease(arena->data, arena->size);

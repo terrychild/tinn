@@ -6,9 +6,9 @@
 #include "lib/console.h"
 #include "lib/cli.h"
 
-#include "lib/mem/sys.h"
 #include "lib/mem/heap.h"
 #include "lib/mem/arena.h"
+#include "lib/mem/darray.h"
 
 #include "lib/net/socket.h"
 #include "lib/net/sockets.h"
