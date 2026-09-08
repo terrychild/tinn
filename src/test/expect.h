@@ -10,6 +10,7 @@ void expectI64(const char* name, I64 value, I64 expected);
 void expectU8(const char* name, U8 value, U8 expected);
 void expectU64(const char* name, U64 value, U64 expected);
 void expectCharPtr(const char* name, char* value, char* expected);
+void expectNull(const char* name, void* value);
 
 #define expect(name, value, expected) _Generic((value), \
         I8: expectI8, \

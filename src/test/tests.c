@@ -42,54 +42,95 @@ int runTests() {
     arenaRelease(&arena);
 
     // dynamic array tests
-    PRINT(CC_BLUE, "Dynamic Array tests\n");
+    PRINT(CC_BLUE, "Array tests\n");
 
-    DynamicArray da;
-    daInit(&da, 1, 10, 0);
-    expect("allocated capacity (10 * U8)", da.capacity, 16);
-    daRelease(&da);
+    Array array;
+    arrayInit(&array, 1, 10, 0);
+    expect("allocated capacity (10 * U8)", array.capacity, 16);
+    arrayRelease(&array);
 
-    daInit(&da, sizeof(U64), 4, 0);
-    expect("allocated capacity (4 * U64)", da.capacity, 4);
-    expect("empty", da.count, 0);
+    arrayInit(&array, sizeof(U64), 4, 0);
+    expect("allocated capacity (4 * U64)", array.capacity, 4);
+    expect("empty", array.count, 0);
 
     U64 one = 1;
-    daPush(&da, &one);
-    expect("added one", da.count, 1);
-    expect("get one", *((U64*)daGet(&da, 0)), one);
+    arrayPush(&array, &one);
+    expect("added one", array.count, 1);
+    expect("get one", *((U64*)arrayGet(&array, 0)), one);
 
-    daPush(&da, &one);
-    daPush(&da, &one);
-    daPush(&da, &one);
-    expect("added four", da.count, 4);
-    expect("capacity after four", da.capacity, 4);
+    arrayPush(&array, &one);
+    arrayPush(&array, &one);
+    arrayPush(&array, &one);
+    expect("added four", array.count, 4);
+    expect("capacity after four", array.capacity, 4);
 
     U64 five = 5;
-    daPush(&da, &five);
-    expect("added five", da.count, 5);
-    expect("capacity after five", da.capacity, 8);
+    arrayPush(&array, &five);
+    expect("added five", array.count, 5);
+    expect("capacity after five", array.capacity, 8);
 
-    daPush(&da, &one);
-    daPush(&da, &one);
-    daPush(&da, &one);
-    expect("added eitgh", da.count, 8);
-    expect("capacity after eight", da.capacity, 8);
+    arrayPush(&array, &one);
+    arrayPush(&array, &one);
+    arrayPush(&array, &one);
+    expect("added eitgh", array.count, 8);
+    expect("capacity after eight", array.capacity, 8);
 
     U64 nine = 9;
-    daPush(&da, &nine);
-    expect("added nine", da.count, 9);
-    expect("capacity after nine", da.capacity, 16);
+    arrayPush(&array, &nine);
+    expect("added nine", array.count, 9);
+    expect("capacity after nine", array.capacity, 16);
 
-    expect("get five", *((U64*)daGet(&da, 4)), five);
-    expect("get nine", *((U64*)daGet(&da, 8)), nine);
+    expect("get five", *((U64*)arrayGet(&array, 4)), five);
+    expect("get nine", *((U64*)arrayGet(&array, 8)), nine);
 
-    U64* daPtr = (U64*)da.data;
-    expect("pointer syntax", *daPtr, one);
-    expect("pointer arithmetic", *(daPtr+4), five);
-    expect("array syntax", daPtr[8], nine);
+    U64* arrayPtr = (U64*)array.data;
+    expect("pointer syntax", *arrayPtr, one);
+    expect("pointer arithmetic", *(arrayPtr+4), five);
+    expect("array syntax", arrayPtr[8], nine);
 
+    arrayRelease(&array);
 
-    daRelease(&da);
+    // pool tests
+    PRINT(CC_BLUE, "Pool tests\n");
+
+    Pool pool;
+    poolInit(&pool, 1, 12, 0);
+    expect("capacity (page size)", pool.capacity, 16);
+    poolRelease(&pool);
+
+    char a = 'a';
+    char b = 'b';
+    char c = 'c';
+    char d = 'd';
+
+    poolInit(&pool, 1, 12, 12);
+    expect("capacity (specific)", pool.capacity, 12);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &b);
+    poolAdd(&pool, &c);
+    poolAdd(&pool, &d);
+    expect("count after four", pool.count, 4);
+    expect("get b", *((char*)poolGet(&pool, 1)), b);
+    poolRemove(&pool, 1);
+    expect("count after remove", pool.count, 3);
+    expect("get d", *((char*)poolGet(&pool, 1)), d);
+
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &b);
+    poolAdd(&pool, &c);
+    poolAdd(&pool, &d);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &b);
+    poolAdd(&pool, &c);
+    poolAdd(&pool, &d);
+    poolAdd(&pool, &a);
+    expect("count after twelve", pool.count, 12);
+    poolRemove(&pool, 1);
+    expect("count after remove", pool.count, 11);
+    expectNull("get NULL", poolGet(&pool, 11));
+    //poolAdd(&pool, &d);
+
+    poolRelease(&pool);
 
     // report
     if (expect_failed) {

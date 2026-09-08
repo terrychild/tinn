@@ -38,3 +38,16 @@ void expectCharPtr(const char* name, const char* value, const char* expected) {
         expect_failed = true;
     }
 }
+
+void expectNull(const char* name, void* value) {
+    if (value==NULL) {
+        PRINT(CC_GREEN, "Passed");
+        PRINT(CC_BRIGHT_WHITE, ": %s\n", name);
+    } else {
+        PRINT(CC_BRIGHT_RED, "Failed");
+        PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
+        PRINT(CC_CYAN, "NULL");
+        PRINT(CC_BRIGHT_WHITE, " got something else\n");
+        expect_failed = true;
+    }
+}

@@ -8,7 +8,8 @@
 
 #include "lib/mem/heap.h"
 #include "lib/mem/arena.h"
-#include "lib/mem/darray.h"
+#include "lib/mem/array.h"
+#include "lib/mem/pool.h"
 
 #include "lib/net/socket.h"
 #include "lib/net/sockets.h"
