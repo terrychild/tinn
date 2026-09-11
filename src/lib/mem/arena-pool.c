@@ -5,7 +5,7 @@
 #include "lib/mem/arena.h"
 
 void arenaPoolInit(ArenaPool* pool, U64 initial_capacity, U64 max_capacity) {
-    poolInit(&pool->pool, sizeof(Arena*), initial_capacity, max_capacity, NULL);
+    poolInit(&pool->pool, sizeof(Arena*), initial_capacity ? initial_capacity : 256, max_capacity, NULL);
 }
 void arenaPoolReset(ArenaPool* pool) {
     for (U64 i=0; i < pool->pool.count; i++) {

@@ -2,70 +2,53 @@
 #include <unistd.h>
 
 #include "lib/net/sockets.h"
-#include "lib/mem/heap.h"
 #include "lib/console.h"
 
-Sockets* socketsNew() {
-    Sockets* list = allocate(NULL, sizeof(*list));
+void socketsInit(Sockets* list, U64 max_capacity, ArenaPool* pool) {
+    U64 size = 8;
+    max_capacity = max_capacity ? max_capacity : 256;
 
-    list->size = 8;
-    list->count = 0;
-    list->pollfds = allocate(NULL, sizeof(*list->pollfds) * list->size);
-    list->callbacks = allocate(NULL, sizeof(*list->callbacks) * list->size);
-
-    return list;
+    poolInit(&list->pollfds, sizeof(struct pollfd), size, max_capacity, pool);
+    poolInit(&list->callbacks, sizeof(SocketCallback), size, max_capacity, pool);
 }
 
 void socketsRelease(Sockets* list) {
-    if (list != NULL) {
-        free(list->pollfds);
-        free(list->callbacks);
-        free(list);
-    }
+    poolRelease(&list->pollfds);
+    poolRelease(&list->callbacks);
 }
 
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
-    // do we need to expand the arrays
-    if (list->count == list->size) {
-        list->size *= 2;
-        list->pollfds = allocate(list->pollfds, sizeof(*list->pollfds) * list->size);
-        list->callbacks = allocate(list->callbacks, sizeof(*list->callbacks) * list->size);
-    }
-
-    // add new socket
-    list->pollfds[list->count].fd = new_socket;
-    list->pollfds[list->count].events = POLLIN;
-    list->pollfds[list->count].revents = 0;
-
-    list->callbacks[list->count] = callback;
-
-    // update count
-    list->count++;
+    poolAdd(&list->pollfds, &(struct pollfd){
+        .fd = new_socket,
+        .events = POLLIN,
+        .revents = 0
+    });
+    poolAdd(&list->callbacks, &callback);
 }
 
 void socketsPoll(Sockets* list) {
-    while (list->count > 0) {
-        if (poll(list->pollfds, list->count, -1) < 0 ) {
+    while (list->pollfds.count > 0) {
+        if (poll((struct pollfd*)list->pollfds.array.data, list->pollfds.count, -1) < 0 ) {
             PANIC("When polling");
         }
 
-        for (U64 i = 0; i < list->count; i++) {
-            if (list->pollfds[i].revents) {
+        for (U64 i = 0; i < list->pollfds.count; i++) {
+            struct pollfd* pfd = (struct pollfd*)poolGet(&list->pollfds, i);
+            if (pfd->revents) {
                 bool close_socket = false;
 
-                list->callbacks[i].eventFunc(&list->pollfds[i], list->callbacks[i].context, &close_socket);
+                SocketCallback* callback = (SocketCallback*)poolGet(&list->callbacks, i);
+
+                callback->eventFunc(pfd, callback->context, &close_socket);
 
                 if (close_socket) {
-                    if (list->callbacks[i].closeFunc) {
-                        list->callbacks[i].closeFunc(list->callbacks[i].context);
+                    if (callback->closeFunc) {
+                        callback->closeFunc(callback->context);
                     }
-                    close(list->pollfds[i].fd);
+                    close(pfd->fd);
 
-                    if (i < list->count-1) {
-                        list->pollfds[i] = list->pollfds[list->count-1];
-                        list->callbacks[i] = list->callbacks[list->count-1];
-                    }
-                    list->count--;
+                    poolRemove(&list->pollfds, i);
+                    poolRemove(&list->callbacks, i);
                     i--;
                 }
             }

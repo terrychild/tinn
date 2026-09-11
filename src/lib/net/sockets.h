@@ -4,6 +4,7 @@
 #include <poll.h>
 
 #include "lib/types.h"
+#include "lib/mem/pool.h"
 
 typedef void (*SocketEventFunc)(struct pollfd* pfd, void* context, bool* close);
 typedef void (*SocketCloseFunc)(void* context);
@@ -15,13 +16,11 @@ typedef struct {
 } SocketCallback;
 
 typedef struct {
-    U64 size;
-    U64 count;
-    struct pollfd* pollfds;
-    SocketCallback* callbacks;
+    Pool pollfds;
+    Pool callbacks;
 } Sockets;
 
-Sockets* socketsNew();
+void socketsInit(Sockets* list, U64 max_capacity, ArenaPool* pool);
 void socketsRelease(Sockets* list);
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback);
 void socketsPoll(Sockets* list);

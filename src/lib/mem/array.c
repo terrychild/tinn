@@ -1,11 +1,17 @@
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "lib/mem/array.h"
 #include "lib/mem/arena.h"
 
 void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* pool) {
+    assert(initial_capacity > 0);
+
     arenaInit(&array->arena, max_capacity * item_size, pool);
+
+    assert(array->arena.size >= initial_capacity * item_size);
+
     array->data = arenaAlloc(&array->arena, initial_capacity * item_size);
     array->item_size = item_size;
     array->capacity = array->arena.allocated / item_size;
