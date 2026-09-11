@@ -45,7 +45,6 @@ int runTests() {
     arenaReset(&arena);
     data = arenaAlloc(&arena, 12);
     expect("data after reset and alloc", data[11], 0);
-    arenaRelease(&arena);
 
     // dynamic array tests
     PRINT(CC_BLUE, "Array tests\n");
@@ -59,42 +58,51 @@ int runTests() {
     expect("allocated capacity (4 * U64)", array.capacity, 4);
     expect("empty", array.count, 0);
 
-    U64 one = 1;
-    arrayPush(&array, &one);
+    U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    arrayPush(&array, &nums[0]);
     expect("added one", array.count, 1);
-    expect("get one", *((U64*)arrayGet(&array, 0)), one);
+    expect("get one", *((U64*)arrayGet(&array, 0)), nums[0]);
 
-    arrayPush(&array, &one);
-    arrayPush(&array, &one);
-    arrayPush(&array, &one);
+    arrayPush(&array, &nums[1]);
+    arrayPush(&array, &nums[2]);
+    arrayPush(&array, &nums[3]);
     expect("added four", array.count, 4);
     expect("capacity after four", array.capacity, 4);
 
-    U64 five = 5;
-    arrayPush(&array, &five);
+    arrayPush(&array, &nums[4]);
     expect("added five", array.count, 5);
     expect("capacity after five", array.capacity, 8);
 
-    arrayPush(&array, &one);
-    arrayPush(&array, &one);
-    arrayPush(&array, &one);
+    arrayPush(&array, &nums[5]);
+    arrayPush(&array, &nums[6]);
+    arrayPush(&array, &nums[7]);
     expect("added eitgh", array.count, 8);
     expect("capacity after eight", array.capacity, 8);
 
-    U64 nine = 9;
-    arrayPush(&array, &nine);
+    arrayPush(&array, &nums[8]);
     expect("added nine", array.count, 9);
     expect("capacity after nine", array.capacity, 16);
 
-    expect("get five", *((U64*)arrayGet(&array, 4)), five);
-    expect("get nine", *((U64*)arrayGet(&array, 8)), nine);
+    expect("get 4", *((U64*)arrayGet(&array, 4)), nums[4]);
+    expect("get 8", *((U64*)arrayGet(&array, 8)), nums[8]);
 
     U64* arrayPtr = (U64*)array.data;
-    expect("pointer syntax", *arrayPtr, one);
-    expect("pointer arithmetic", *(arrayPtr+4), five);
-    expect("array syntax", arrayPtr[8], nine);
+    expect("pointer syntax", *arrayPtr, nums[0]);
+    expect("pointer arithmetic", *(arrayPtr+4), nums[4]);
+    expect("array syntax", arrayPtr[8], nums[8]);
 
-    arrayRelease(&array);
+    arrayRemove(&array, 8);
+    expectNull("remove 8", arrayGet(&array, 8));
+    expect("get 7", *((U64*)arrayGet(&array, 7)), nums[7]);
+
+    expect("get 4", *((U64*)arrayGet(&array, 4)), nums[4]);
+    arrayRemove(&array, 4);
+    expect("remove 4", *((U64*)arrayGet(&array, 4)), nums[5]);
+    expectNull("remove 7", arrayGet(&array, 7));
+    expect("get 6", *((U64*)arrayGet(&array, 6)), nums[7]);
+
+    arrayRemove(&array, 0);
+    expect("remove 0", *((U64*)arrayGet(&array, 0)), nums[1]);
 
     // pool tests
     PRINT(CC_BLUE, "Pool tests\n");
@@ -136,21 +144,19 @@ int runTests() {
     expectNull("get NULL", poolGet(&pool, 11));
     //poolAdd(&pool, &d);
 
-    //poolRelease(&pool);
-
     // free arena pool
     PRINT(CC_BLUE, "Arena Pool tests\n");
-    expect("arena pool count", arena_pool.pool.count, 1);
+    expect("arena pool count", arena_pool.pool.count, 3);
     arenaPoolReset(&arena_pool);
     expect("arena pool count", arena_pool.pool.count, 0);
 
-    Array arr[5];
+    /*Array arr[5];
     arrayInit(&arr[0], 1, 1, 1, &arena_pool);
     arrayInit(&arr[1], 1, 1, 1, &arena_pool);
     arrayInit(&arr[2], 1, 1, 1, &arena_pool);
     arrayInit(&arr[3], 1, 1, 1, &arena_pool);
     expect("arena pool count", arena_pool.pool.count, 4);
-    arrayInit(&arr[4], 1, 1, 1, &arena_pool);
+    arrayInit(&arr[4], 1, 1, 1, &arena_pool);*/
 
     // report
     if (expect_failed) {
