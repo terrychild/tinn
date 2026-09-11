@@ -14,17 +14,23 @@ int runTests() {
     expect("U8 range", (U8)(-1), 255);
     expect("size_t is 64 bit", sizeof(size_t), sizeof(U64));
 
+    // create an arena pool
+    ArenaPool arena_pool;
+    arenaPoolInit(&arena_pool, 4, 4);
+
     // arena tests
     PRINT(CC_BLUE, "Arena Allocator tests\n");
 
-    ArenaAllocator arena;
-    arenaInit(&arena, 1);
+    Arena arena;
+    arenaInit(&arena, 1, &arena_pool);
     expect("page size", arena.size, KB(4));
     expect("committed", arena.committed, 0);
     expect("allocated", arena.allocated, 0);
+    expect("arena pool count", arena_pool.pool.count, 1);
     arenaRelease(&arena);
+    expect("arena pool count", arena_pool.pool.count, 0);
 
-    arenaInit(&arena, 0);
+    arenaInit(&arena, 0, &arena_pool);
     expect("default size", arena.size, GB(1));
     U8* data = arenaAlloc(&arena, 12);
     expect("commit size", arena.committed, KB(4));
@@ -45,11 +51,11 @@ int runTests() {
     PRINT(CC_BLUE, "Array tests\n");
 
     Array array;
-    arrayInit(&array, 1, 10, 0);
+    arrayInit(&array, 1, 10, 0, &arena_pool);
     expect("allocated capacity (10 * U8)", array.capacity, 16);
     arrayRelease(&array);
 
-    arrayInit(&array, sizeof(U64), 4, 0);
+    arrayInit(&array, sizeof(U64), 4, 0, &arena_pool);
     expect("allocated capacity (4 * U64)", array.capacity, 4);
     expect("empty", array.count, 0);
 
@@ -94,7 +100,7 @@ int runTests() {
     PRINT(CC_BLUE, "Pool tests\n");
 
     Pool pool;
-    poolInit(&pool, 1, 12, 0);
+    poolInit(&pool, 1, 12, 0, &arena_pool);
     expect("capacity (page size)", pool.capacity, 16);
     poolRelease(&pool);
 
@@ -103,7 +109,7 @@ int runTests() {
     char c = 'c';
     char d = 'd';
 
-    poolInit(&pool, 1, 12, 12);
+    poolInit(&pool, 1, 12, 12, &arena_pool);
     expect("capacity (specific)", pool.capacity, 12);
     poolAdd(&pool, &a);
     poolAdd(&pool, &b);
@@ -116,21 +122,35 @@ int runTests() {
     expect("get d", *((char*)poolGet(&pool, 1)), d);
 
     poolAdd(&pool, &a);
-    poolAdd(&pool, &b);
-    poolAdd(&pool, &c);
-    poolAdd(&pool, &d);
     poolAdd(&pool, &a);
-    poolAdd(&pool, &b);
-    poolAdd(&pool, &c);
-    poolAdd(&pool, &d);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &a);
+    poolAdd(&pool, &a);
     poolAdd(&pool, &a);
     expect("count after twelve", pool.count, 12);
-    poolRemove(&pool, 1);
+    poolRemove(&pool, 11);
     expect("count after remove", pool.count, 11);
     expectNull("get NULL", poolGet(&pool, 11));
     //poolAdd(&pool, &d);
 
-    poolRelease(&pool);
+    //poolRelease(&pool);
+
+    // free arena pool
+    PRINT(CC_BLUE, "Arena Pool tests\n");
+    expect("arena pool count", arena_pool.pool.count, 1);
+    arenaPoolReset(&arena_pool);
+    expect("arena pool count", arena_pool.pool.count, 0);
+
+    Array arr[5];
+    arrayInit(&arr[0], 1, 1, 1, &arena_pool);
+    arrayInit(&arr[1], 1, 1, 1, &arena_pool);
+    arrayInit(&arr[2], 1, 1, 1, &arena_pool);
+    arrayInit(&arr[3], 1, 1, 1, &arena_pool);
+    expect("arena pool count", arena_pool.pool.count, 4);
+    arrayInit(&arr[4], 1, 1, 1, &arena_pool);
 
     // report
     if (expect_failed) {

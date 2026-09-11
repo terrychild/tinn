@@ -3,18 +3,19 @@
 
 #include "lib/types.h"
 
-typedef struct {
+struct Arena {
     U8* data;
     U64 size;
     U64 committed;
     U64 allocated;
-} ArenaAllocator;
+    ArenaPool* pool;
+};
 
-void arenaInit(ArenaAllocator* arean, U64 size);
-void arenaReset(ArenaAllocator* arena);
-void arenaRelease(ArenaAllocator* arena);
+void arenaInit(Arena* arean, U64 size, ArenaPool* pool);
+void arenaReset(Arena* arena);
+void arenaRelease(Arena* arena);
 
-void* arenaAlloc(ArenaAllocator* arena, U64 size);
-void* arenaAllocRaw(ArenaAllocator* arena, U64 size);
+void* arenaAlloc(Arena* arena, U64 size);
+void* arenaAllocRaw(Arena* arena, U64 size);
 
 #endif

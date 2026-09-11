@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 
 #include "lib/mem/arena.h"
+#include "lib/mem/arena-pool.h"
 #include "lib/macros.h"
 #include "lib/console.h"
 
@@ -59,21 +60,31 @@ static void sysMemRelease(void* memory, U64 size) {
 }
 
 // Arena Allocator
-void arenaInit(ArenaAllocator* arena, U64 size) {
+void arenaInit(Arena* arena, U64 size, ArenaPool* pool) {
     size = alignToPage(size ? size : ARENA_DEFAULT_SIZE);
     arena->data = sysMemReserve(size);
     arena->size = size;
     arena->committed = 0;
     arena->allocated = 0;
+
+    if (pool) {
+        arena->pool = pool;
+        arenaPoolAdd(pool, arena);
+    } else {
+        arena->pool = NULL;
+    }
 }
-void arenaReset(ArenaAllocator* arena) {
+void arenaReset(Arena* arena) {
     arena->allocated = 0;
 }
-void arenaRelease(ArenaAllocator* arena) {
+void arenaRelease(Arena* arena) {
     sysMemRelease(arena->data, arena->size);
+    if (arena->pool) {
+        arenaPoolRemove(arena->pool, arena);
+    }
 }
 
-static void* arenaAllocate(ArenaAllocator* arena, U64 size, bool zero) {
+static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
     size = alignToWord(size);
 
     if (arena->allocated + size > arena->committed) {
@@ -96,10 +107,10 @@ static void* arenaAllocate(ArenaAllocator* arena, U64 size, bool zero) {
     return new_data;
 }
 
-void* arenaAlloc(ArenaAllocator* arena, U64 size) {
+void* arenaAlloc(Arena* arena, U64 size) {
     return arenaAllocate(arena, size, true);
 }
 
-void* arenaAllocRaw(ArenaAllocator* arena, U64 size) {
+void* arenaAllocRaw(Arena* arena, U64 size) {
     return arenaAllocate(arena, size, false);
 }

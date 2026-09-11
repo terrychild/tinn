@@ -4,13 +4,13 @@
 #include "lib/types.h"
 #include "lib/mem/array.h"
 
-typedef struct {
+struct Pool {
     Array array;
     U64 capacity;
     U64 count;
-} Pool;
+};
 
-void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity);
+void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arene_pool);
 void poolReset(Pool* pool);
 void poolRelease(Pool* pool);
 
