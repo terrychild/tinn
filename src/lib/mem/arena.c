@@ -34,7 +34,7 @@ static U64 alignToWord(U64 ptr) {
 // system calls
 // TODO: support more than linux?
 static void* sysMemReserve(U64 size) {
-    void* mem = mmap(nullptr, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    void* mem = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (mem == MAP_FAILED) {
         PANIC("Unable to allocate memory");
     }

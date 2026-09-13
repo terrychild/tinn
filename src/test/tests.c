@@ -59,8 +59,7 @@ int runTests() {
     expect("empty", array.count, 0);
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    arrayPush(&array, &nums[0]);
-    expect("added one", array.count, 1);
+    expect("added one", arrayPush(&array, &nums[0]), 1);
     expect("get one", *((U64*)arrayGet(&array, 0)), nums[0]);
 
     arrayPush(&array, &nums[1]);
@@ -103,6 +102,14 @@ int runTests() {
 
     arrayRemove(&array, 0);
     expect("remove 0", *((U64*)arrayGet(&array, 0)), nums[1]);
+
+    expect("pop", *((U64*)arrayPop(&array)), nums[7]);
+    expect("after pop", array.count, 5);
+
+    arraySet(&array, 0, &nums[0]);
+    expect("set 0", *((U64*)arrayGet(&array, 0)), nums[0]);
+    arraySet(&array, 1, &nums[1]);
+    expect("set 1", *((U64*)arrayGet(&array, 1)), nums[1]);
 
     // pool tests
     PRINT(CC_BLUE, "Pool tests\n");

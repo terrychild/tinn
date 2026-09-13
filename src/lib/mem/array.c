@@ -24,7 +24,7 @@ void arrayRelease(Array* array) {
     arenaRelease(&array->arena);
 }
 
-void arrayPush(Array* array, const void* item) {
+U64 arrayPush(Array* array, const void* item) {
     if (array->count == array->capacity) {
         arenaAlloc(&array->arena, array->capacity * array->item_size);
         array->capacity = array->arena.allocated / array->item_size;
@@ -33,13 +33,29 @@ void arrayPush(Array* array, const void* item) {
     U8* address = array->data + (array->count * array->item_size);
     memcpy(address, item, array->item_size);
     array->count++;
+    return array->count;
+}
+
+void* arrayPop(Array* array) {
+    if (array->count > 0) {
+        array->count--;
+        return array->data + (array->count * array->item_size);
+    }
+    return NULL;
+}
+
+void arraySet(Array* array, U64 index, const void* item) {
+    if (index < array->count) {
+        U8* address = array->data + (index * array->item_size);
+        memcpy(address, item, array->item_size);   
+    }
 }
 
 void* arrayGet(Array* array, U64 index) {
-    if (index >= array->count) {
-        return NULL;
+    if (index < array->count) {
+        return array->data + (index * array->item_size);
     }
-    return array->data + (index * array->item_size);
+    return NULL;
 }
 
 void arrayRemove(Array* array, U64 index) {

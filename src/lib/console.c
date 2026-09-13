@@ -66,10 +66,10 @@ static void printPrefix(FILE* stream, ConsoleLevel level) {
         case CL_INFO:
             break;
         case CL_WARN:
-            print(stream, CC_YELLOW, "warning: ");
+            print(stream, CC_YELLOW, "Warning: ");
             break;
         case CL_ERROR:
-            print(stream, CC_BRIGHT_RED, "error: ");
+            print(stream, CC_BRIGHT_RED, "Error: ");
             break;
         case CL_PANIC:
             print(stream, CC_BOLD_RED, "PANIC: ");

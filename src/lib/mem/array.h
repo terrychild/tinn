@@ -16,7 +16,9 @@ void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capaci
 void arrayReset(Array* array);
 void arrayRelease(Array* array);
 
-void arrayPush(Array* array, const void* item);
+U64 arrayPush(Array* array, const void* item);
+void* arrayPop(Array* array);
+void arraySet(Array* array, U64 index, const void* item);
 void* arrayGet(Array* array, U64 index);
 void arrayRemove(Array* array, U64 index);
 
