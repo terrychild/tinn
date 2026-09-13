@@ -47,7 +47,7 @@ void* arrayPop(Array* array) {
 void arraySet(Array* array, U64 index, const void* item) {
     if (index < array->count) {
         U8* address = array->data + (index * array->item_size);
-        memcpy(address, item, array->item_size);   
+        memcpy(address, item, array->item_size);
     }
 }
 

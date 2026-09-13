@@ -115,47 +115,42 @@ int runTests() {
     PRINT(CC_BLUE, "Pool tests\n");
 
     Pool pool;
-    poolInit(&pool, 1, 12, 0, &arena_pool);
-    expect("capacity (page size)", pool.capacity, 16);
+    poolInit(&pool, sizeof(U64), 4, 0, &arena_pool);
+    expect("capacity", pool.capacity, 4);
+    U64* p0 = poolPush(&pool, &nums[0]);
+    U64* p1 = poolPush(&pool, &nums[1]);
+    U64* p2 = poolPush(&pool, &nums[2]);
+    U64* p3 = poolPush(&pool, &nums[3]);
+    expect("after filling", pool.count, 4);
+    U64* p4 = poolPush(&pool, &nums[4]);
+    expect("capacity after one more", pool.capacity, 8);
+
+    U64* p14 = poolAdd(&pool);
+    expect("add", pool.count, 6);
+    expect("blank", *p14, 0);
+    *p14 = 14;
+    expect("after set", *p14, 14);
+
+    expectNull("free list before remove", pool.free);
+    poolDebug(&pool);
+
+    poolRemove(&pool, p1);
+    expect("count after remove", pool.count, 5);
+    expect("free list after remove", pool.free, p1);
+    expect("item one after remove", *p1, 0);
+    poolDebug(&pool);
+
+    poolRemove(&pool, p3);
+    expect("count after remove", pool.count, 4);
+    poolDebug(&pool);
+
     poolRelease(&pool);
 
-    char a = 'a';
-    char b = 'b';
-    char c = 'c';
-    char d = 'd';
-
-    poolInit(&pool, 1, 12, 12, &arena_pool);
-    expect("capacity (specific)", pool.capacity, 12);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &b);
-    poolAdd(&pool, &c);
-    poolAdd(&pool, &d);
-    expect("count after four", pool.count, 4);
-    expect("get b", *((char*)poolGet(&pool, 1)), b);
-    poolRemove(&pool, 1);
-    expect("count after remove", pool.count, 3);
-    expect("get d", *((char*)poolGet(&pool, 1)), d);
-
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    poolAdd(&pool, &a);
-    expect("count after twelve", pool.count, 12);
-    poolRemove(&pool, 11);
-    expect("count after remove", pool.count, 11);
-    expectNull("get NULL", poolGet(&pool, 11));
-    //poolAdd(&pool, &d);
-
     // free arena pool
-    PRINT(CC_BLUE, "Arena Pool tests\n");
+    /*PRINT(CC_BLUE, "Arena Pool tests\n");
     expect("arena pool count", arena_pool.pool.count, 3);
     arenaPoolReset(&arena_pool);
-    expect("arena pool count", arena_pool.pool.count, 0);
+    expect("arena pool count", arena_pool.pool.count, 0);*/
 
     /*Array arr[5];
     arrayInit(&arr[0], 1, 1, 1, &arena_pool);

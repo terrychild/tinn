@@ -5,6 +5,7 @@
 
 extern bool expect_failed;
 
+void expectVoidPtr(const char* name, void* value, void* expected);
 void expectI8(const char* name, U8 value, U8 expected);
 void expectI64(const char* name, I64 value, I64 expected);
 void expectU8(const char* name, U8 value, U8 expected);
@@ -16,8 +17,9 @@ void expectNull(const char* name, void* value);
         I8: expectI8, \
         U8: expectU8, \
         U64: expectU64, \
+        I64: expectI64, \
         char*: expectCharPtr, \
-        default: expectI64  \
+        default: expectVoidPtr  \
     )(name, value, expected)
 
 #endif

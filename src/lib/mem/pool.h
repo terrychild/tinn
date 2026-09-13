@@ -4,8 +4,17 @@
 #include "lib/types.h"
 #include "lib/mem/array.h"
 
+typedef struct PoolSlot PoolSlot;
+
+struct PoolSlot {
+    PoolSlot* next;
+};
+
 struct Pool {
-    Array array;
+    Arena arena;
+    U8* data;
+    PoolSlot* free;
+    U64 item_size;
     U64 capacity;
     U64 count;
 };
@@ -14,8 +23,10 @@ void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity,
 void poolReset(Pool* pool);
 void poolRelease(Pool* pool);
 
-void poolAdd(Pool* pool, const void* item);
-void* poolGet(Pool* pool, U64 index);
-void poolRemove(Pool* pool, U64 index);
+void* poolAdd(Pool* pool);
+void* poolPush(Pool* pool, const void* item);
+void poolRemove(Pool* pool, void* item);
+
+void poolDebug(Pool* pool);
 
 #endif
