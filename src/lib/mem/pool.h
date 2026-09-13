@@ -4,16 +4,16 @@
 #include "lib/types.h"
 #include "lib/mem/array.h"
 
-typedef struct PoolSlot PoolSlot;
+typedef struct PoolNode PoolNode;
 
-struct PoolSlot {
-    PoolSlot* next;
+struct PoolNode {
+    PoolNode* next;
 };
 
 struct Pool {
     Arena arena;
     U8* data;
-    PoolSlot* free;
+    PoolNode* free;
     U64 item_size;
     U64 capacity;
     U64 count;

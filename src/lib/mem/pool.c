@@ -8,7 +8,7 @@
 #include "lib/console.h"
 
 void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arene_pool) {
-    assert(item_size >= sizeof(PoolSlot*));
+    assert(item_size >= sizeof(PoolNode*));
     assert(initial_capacity > 0);
 
     arenaInit(&pool->arena, max_capacity * item_size, arene_pool);
@@ -30,12 +30,12 @@ void poolRelease(Pool* pool) {
 }
 
 void* poolAdd(Pool* pool) {
-    /*if (pool->free != NULL) {
+    if (pool->free != NULL) {
         void* address = pool->free;
-        pool->free = (U8*)pool->free;
+        pool->free = pool->free->next;
         pool->count++;
         return address;
-    }*/
+    }
 
     if (pool->count == pool->capacity) {
         arenaAlloc(&pool->arena, pool->capacity * pool->item_size);
@@ -57,17 +57,17 @@ void poolRemove(Pool* pool, void* item) {
     if (pool->count > 0) {
         pool->count--;
 
-        *(PoolSlot *)item = (PoolSlot) {
+        *(PoolNode*)item = (PoolNode) {
             .next = pool->free
         };
-        pool->free= item;
+        pool->free = item;
     }
 }
 
 void poolDebug(Pool* pool) {
     PRINT(CC_YELLOW, "Pool:\n");
     PRINT(CC_YELLOW, "  Free: ");
-    PoolSlot* chunk = pool->free;
+    PoolNode* chunk = pool->free;
     while (chunk != NULL) {
         PRINT(CC_YELLOW, "%lu; ", (((U8*)chunk) - pool->data) / pool->item_size);
         chunk = chunk->next;

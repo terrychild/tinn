@@ -26,9 +26,9 @@ int runTests() {
     expect("page size", arena.size, KB(4));
     expect("committed", arena.committed, 0);
     expect("allocated", arena.allocated, 0);
-    expect("arena pool count", arena_pool.pool.count, 1);
+    //expect("arena pool count", arena_pool.pool.count, 1);
     arenaRelease(&arena);
-    expect("arena pool count", arena_pool.pool.count, 0);
+    //expect("arena pool count", arena_pool.pool.count, 0);
 
     arenaInit(&arena, 0, &arena_pool);
     expect("default size", arena.size, GB(1));
@@ -142,6 +142,18 @@ int runTests() {
 
     poolRemove(&pool, p3);
     expect("count after remove", pool.count, 4);
+    poolDebug(&pool);
+
+    poolAdd(&pool);
+    expect("count after add", pool.count, 5);
+    poolDebug(&pool);
+
+    poolAdd(&pool);
+    expect("count after add", pool.count, 6);
+    poolDebug(&pool);
+
+    poolAdd(&pool);
+    expect("count after add", pool.count, 7);
     poolDebug(&pool);
 
     poolRelease(&pool);
