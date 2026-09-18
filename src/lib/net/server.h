@@ -3,30 +3,31 @@
 
 #include <netinet/in.h>
 
+#include "lib/types.h"
 #include "lib/net/sockets.h"
 
-typedef void* (*SocketConnectFunction)(void* context);
+typedef void* (*SocketOpenFunc)(void* context);
 typedef void (*SocketReceiveFunc)(void* context);
 typedef void (*SocketSendFunc)(void* context);
 
 typedef struct {
+    ArenaPool* arena_pool;
     Sockets* sockets;
-    SocketConnectFunction connect;
+    SocketOpenFunc openConnection;
+    SocketCloseFunc closeConnection;
     SocketReceiveFunc receive;
     SocketSendFunc send;
-    SocketCloseFunc close;
     void* context;    
 } Server;
 
 typedef struct {
-    char address[INET6_ADDRSTRLEN];
-    SocketReceiveFunc receive;
-    SocketSendFunc send;
-    SocketCloseFunc close;
+    Server* server;
+    Arena* arena;
     void* context;
+    char address[INET6_ADDRSTRLEN];
 } ServerConnection;
 
-Server* serverNew(Sockets* list, char* port);
+bool serverInit(Server* server, Sockets* sockets, char* port, ArenaPool* arena_pool);
 //TODO: void serverClose(Server* server)
 
 #endif

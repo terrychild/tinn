@@ -28,7 +28,7 @@ static void extend(ArenaPool* pool, U64 capacity) {
 }
 
 void arenaPoolInit(ArenaPool* pool, U64 initial_capacity, U64 max_capacity) {
-    assert(initial_capacity > 0);
+    initial_capacity = initial_capacity ? initial_capacity : 8;
     arenaInit(&pool->arena, max_capacity * NODE_SIZE);
     assert(pool->arena.size >= initial_capacity * NODE_SIZE);
 

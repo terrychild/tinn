@@ -16,8 +16,8 @@ int hostWebServer(int argc, char* argv[]) {
 
     // create server
     DEBUG("Creating Web server");
-    Server* server = serverNew(&sockets, cliValue(argc, argv, "--port", "8080"));
-    if (server == NULL) {
+    Server server;
+    if (!serverInit(&server, &sockets, cliValue(argc, argv, "--port", "8080"), &mem)) {
         ERROR("creating web server");
         return EXIT_FAILURE;
     }

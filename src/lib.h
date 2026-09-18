@@ -6,7 +6,6 @@
 #include "lib/console.h"
 #include "lib/cli.h"
 
-#include "lib/mem/heap.h"
 #include "lib/mem/arena.h"
 #include "lib/mem/arena-pool.h"
 #include "lib/mem/array.h"
