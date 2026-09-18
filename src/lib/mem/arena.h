@@ -4,10 +4,10 @@
 #include "lib/types.h"
 
 struct Arena {
-    U8* data;
     U64 size;
     U64 committed;
     U64 allocated;
+    U8* data;
     ArenaPool* pool;
 };
 

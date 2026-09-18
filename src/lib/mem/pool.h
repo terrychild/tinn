@@ -12,11 +12,12 @@ struct PoolNode {
 
 struct Pool {
     Arena arena;
-    U8* data;
-    PoolNode* free;
-    U64 item_size;
+    U64 node_size;
     U64 capacity;
     U64 count;
+    U8* data;
+    PoolNode* free;
+    PoolNode* used;
 };
 
 void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arene_pool);
