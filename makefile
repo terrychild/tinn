@@ -1,4 +1,5 @@
 # config
+SHELL := /bin/bash
 TARGET := tinn
 RUN_ARGS := host --verbose
 
@@ -26,9 +27,9 @@ VERSION := $(BUILD)"/tmp/version.o"
 .PHONY: build run trace clean
 build: $(BUILD)/$(TARGET)
 run: build
-	@$(BUILD)/$(TARGET) $(RUN_ARGS)
+	@exec $(BUILD)/$(TARGET) $(RUN_ARGS)
 test: build
-	@$(BUILD)/$(TARGET) test
+	@exec $(BUILD)/$(TARGET) test
 clean:
 	@rm -r $(BUILD)
 

@@ -25,11 +25,15 @@
 			[
 				{
 					"name": "run",
-					"cmd": ["make", "run"],
+					"target": "terminus_exec",
+					"cancel": "terminus_cancel_build",
+					"cmd": ["make", "run"]
 				},
 				{
 					"name": "test",
-					"cmd": ["make", "test"],
+					"target": "terminus_exec",
+					"cancel": "terminus_cancel_build",
+					"cmd": ["make", "test"]
 				},
 				{
 					"name": "debug",
