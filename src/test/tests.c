@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "test/expect.h"
-#include "lib.h"
+#include "lib/lib.h"
 
 int runTests() {
     expect_failed = false;

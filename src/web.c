@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "lib.h"
+#include "lib/lib.h"
 #include "version.h"
 
 int hostWebServer(int argc, char* argv[]) {

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "lib.h"
+#include "lib/lib.h"
 #include "version.h"
 #include "help.h"
 #include "test/tests.h"
