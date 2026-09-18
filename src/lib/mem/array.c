@@ -3,29 +3,30 @@
 #include <assert.h>
 
 #include "lib/mem/array.h"
-#include "lib/mem/arena.h"
+#include "lib/mem/arena-pool.h"
 
 static void extend(Array* array, U64 capacity) {
-    arenaAlloc(&array->arena, capacity * array->item_size);
-    array->capacity = array->arena.allocated / array->item_size;
+    arenaAlloc(array->arena, capacity * array->item_size);
+    array->capacity = array->arena->allocated / array->item_size;
 }
 
-void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* pool) {
+void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool) {
     assert(initial_capacity > 0);
-    arenaInit(&array->arena, max_capacity * item_size, pool);
-    assert(array->arena.size >= initial_capacity * item_size);
+    array->arena_pool = arena_pool;
+    array->arena = arenaPoolAdd(arena_pool, max_capacity * item_size);
+    assert(array->arena->size >= initial_capacity * item_size);
 
     array->item_size = item_size;
     array->capacity = 0;
     array->count = 0;
-    array->data = array->arena.data;
+    array->data = array->arena->data;
     extend(array, initial_capacity);
 }
 void arrayReset(Array* array) {
     array->count = 0;
 }
 void arrayRelease(Array* array) {
-    arenaRelease(&array->arena);
+    arenaPoolRemove(array->arena_pool, array->arena);
 }
 
 U64 arrayPush(Array* array, const void* item) {

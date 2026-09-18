@@ -2,25 +2,23 @@
 #define LIB_MEM_POOL_H
 
 #include "lib/types.h"
-#include "lib/mem/array.h"
 
 typedef struct PoolNode PoolNode;
-
 struct PoolNode {
     PoolNode* next;
 };
 
 struct Pool {
-    Arena arena;
+    ArenaPool* arena_pool;
+    Arena* arena;
     U64 node_size;
     U64 capacity;
     U64 count;
-    U8* data;
     PoolNode* free;
     PoolNode* used;
 };
 
-void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arene_pool);
+void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool);
 void poolReset(Pool* pool);
 void poolRelease(Pool* pool);
 

@@ -3,7 +3,6 @@
 #include <sys/mman.h>
 
 #include "lib/mem/arena.h"
-#include "lib/mem/arena-pool.h"
 #include "lib/macros.h"
 #include "lib/console.h"
 
@@ -59,28 +58,18 @@ static void sysMemRelease(void* memory, U64 size) {
     }
 }
 
-// Arena Allocator
-void arenaInit(Arena* arena, U64 size, ArenaPool* pool) {
+// Arena
+void arenaInit(Arena* arena, U64 size) {
     arena->size = alignToPage(size ? size : ARENA_DEFAULT_SIZE);
     arena->committed = 0;
     arena->allocated = 0;
     arena->data = sysMemReserve(arena->size);
-
-    if (pool) {
-        arena->pool = pool;
-        arenaPoolAdd(pool, arena);
-    } else {
-        arena->pool = NULL;
-    }
 }
 void arenaReset(Arena* arena) {
     arena->allocated = 0;
 }
 void arenaRelease(Arena* arena) {
     sysMemRelease(arena->data, arena->size);
-    if (arena->pool) {
-        arenaPoolRemove(arena->pool, arena);
-    }
 }
 
 static void* arenaAllocate(Arena* arena, U64 size, bool zero) {

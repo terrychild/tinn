@@ -8,10 +8,9 @@ struct Arena {
     U64 committed;
     U64 allocated;
     U8* data;
-    ArenaPool* pool;
 };
 
-void arenaInit(Arena* arean, U64 size, ArenaPool* pool);
+void arenaInit(Arena* arean, U64 size);
 void arenaReset(Arena* arena);
 void arenaRelease(Arena* arena);
 

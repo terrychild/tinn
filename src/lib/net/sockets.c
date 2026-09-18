@@ -4,12 +4,12 @@
 #include "lib/net/sockets.h"
 #include "lib/console.h"
 
-void socketsInit(Sockets* list, U64 max_capacity, ArenaPool* pool) {
+void socketsInit(Sockets* list, U64 max_capacity, ArenaPool* arena_pool) {
     U64 size = 8;
     max_capacity = max_capacity ? max_capacity : 256;
 
-    arrayInit(&list->pollfds, sizeof(struct pollfd), size, max_capacity, pool);
-    arrayInit(&list->callbacks, sizeof(SocketCallback), size, max_capacity, pool);
+    arrayInit(&list->pollfds, sizeof(struct pollfd), size, max_capacity, arena_pool);
+    arrayInit(&list->callbacks, sizeof(SocketCallback), size, max_capacity, arena_pool);
 }
 
 void socketsRelease(Sockets* list) {

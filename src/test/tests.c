@@ -21,29 +21,28 @@ int runTests() {
     // arena tests
     PRINT(CC_BLUE, "Arena Allocator tests\n");
 
-    Arena arena;
-    arenaInit(&arena, 1, &arena_pool);
-    expect("page size", arena.size, KB(4));
-    expect("committed", arena.committed, 0);
-    expect("allocated", arena.allocated, 0);
-    //expect("arena pool count", arena_pool.pool.count, 1);
-    arenaRelease(&arena);
-    //expect("arena pool count", arena_pool.pool.count, 0);
+    Arena* arena = arenaPoolAdd(&arena_pool, 1);
+    expect("page size", arena->size, KB(4));
+    expect("committed", arena->committed, 0);
+    expect("allocated", arena->allocated, 0);
+    expect("arena pool count", arena_pool.count, 1);
+    arenaPoolRemove(&arena_pool, arena);
+    expect("arena pool count", arena_pool.count, 0);
 
-    arenaInit(&arena, 0, &arena_pool);
-    expect("default size", arena.size, GB(1));
-    U8* data = arenaAlloc(&arena, 12);
-    expect("commit size", arena.committed, KB(4));
-    expect("allocate size", arena.allocated, 16);
+    arena = arenaPoolAdd(&arena_pool, 0);
+    expect("default size", arena->size, GB(1));
+    U8* data = arenaAlloc(arena, 12);
+    expect("commit size", arena->committed, KB(4));
+    expect("allocate size", arena->allocated, 16);
     expect("zero data", data[11], 0);
     data[11] = 14;    
     expect("data", data[11], 14);
-    arenaReset(&arena);
+    arenaReset(arena);
     expect("data after reset", data[11], 14);
-    data = arenaAllocRaw(&arena, 12);
+    data = arenaAllocRaw(arena, 12);
     expect("data after raw", data[11], 14);
-    arenaReset(&arena);
-    data = arenaAlloc(&arena, 12);
+    arenaReset(arena);
+    data = arenaAlloc(arena, 12);
     expect("data after reset and alloc", data[11], 0);
 
     // dynamic array tests
@@ -177,13 +176,13 @@ int runTests() {
     expect("count after add 1", pool.count, 1);
     poolDebug(&pool);
 
-    poolRelease(&pool);
+    //poolRelease(&pool);
 
     // free arena pool
-    /*PRINT(CC_BLUE, "Arena Pool tests\n");
-    expect("arena pool count", arena_pool.pool.count, 3);
+    PRINT(CC_BLUE, "Arena Pool tests\n");
+    expect("arena pool count", arena_pool.count, 3);
     arenaPoolReset(&arena_pool);
-    expect("arena pool count", arena_pool.pool.count, 0);*/
+    expect("arena pool count", arena_pool.count, 0);
 
     /*Array arr[5];
     arrayInit(&arr[0], 1, 1, 1, &arena_pool);
