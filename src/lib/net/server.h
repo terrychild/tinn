@@ -5,6 +5,7 @@
 
 #include "lib/types.h"
 #include "lib/net/sockets.h"
+#include "lib/mem/pool.h"
 
 typedef void* (*SocketOpenFunc)(void* context);
 typedef void (*SocketReceiveFunc)(void* context);
@@ -13,17 +14,19 @@ typedef void (*SocketSendFunc)(void* context);
 typedef struct {
     ArenaPool* arena_pool;
     Sockets* sockets;
+    Pool connections;
     SocketOpenFunc openConnection;
     SocketCloseFunc closeConnection;
     SocketReceiveFunc receive;
     SocketSendFunc send;
-    void* context;    
+    void* context;
 } Server;
 
 typedef struct {
     Server* server;
     Arena* arena;
     void* context;
+    int socket;
     char address[INET6_ADDRSTRLEN];
 } ServerConnection;
 

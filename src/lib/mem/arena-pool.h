@@ -14,7 +14,6 @@ struct ArenaPool {
     Arena arena;
     U64 capacity;
     U64 count;
-    U8* data;
     ArenaPoolNode* free;
     ArenaPoolNode* used;
 };

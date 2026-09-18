@@ -26,6 +26,18 @@ void socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
     arrayPush(&list->callbacks, &callback);
 }
 
+void socketsRemove(Sockets* list, int old_socket) {
+    for (U64 i = 0; i < list->pollfds.count; i++) {
+        struct pollfd* pfd = (struct pollfd*)arrayGet(&list->pollfds, i);
+        if (pfd->fd == old_socket) {
+            close(pfd->fd);
+            arraySet(&list->pollfds, i, arrayPop(&list->pollfds));
+            arraySet(&list->callbacks, i, arrayPop(&list->callbacks));
+            return;
+        }
+    }
+}
+
 void socketsPoll(Sockets* list) {
     while (list->pollfds.count > 0) {
         if (poll((struct pollfd*)list->pollfds.data, list->pollfds.count, -1) < 0 ) {

@@ -44,13 +44,17 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
     }
 }
 
-static void onConnectionClose(void* context) {
+static void connectionClose(ServerConnection* connection) {
     DEBUG("Close connection");
-    ServerConnection* connection = context;
     if (connection->server->closeConnection) {
-        connection->server->closeConnection(context);
+        connection->server->closeConnection(connection);
     }
     arenaPoolRemove(connection->server->arena_pool, connection->arena);
+    poolRemove(&connection->server->connections, connection);
+}
+
+static void onConnectionClose(void* context) {
+    connectionClose((ServerConnection*)context);
 }
 
 static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* close) {
@@ -60,34 +64,44 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         PANIC("Error on server socket: %d", pfd->revents);
     }
 
-    Arena* arena = arenaPoolAdd(server->arena_pool, 0);
-    ServerConnection* connection = arenaAlloc(arena, sizeof(*connection));
+    ServerConnection* connection = poolAdd(&server->connections);
 
-    int client_socket = acceptSocket(pfd->fd, connection->address);
-    if (client_socket < 0) {
-        arenaPoolRemove(server->arena_pool, arena);
+    connection->socket = acceptSocket(pfd->fd, connection->address);
+    if (connection->socket < 0) {
+        poolRemove(&server->connections, connection);
     } else {
         connection->server = server;
-        connection->arena = arena;
-
+        connection->arena = arenaPoolAdd(server->arena_pool, 0);
+        
         if (server->openConnection) {
             connection->context = server->openConnection(server->context);
         } else {
             connection->context = server->context;
         }
-
-        socketsAdd(server->sockets, client_socket, (SocketCallback) {
+        
+        socketsAdd(server->sockets, connection->socket, (SocketCallback) {
             .eventFunc = onConnectionEvent,
             .closeFunc = onConnectionClose,
             .context = connection
         });
 
-        LOG("Connection from %s (%d) opened", connection->address, client_socket);
+        LOG("Connection from %s (%d) opened", connection->address, connection->socket);
     }
 }
 static void onServerClose(void* context) {
-    DEBUG("Close server");
-    //TODO: release connections
+    DEBUG("Close server"); 
+    //TODO Test!
+    Server* server = context;
+
+    PoolNode* node = server->connections.used;
+    while (node != NULL) {
+        ServerConnection* connection = (ServerConnection*)(node + 1);
+        connectionClose(connection);
+        socketsRemove(connection->server->sockets, connection->socket);
+        node = node->next;
+    }
+
+    poolRelease(&server->connections);
 }
 
 bool serverInit(Server* server, ArenaPool* arena_pool, Sockets* sockets, char* port) {
@@ -105,6 +119,14 @@ bool serverInit(Server* server, ArenaPool* arena_pool, Sockets* sockets, char* p
         .closeFunc = onServerClose,
         .context = server
     });
+
+    poolInit(&server->connections, arena_pool, sizeof(ServerConnection), 256, 0);
+
+    server->openConnection = NULL;
+    server->closeConnection = NULL;
+    server->receive = NULL;
+    server->send = NULL;
+    server->context = NULL;
 
     return true;
 }

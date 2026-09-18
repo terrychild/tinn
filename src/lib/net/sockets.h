@@ -23,6 +23,7 @@ typedef struct {
 void socketsInit(Sockets* list, ArenaPool* arena_pool, U64 max_capacity);
 void socketsRelease(Sockets* list);
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback);
+void socketsRemove(Sockets* list, int old_socket);
 void socketsPoll(Sockets* list);
 
 #endif
