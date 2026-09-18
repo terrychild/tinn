@@ -27,7 +27,7 @@ typedef struct {
     char address[INET6_ADDRSTRLEN];
 } ServerConnection;
 
-bool serverInit(Server* server, Sockets* sockets, char* port, ArenaPool* arena_pool);
+bool serverInit(Server* server, ArenaPool* arena_pool, Sockets* sockets, char* port);
 //TODO: void serverClose(Server* server)
 
 #endif

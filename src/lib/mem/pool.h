@@ -18,7 +18,7 @@ struct Pool {
     PoolNode* used;
 };
 
-void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool);
+void poolInit(Pool* pool, ArenaPool* arena_pool, U64 item_size, U64 initial_capacity, U64 max_capacity);
 void poolReset(Pool* pool);
 void poolRelease(Pool* pool);
 

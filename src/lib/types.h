@@ -18,4 +18,6 @@ typedef struct ArenaPool ArenaPool;
 typedef struct Pool Pool;
 typedef struct Array Array;
 
+typedef struct String String;
+
 #endif

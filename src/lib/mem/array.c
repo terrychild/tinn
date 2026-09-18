@@ -10,7 +10,7 @@ static void extend(Array* array, U64 capacity) {
     array->capacity = array->arena->allocated / array->item_size;
 }
 
-void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool) {
+void arrayInit(Array* array, ArenaPool* arena_pool, U64 item_size, U64 initial_capacity, U64 max_capacity) {
     assert(initial_capacity > 0);
     array->arena_pool = arena_pool;
     array->arena = arenaPoolAdd(arena_pool, max_capacity * item_size);

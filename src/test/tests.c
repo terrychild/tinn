@@ -49,11 +49,11 @@ int runTests() {
     PRINT(CC_BLUE, "Array tests\n");
 
     Array array;
-    arrayInit(&array, 1, 10, 0, &arena_pool);
+    arrayInit(&array, &arena_pool, 1, 10, 0);
     expect("allocated capacity (10 * U8)", array.capacity, 16);
     arrayRelease(&array);
 
-    arrayInit(&array, sizeof(U64), 4, 0, &arena_pool);
+    arrayInit(&array, &arena_pool, sizeof(U64), 4, 0);
     expect("allocated capacity (4 * U64)", array.capacity, 4);
     expect("empty", array.count, 0);
 
@@ -114,7 +114,7 @@ int runTests() {
     PRINT(CC_BLUE, "Pool tests\n");
 
     Pool pool;
-    poolInit(&pool, sizeof(U64), 4, 0, &arena_pool);
+    poolInit(&pool, &arena_pool, sizeof(U64), 4, 0);
     expect("capacity", pool.capacity, 4);
     poolDebug(&pool);
     U64* p0 = poolPush(&pool, &nums[0]);

@@ -20,7 +20,7 @@ typedef struct {
     Array callbacks;
 } Sockets;
 
-void socketsInit(Sockets* list, U64 max_capacity, ArenaPool* arena_pool);
+void socketsInit(Sockets* list, ArenaPool* arena_pool, U64 max_capacity);
 void socketsRelease(Sockets* list);
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback);
 void socketsPoll(Sockets* list);

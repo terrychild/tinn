@@ -12,12 +12,12 @@ int hostWebServer(int argc, char* argv[]) {
     // create list of sockets
     DEBUG("Creating sockets list");
     Sockets sockets;
-    socketsInit(&sockets, 0, &mem);
+    socketsInit(&sockets, &mem, 0);
 
     // create server
     DEBUG("Creating Web server");
     Server server;
-    if (!serverInit(&server, &sockets, cliValue(argc, argv, "--port", "8080"), &mem)) {
+    if (!serverInit(&server, &mem, &sockets, cliValue(argc, argv, "--port", "8080"))) {
         ERROR("creating web server");
         return EXIT_FAILURE;
     }

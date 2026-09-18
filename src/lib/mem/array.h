@@ -12,7 +12,7 @@ struct Array {
     U8* data;
 };
 
-void arrayInit(Array* array, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool);
+void arrayInit(Array* array, ArenaPool* arena_pool, U64 item_size, U64 initial_capacity, U64 max_capacity);
 void arrayReset(Array* array);
 void arrayRelease(Array* array);
 

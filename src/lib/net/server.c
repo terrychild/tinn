@@ -90,7 +90,7 @@ static void onServerClose(void* context) {
     //TODO: release connections
 }
 
-bool serverInit(Server* server, Sockets* sockets, char* port, ArenaPool* arena_pool) {
+bool serverInit(Server* server, ArenaPool* arena_pool, Sockets* sockets, char* port) {
     server->arena_pool = arena_pool;
     server->sockets = sockets;
 

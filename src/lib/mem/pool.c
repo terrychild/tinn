@@ -25,7 +25,7 @@ static void extend(Pool* pool, U64 capacity) {
     buildFreeList(pool, index);    
 }
 
-void poolInit(Pool* pool, U64 item_size, U64 initial_capacity, U64 max_capacity, ArenaPool* arena_pool) {
+void poolInit(Pool* pool, ArenaPool* arena_pool, U64 item_size, U64 initial_capacity, U64 max_capacity) {
     pool->node_size = sizeof(PoolNode*) + item_size;
     
     assert(initial_capacity > 0);
