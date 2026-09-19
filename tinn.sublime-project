@@ -1,21 +1,49 @@
 {
-	"folders":
-	[
-		{
-			"path": "src"
-		},
-		{
-			"name": "settings",
-			"path": ".",
-			"folder_exclude_patterns": ["*"]
-		}
-	],
-	"build_systems": [
-		{
-			"name": "tinn: build",
-			"working_dir": "$project_path",
-			"shell_cmd": "make build",
-			"file_patterns": ["*.c", "*.h"]
-		}
-	]
+    "folders":
+    [
+        {
+            "path": "src"
+        },
+        {
+            "path": "src_old"
+        },
+        {
+            "name": "settings",
+            "path": ".",
+            "folder_exclude_patterns": ["*"]
+        }
+    ],
+    "build_systems": [
+        {
+            "name": "Build Project",
+
+            "target": "terminus_exec",
+            "cancel": "terminus_cancel_build",
+
+            "working_dir": "$project_path",
+            "cmd": ["make"],
+
+            "variants":         
+            [
+                {
+                    "name": "test",
+                    "target": "terminus_exec",
+                    "cancel": "terminus_cancel_build",
+                    "cmd": ["make", "test"]
+                },
+                {
+                    "name": "debug",
+                    "target": "terminus_exec",
+                    "cancel": "terminus_cancel_build",
+                    "cmd": ["make", "debug"]
+                },
+                {
+                    "name": "run",
+                    "target": "terminus_exec",
+                    "cancel": "terminus_cancel_build",
+                    "cmd": ["make", "run"]
+                }
+            ]
+        }
+    ]
 }
