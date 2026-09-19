@@ -26,10 +26,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (strcmp(argv[1], "test")==0) {
-        logOpen("./test.log");
-        int result = runTests();
-        logClose();
-        return result;
+        return runTests();
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");

@@ -16,11 +16,13 @@ int runTests() {
 
     PRINT(CC_BLUE, "================\n Log tests\n================\n");
 
+    logOpen("./test.log");
     DEBUG("Debug");
     LOG("A log...no not one of those.");
     WARN("A warning.");
     ERROR("An error.");
     //PANIC("PANIC!!!");
+    logClose();
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
     if (expect_failed) {
