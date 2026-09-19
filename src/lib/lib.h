@@ -6,4 +6,6 @@
 #include "lib/cli.h"
 #include "lib/log.h"
 
+#include "lib/mem/arena.h"
+
 #endif

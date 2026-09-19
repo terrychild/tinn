@@ -24,6 +24,34 @@ int runTests() {
     //PANIC("PANIC!!!");
     logClose();
 
+
+    PRINT(CC_BLUE, "================\n Arena tests\n================\n");
+
+    Arena arena;
+    arenaInit(&arena, 1);
+    expect("page size", arena.size, KB(4));
+    expect("committed", arena.committed, 0);
+    expect("allocated", arena.allocated, 0);
+    arenaRelease(&arena);
+
+    arenaInit(&arena, 0);
+    expect("default size", arena.size, GB(1));
+    U8* data = arenaAlloc(&arena, 12);
+    expect("committed", arena.committed, KB(4));
+    expect("allocated", arena.allocated, 16);
+    expect("zero data", data[11], 0);
+    data[11] = 14;    
+    expect("data", data[11], 14);
+    arenaReset(&arena);
+    expect("data after reset", data[11], 14);
+    data = arenaAllocRaw(&arena, 12);
+    expect("data after raw", data[11], 14);
+    arenaReset(&arena);
+    data = arenaAlloc(&arena, 12);
+    expect("data after reset and alloc", data[11], 0);
+    arenaRelease(&arena);
+    
+
     PRINT(CC_BLUE, "================\n Report\n================\n");
     if (expect_failed) {
         PRINT(CC_BRIGHT_RED, "Some tests failed!\n");
