@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lib/macros.h"
 #include "lib/net/socket.h"
 #include "lib/net/sockets.h"
 #include "lib/net/server.h"
 #include "lib/mem/arena-pool.h"
-#include "lib/mem/arena.h"
 #include "lib/console.h"
 
 static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
@@ -23,12 +23,10 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
         if (pfd->revents & POLLIN) {
             //flag = read_request(pfd, state);
 
-
-            char buffer[256];
-            int recvied = recv(pfd->fd, buffer, 256, 0);
+            ssize_t recvied = recv(pfd->fd, stringWritePtr(&connection->buffer_in), stringWriteMax(&connection->buffer_in, KB(4)), 0);
             if (recvied > 0) {
                 DEBUG("recived: %d", recvied);
-                DEBUG_DETAIL("%.*s", recvied, buffer);
+                DEBUG_DETAIL("%.*s", recvied, connection->buffer_in.data);
             } else {
                 if (recvied < 0) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
@@ -49,7 +47,7 @@ static void connectionClose(ServerConnection* connection) {
     if (connection->server->closeConnection) {
         connection->server->closeConnection(connection);
     }
-    arenaPoolRemove(connection->server->arena_pool, connection->arena);
+    stringRelease(&connection->buffer_in);
     poolRemove(&connection->server->connections, connection);
 }
 
@@ -71,7 +69,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         poolRemove(&server->connections, connection);
     } else {
         connection->server = server;
-        connection->arena = arenaPoolAdd(server->arena_pool, 0);
+        stringInit(&connection->buffer_in, server->arena_pool, 0, 0);
         
         if (server->openConnection) {
             connection->context = server->openConnection(server->context);

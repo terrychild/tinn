@@ -5,6 +5,7 @@
 #include "lib/macros.h"
 #include "lib/console.h"
 #include "lib/cli.h"
+#include "lib/d-string.h"
 
 #include "lib/mem/arena.h"
 #include "lib/mem/arena-pool.h"

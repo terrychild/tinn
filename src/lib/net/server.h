@@ -6,6 +6,7 @@
 #include "lib/types.h"
 #include "lib/net/sockets.h"
 #include "lib/mem/pool.h"
+#include "lib/d-string.h"
 
 typedef void* (*SocketOpenFunc)(void* context);
 typedef void (*SocketReceiveFunc)(void* context);
@@ -24,7 +25,7 @@ typedef struct {
 
 typedef struct {
     Server* server;
-    Arena* arena;
+    String buffer_in;
     void* context;
     int socket;
     char address[INET6_ADDRSTRLEN];
