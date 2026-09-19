@@ -36,10 +36,11 @@ typedef enum {
     CC_BOLD_WHITE
 } ColourCode;
 
-void setColour(FILE* stream, ColourCode colour);
-void resetColour(FILE* stream);
+void printColour(FILE* stream, ColourCode colour);
 void print(FILE* stream, ColourCode colour, const char* format, ...);
 
 #define PRINT(colour, ...) print(stdout, colour, __VA_ARGS__);
+
+bool cliArg(int argc, char* argv[], const char* name);
 
 #endif

@@ -1,6 +1,7 @@
 # config
 TARGET := tinn
 RUN_ARGS := host --verbose
+TEST_ARGS := test --verbose
 
 COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
 
@@ -26,7 +27,7 @@ VERSION := $(BUILD)"/tmp/version.o"
 .PHONY: build test debug run clean
 build: $(BUILD)/$(TARGET)
 test: build
-	@$(BUILD)/$(TARGET) test
+	@$(BUILD)/$(TARGET) $(TEST_ARGS)
 debug: build
 	@kdbg -a "$(RUN_ARGS)" $(BUILD)/$(TARGET)
 run: build

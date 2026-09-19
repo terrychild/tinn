@@ -4,5 +4,6 @@
 #include "lib/types.h"
 #include "lib/macros.h"
 #include "lib/cli.h"
+#include "lib/log.h"
 
 #endif

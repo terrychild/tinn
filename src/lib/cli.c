@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include <string.h>
 
 #include "lib/cli.h"
 
@@ -33,16 +34,13 @@ static const char* colourEscapeSequences[] = {
     [CC_BOLD_WHITE] =   "\x1B[1;97m"
 };
 
-void setColour(FILE* stream, ColourCode colour) {
-    fputs(colourEscapeSequences[colour ? colour : CC_RESET], stream);
-}
-void resetColour(FILE* stream) {
-    fputs(colourEscapeSequences[CC_RESET], stream);
+void printColour(FILE* stream, ColourCode colour) {
+    fputs(colourEscapeSequences[colour], stream);
 }
 
 void print(FILE *stream, ColourCode colour, const char* format, ...) {
     if (colour != CC_NULL) {
-        setColour(stream, colour);
+        printColour(stream, colour);
     }
         
     va_list args;
@@ -51,6 +49,15 @@ void print(FILE *stream, ColourCode colour, const char* format, ...) {
     va_end(args);
 
     if (colour != CC_NULL) {
-        resetColour(stream);
+        printColour(stream, CC_RESET);
     }
+}
+
+bool cliArg(int argc, char* argv[], const char* name) {
+    for (int i=0; i<argc; i++) {
+        if (strcmp(argv[i], name)==0) {
+            return true;
+        }
+    }
+    return false;
 }

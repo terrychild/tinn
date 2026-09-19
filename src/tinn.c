@@ -2,10 +2,15 @@
 #include <string.h>
 
 #include "lib/cli.h"
+#include "lib/log.h"
 #include "help.h"
 #include "test/tests.h"
 
 int main(int argc, char* argv[]) {
+    if (cliArg(argc, argv, "--verbose")) {
+        logLevel = LL_DEBUG;
+    }
+
     if (argc<2) {
         printUsage();  
         return EXIT_FAILURE;
