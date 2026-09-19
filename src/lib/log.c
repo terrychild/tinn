@@ -9,6 +9,15 @@
 #include "lib/cli.h"
 
 #define MESSAGE_LEN KB(4)
+static const char* logLevels[] = {
+    [LL_DEBUG] = "DEBUG",
+    [LL_INFO]  = "INFO", 
+    [LL_WARN]  = "WARN",
+    [LL_ERROR] = "ERROR",
+    [LL_PANIC] = "PANIC"
+};
+
+static FILE* file = NULL;
 
 LogLevel logLevel = LL_INFO;
 
@@ -25,8 +34,10 @@ static void formatMessage(char* message, bool inc_errno, const char* format, ...
     }
 }
 
-static void colourPrint(FILE* stream, LogLevel level, struct tm* gmt, char* message) {
-    print(stream, CC_BLUE, "%02d:%02d:%02d ", gmt->tm_hour, gmt->tm_min, gmt->tm_sec);
+static void colourPrint(FILE* stream, time_t* now, LogLevel level, char* message) {
+    char timestamp[9];
+    strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(now));
+    print(stream, CC_BLUE, "%s ", timestamp);
     
     switch(level) {
         case LL_DEBUG:
@@ -48,11 +59,20 @@ static void colourPrint(FILE* stream, LogLevel level, struct tm* gmt, char* mess
     print(stream, CC_RESET, "\n");
 }
 
-void appendToLog(LogLevel level, bool inc_errno, const char* format, ...) {
+static void filePrint(FILE* stream, time_t* now, LogLevel level, char* message) {
+    char timestamp[20];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(now));
+
+    fprintf(stream, "%s [%s] %s\n",
+        timestamp,
+        logLevels[level],        
+        message
+    );
+}
+
+void logAppend(LogLevel level, bool inc_errno, const char* format, ...) {
     if (level >= logLevel) {
-        time_t seconds = time(NULL);
-        struct tm gmt;
-        gmtime_r(&seconds, &gmt);
+        time_t now = time(NULL);
 
         char message[MESSAGE_LEN];
         va_list args;
@@ -61,6 +81,30 @@ void appendToLog(LogLevel level, bool inc_errno, const char* format, ...) {
         va_end(args);
 
         // cli
-        colourPrint(stdout, level, &gmt, message);
+        colourPrint(stdout, &now, level, message);
+
+        // file
+        if (file != NULL) {
+            filePrint(file, &now, level, message);
+            fflush(file);   
+        }
+    }
+}
+
+void logOpen(const char* path) {
+    logClose();
+
+    file = fopen(path, "a");
+    if (file == NULL) {
+        time_t now = time(NULL);
+        colourPrint(stdout, &now, LL_PANIC, "Unable to log to file");
+        exit(EXIT_FAILURE);
+    }
+}
+void logClose() {
+    if (file != NULL) {
+        fflush(file);
+        fclose(file);
+        file = NULL;
     }
 }

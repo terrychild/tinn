@@ -13,12 +13,15 @@ typedef enum {
 
 extern LogLevel logLevel;
 
-void appendToLog(LogLevel level, bool inc_errno, const char* format, ...);
+void logAppend(LogLevel level, bool inc_errno, const char* format, ...);
 
-#define DEBUG(...) appendToLog(LL_DEBUG, false, __VA_ARGS__)
-#define LOG(...) appendToLog(LL_INFO, false, __VA_ARGS__)
-#define WARN(...) appendToLog(LL_WARN, false, __VA_ARGS__)
-#define ERROR(...) appendToLog(LL_ERROR, true, __VA_ARGS__)
-#define PANIC(...) appendToLog(LL_PANIC, true, __VA_ARGS__); exit(EXIT_FAILURE)
+#define DEBUG(...) logAppend(LL_DEBUG, false, __VA_ARGS__)
+#define LOG(...) logAppend(LL_INFO, false, __VA_ARGS__)
+#define WARN(...) logAppend(LL_WARN, false, __VA_ARGS__)
+#define ERROR(...) logAppend(LL_ERROR, true, __VA_ARGS__)
+#define PANIC(...) logAppend(LL_PANIC, true, __VA_ARGS__); exit(EXIT_FAILURE)
+
+void logOpen(const char* path);
+void logClose();
 
 #endif
