@@ -94,7 +94,7 @@ void logAppend(LogLevel level, bool inc_errno, const char* format, ...) {
 void logOpen(const char* path) {
     logClose();
 
-    file = fopen(path, "a");
+    file = fopen(path, "w");
     if (file == NULL) {
         time_t now = time(NULL);
         colourPrint(stdout, &now, LL_PANIC, "Unable to log to file");
