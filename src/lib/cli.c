@@ -33,20 +33,24 @@ static const char* colourEscapeSequences[] = {
     [CC_BOLD_WHITE] =   "\x1B[1;97m"
 };
 
-static void setColour(FILE* stream, ColourCode colour) {
+void setColour(FILE* stream, ColourCode colour) {
     fputs(colourEscapeSequences[colour ? colour : CC_RESET], stream);
 }
-static void resetColour(FILE* stream) {
+void resetColour(FILE* stream) {
     fputs(colourEscapeSequences[CC_RESET], stream);
 }
 
 void print(FILE *stream, ColourCode colour, const char* format, ...) {
-    setColour(stream, colour);
+    if (colour != CC_NULL) {
+        setColour(stream, colour);
+    }
         
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);
     va_end(args);
 
-    resetColour(stream);
+    if (colour != CC_NULL) {
+        resetColour(stream);
+    }
 }

@@ -5,7 +5,8 @@
 #include <stdio.h>
 
 typedef enum {
-    CC_RESET = 0,
+    CC_NULL = 0,
+    CC_RESET,
 
     CC_BLACK,
     CC_RED,
@@ -35,9 +36,10 @@ typedef enum {
     CC_BOLD_WHITE
 } ColourCode;
 
+void setColour(FILE* stream, ColourCode colour);
+void resetColour(FILE* stream);
 void print(FILE* stream, ColourCode colour, const char* format, ...);
 
-#define PRINTC(colour, ...) print(stdout, colour, __VA_ARGS__);
-#define PRINT(...) print(stdout, CC_RESET, __VA_ARGS__);
+#define PRINT(colour, ...) print(stdout, colour, __VA_ARGS__);
 
 #endif
