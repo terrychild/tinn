@@ -53,6 +53,13 @@ static void sysMemRelease(void* memory, U64 size) {
 }
 
 // Arena
+Arena* arenaNew(U64 size) {
+    Arena temp_arena;
+    arenaInit(&temp_arena, size);
+    Arena* arena = arenaAlloc(&temp_arena, sizeof(Arena));
+    memcpy(arena, &temp_arena, sizeof(Arena));
+    return arena;
+}
 void arenaInit(Arena* arena, U64 size) {
     arena->size = alignToPage(size ? size : ARENA_DEFAULT_SIZE);
     arena->committed = 0;
@@ -61,7 +68,12 @@ void arenaInit(Arena* arena, U64 size) {
     arena->top = NULL;
 }
 void arenaReset(Arena* arena) {
-    arena->allocated = 0;
+    if (arena == arena->data) {
+        arena->allocated = alignToWord(sizeof(Arena));
+    } else {
+        arena->allocated = 0;
+    }
+    arena->top = NULL;
 }
 void arenaRelease(Arena* arena) {
     sysMemRelease(arena->data, arena->size);
@@ -109,6 +121,6 @@ void arenaPopFrame(Arena* arena) {
         arena->allocated = (U8*)frame - arena->data;
         arena->top = frame->next;
     } else {
-        arena->allocated = 0;
+        arenaReset(arena);
     }
 }

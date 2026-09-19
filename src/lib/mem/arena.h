@@ -17,6 +17,7 @@ struct ArenaStackFrame {
     ArenaStackFrame* next;
 };
 
+Arena* arenaNew(U64 size);
 void arenaInit(Arena* arean, U64 size);
 void arenaReset(Arena* arena);
 void arenaRelease(Arena* arena);

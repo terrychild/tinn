@@ -71,6 +71,28 @@ int runTests() {
 
     arenaRelease(&arena);
 
+    Arena* arenaPtr = arenaNew(1);
+    expect("arenaptr", arenaPtr, arenaPtr->data);
+    expect("arenaPtr size", arenaPtr->size, KB(4));
+    expect("arenaPtr committed", arenaPtr->committed, KB(4));
+    expect("arenaPtr allocated", arenaPtr->allocated, sizeof(arena));
+    data = arenaAlloc(arenaPtr, 1);
+    expect("data ptr", data, arenaPtr->data + sizeof(arena));
+    expect("committed after alloc", arenaPtr->committed, KB(4));
+    expect("allocated after alloc", arenaPtr->allocated, sizeof(arena) + 8);
+    expect("zero data", *data, 0);
+    *data = 14;    
+    expect("data", *data, 14);
+    arenaReset(arenaPtr);
+    expect("allocated after reset", arenaPtr->allocated, sizeof(arena));
+    arenaPushFrame(arenaPtr);
+    expect("allocated after push", arenaPtr->allocated, sizeof(arena) + 8);
+    arenaPopFrame(arenaPtr);
+    expect("allocated after pop", arenaPtr->allocated, sizeof(arena));
+    arenaPopFrame(arenaPtr);
+    expect("allocated after second pop", arenaPtr->allocated, sizeof(arena));
+    arenaRelease(arenaPtr);
+
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
     if (expect_failed) {

@@ -29,7 +29,7 @@ MAKE_EXPECT(U64, "%lu")
 void expectVoidPtr(const char* name, const void* value, const void* expected) {
     if (value == expected) {
         PRINT(CC_GREEN, "Passed");
-        PRINT(CC_BRIGHT_WHITE, ": %s", name);
+        PRINT(CC_BRIGHT_WHITE, ": %s\n", name);
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
         PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
