@@ -49,8 +49,28 @@ int runTests() {
     arenaReset(&arena);
     data = arenaAlloc(&arena, 12);
     expect("data after reset and alloc", data[11], 0);
+
+    arenaPushFrame(&arena);
+    expect("allocated after push frame", arena.allocated, 24);
+    arenaAlloc(&arena, 1);
+    expect("allocated after alloc", arena.allocated, 32);
+    arenaPushFrame(&arena);
+    expect("allocated after second push frame", arena.allocated, 40);
+    arenaPopFrame(&arena);
+    expect("allocated after pop", arena.allocated, 32);
+    arenaPopFrame(&arena);
+    expect("allocated after second pop", arena.allocated, 16);
+    arenaPopFrame(&arena);
+    expect("allocated after third pop", arena.allocated, 0);
+    arenaPopFrame(&arena);
+    expect("allocated after fourth pop", arena.allocated, 0);
+    arenaPushFrame(&arena);
+    expect("allocated after push", arena.allocated, 8);
+    arenaPopFrame(&arena);
+    expect("allocated after pop", arena.allocated, 0);
+
     arenaRelease(&arena);
-    
+
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
     if (expect_failed) {

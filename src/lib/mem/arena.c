@@ -58,6 +58,7 @@ void arenaInit(Arena* arena, U64 size) {
     arena->committed = 0;
     arena->allocated = 0;
     arena->data = sysMemReserve(arena->size);
+    arena->top = NULL;
 }
 void arenaReset(Arena* arena) {
     arena->allocated = 0;
@@ -95,4 +96,19 @@ void* arenaAlloc(Arena* arena, U64 size) {
 
 void* arenaAllocRaw(Arena* arena, U64 size) {
     return arenaAllocate(arena, size, false);
+}
+
+void arenaPushFrame(Arena* arena) {
+    ArenaStackFrame* frame = arenaAllocate(arena, sizeof(*frame), false);
+    frame->next = arena->top;
+    arena->top = frame;
+}
+void arenaPopFrame(Arena* arena) {
+    ArenaStackFrame* frame = arena->top;
+    if (frame) {
+        arena->allocated = (U8*)frame - arena->data;
+        arena->top = frame->next;
+    } else {
+        arena->allocated = 0;
+    }
 }
