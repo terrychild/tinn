@@ -42,5 +42,6 @@ void print(FILE* stream, ColourCode colour, const char* format, ...);
 #define PRINT(colour, ...) print(stdout, colour, __VA_ARGS__);
 
 bool cliArg(int argc, char* argv[], const char* name);
+char* cliValue(int argc, char* argv[], const char* name, char* default_value);
 
 #endif

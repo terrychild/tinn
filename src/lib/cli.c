@@ -61,3 +61,14 @@ bool cliArg(int argc, char* argv[], const char* name) {
     }
     return false;
 }
+char* cliValue(int argc, char* argv[], const char* name, char* default_value) {
+    size_t len = strlen(name);
+    for (int i=0; i<argc; i++) {
+        if (strncmp(argv[i], name, len)==0) {
+            if (strlen(argv[i]) > len+1 && argv[i][len]=='=') {
+                return &argv[i][len+1];
+            }
+        }
+    }
+    return default_value;
+}

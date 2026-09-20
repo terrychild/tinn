@@ -9,4 +9,8 @@
 #include "lib/mem/arena.h"
 #include "lib/mem/array.h"
 
+#include "lib/net/socket.h"
+#include "lib/net/sockets.h"
+#include "lib/net/server.h"
+
 #endif

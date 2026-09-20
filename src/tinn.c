@@ -5,6 +5,7 @@
 #include "lib/log.h"
 #include "help.h"
 #include "test/tests.h"
+#include "web.h"
 
 int main(int argc, char* argv[]) {
     if (cliArg(argc, argv, "--verbose")) {
@@ -27,6 +28,10 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(argv[1], "test")==0) {
         return runTests();
+    }
+
+    if (strcmp(argv[1], "host")==0) {
+        return hostWebServer(argc, argv);
     }
 
     PRINT(CC_BRIGHT_RED, "Error: ");
