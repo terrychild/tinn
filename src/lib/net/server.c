@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "lib/net/server.h"
 #include "lib/net/socket.h"
@@ -23,6 +24,9 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
             if (recvied > 0) {
                 DEBUG("recived: %d", recvied);
                 DEBUG("%.*s", recvied, buffer);
+                if (strncmp(buffer, "quit\r\n", 6)==0) {
+                    serverClose(connection->server);
+                }
             } else {
                 if (recvied < 0) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
@@ -38,13 +42,25 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
     }
 }
 
-static void connectionClose(ServerConnection* connection) {
-    DEBUG("Close connection");
-    //TODO
-}
-
 static void onConnectionClose(void* context) {
-    connectionClose((ServerConnection*)context);
+    DEBUG("Client socket closed");
+    ServerConnection* connection = (ServerConnection*)context;
+    if (connection->server->closeConnection) {
+        connection->server->closeConnection(connection);
+    }
+    poolRemove(connection->server->connections, connection);
+}
+static void closeConnections(Server* server) {    
+    PoolNode* node = server->connections->first;
+    while (node != NULL) {
+        ServerConnection* connection = (ServerConnection*)poolData(node);
+        if (server->closeConnection) {
+            server->closeConnection(connection);
+        }
+        socketsRemove(connection->server->sockets, connection->socket);
+        LOG("Connection from %s (%d) closed", connection->address, connection->socket);
+        node = node->next;
+    }
 }
 
 static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* close) {
@@ -54,11 +70,11 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         PANIC("Error on server socket: %d", pfd->revents);
     }
 
-    ServerConnection* connection = arenaAlloc(server->arena, sizeof(ServerConnection));//TODO:poolAdd(&server->connections);
+    ServerConnection* connection = poolAdd(server->connections);
 
     connection->socket = acceptSocket(pfd->fd, connection->address);
     if (connection->socket < 0) {
-        //TODO:poolRemove(&server->connections, connection);
+        poolRemove(server->connections, connection);
     } else {
         connection->server = server;
         //TODO:connection->arena = arenaPoolAdd(server->arena_pool, 0);
@@ -78,9 +94,15 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         LOG("Connection from %s (%d) opened", connection->address, connection->socket);
     }
 }
+
 static void onServerClose(void* context) {
+    DEBUG("Server socket closed");
+    closeConnections((Server*)context);
+}
+void serverClose(Server* server) {
     DEBUG("Close server");
-    //TODO:!
+    closeConnections(server);
+    socketsRemove(server->sockets, server->socket);
 }
 
 Server* serverNew(Arena* arena, Sockets* sockets, char* port) {
@@ -95,19 +117,19 @@ bool serverInit(Server* server, Arena* arena, Sockets* sockets, char* port) {
     server->sockets = sockets;
 
     DEBUG("Opening server socket on port %s", port);
-    int server_socket = listenToSocket(port);
-    if (server_socket < 0) {
+    server->socket = listenToSocket(port);
+    if (server->socket < 0) {
         return false;
     }
 
-    socketsAdd(sockets, server_socket, (SocketCallback) {
+    socketsAdd(sockets, server->socket, (SocketCallback) {
         .eventFunc = onServerEvent,
         .closeFunc = onServerClose,
         .context = server
     });
 
-    //poolInit(&server->connections, arena_pool, sizeof(ServerConnection), 256, 0);
-
+    server->connections = poolNew(arena, sizeof(ServerConnection), 256, 0);
+    
     server->openConnection = NULL;
     server->closeConnection = NULL;
     server->receive = NULL;

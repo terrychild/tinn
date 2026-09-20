@@ -11,6 +11,7 @@ int hostWebServer(int argc, char* argv[]) {
     logOpen("./tinn.log");
     LOG("Tinn Web Server %s (%s)", VERSION, BUILD_DATE);
 
+    // create server
     Arena* mem = arenaNew(0, true);
     Sockets* sockets = socketsNew(mem, 0);
     Server* server = serverNew(mem, sockets, cliValue(argc, argv, "--port", "8080"));

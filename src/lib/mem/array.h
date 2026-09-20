@@ -9,7 +9,7 @@ typedef struct {
     U64 item_size;
     U64 capacity;
     U64 count;
-    U8* data;
+    U8* start;
 } Array;
 
 Array* arrayNew(Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity);

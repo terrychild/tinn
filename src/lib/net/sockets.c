@@ -38,7 +38,7 @@ void socketsRemove(Sockets* list, int old_socket) {
 
 void socketsPoll(Sockets* list) {
     while (list->pollfds->count > 0) {
-        if (poll((struct pollfd*)list->pollfds->data, list->pollfds->count, -1) < 0 ) {
+        if (poll((struct pollfd*)list->pollfds->start, list->pollfds->count, -1) < 0 ) {
             PANIC("When polling");
         }
 
