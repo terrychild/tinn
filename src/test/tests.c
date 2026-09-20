@@ -255,11 +255,63 @@ int runTests() {
     arenaPopFrame(arena_ptr);
 
 
-    PRINT(CC_BLUE, "================\n check arena \n================\n");
-    expect("final arena allocated", arena_ptr->allocated, sizeof(Arena) + sizeof(ArenaStackFrame));
-    arenaRelease(arena_ptr);
+    PRINT(CC_BLUE, "================\n Buffer tests\n================\n");
+    arenaPushFrame(arena_ptr);
+
+    Buffer* buf = bufNew(arena_ptr, 8, 0);
+    expect("length", buf->length, 0);
+    expect("size", buf->size, 8);
+
+    bufAppend(buf, (U8*)"hello world", 5);
+    expect("Appeding data", bufAsStr(buf), "hello");
+    expect("length", buf->length, 5);
+    expect("size", buf->size, 8);
+
+    bufAppendStr(buf, " world!");
+    expect("Appeding a string", bufAsStr(buf), "hello world!");
+    expect("length", buf->length, 12);
+    expect("size", buf->size, 16);
+
+    bufReset(buf);
+    expect("reseting", bufAsStr(buf), "");
+    expect("length", buf->length, 0);
+    expect("size", buf->size, 16);
+
+    BufferSpace space = bufReadyWrite(buf, 12);
+    expect("space length", space.length, 16);
+    expect("space start", space.start, buf->start);
+    expect("length", buf->length, 0);
+    expect("size", buf->size, 16);
+
+    for (int i=0; i<12; i++) {
+        space.start[i] = 65+i;
+    }
+    bufConfirmWrite(buf, 12);
+    expect("direct write", bufAsStr(buf), "ABCDEFGHIJKL");
+    expect("length", buf->length, 12);
+    expect("size", buf->size, 16);
+
+    space = bufReadyWrite(buf, 14);
+    expect("space length", space.length, 20);
+    expect("length", buf->length, 12);
+    expect("size", buf->size, 32);
+    for (int i=0; i<14; i++) {
+        space.start[i] = 65+12+i;
+    }
+    bufConfirmWrite(buf, 14);
+    expect("direct write 2", bufAsStr(buf), "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    expect("length", buf->length, 26);
+    expect("size", buf->size, 32);
+
+    bufHexDump(buf);
+
+    arenaPopFrame(arena_ptr);
+
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
+    expect("final arena check", arena_ptr->allocated, sizeof(Arena) + sizeof(ArenaStackFrame));
+    arenaRelease(arena_ptr);
+    
     if (expect_failed) {
         PRINT(CC_BRIGHT_RED, "Some tests failed!\n");
         return EXIT_FAILURE;

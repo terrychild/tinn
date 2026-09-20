@@ -5,6 +5,7 @@
 
 #include "lib/mem/arena.h"
 #include "lib/mem/pool.h"
+#include "lib/mem/buffer.h"
 #include "lib/net/sockets.h"
 
 typedef void* (*SocketOpenFunc)(void* context);
@@ -24,10 +25,10 @@ typedef struct {
 } Server;
 
 typedef struct {
-    Server* server;
-    //TODO:Arena* arena;
     int socket;
     char address[INET6_ADDRSTRLEN];
+    Server* server;    
+    Buffer* buf_in;
     void* context;
 } ServerConnection;
 

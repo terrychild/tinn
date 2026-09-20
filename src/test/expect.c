@@ -43,7 +43,7 @@ void expectVoidPtr(const char* name, const void* value, const void* expected) {
 void expectCharPtr(const char* name, const char* value, const char* expected) {
     if (strcmp(value, expected)==0) {
         PRINT(CC_GREEN, "Passed");
-        PRINT(CC_BRIGHT_WHITE, ": %s:", name);
+        PRINT(CC_BRIGHT_WHITE, ": %s: ", name);
         PRINT(CC_CYAN, "%s\n", expected);
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
