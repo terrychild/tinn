@@ -7,5 +7,6 @@
 #include "lib/log.h"
 
 #include "lib/mem/arena.h"
+#include "lib/mem/array.h"
 
 #endif

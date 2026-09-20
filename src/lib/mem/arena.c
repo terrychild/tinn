@@ -165,6 +165,7 @@ void arenaPopFrame(Arena* arena) {
             arena->allocated = (U8*)arena->top - arena->data;
             arena->top = arena->top->next;
         } else {
+            arena->top->child = NULL;
             arena->allocated = (U8*)arena->top - arena->data + alignToWord(sizeof(ArenaStackFrame));
         }
     }
