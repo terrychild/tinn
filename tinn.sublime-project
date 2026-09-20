@@ -32,16 +32,22 @@
                     "cmd": ["make", "test"]
                 },
                 {
-                    "name": "debug",
+                    "name": "debug test",
                     "target": "terminus_exec",
                     "cancel": "terminus_cancel_build",
-                    "cmd": ["make", "debug"]
+                    "cmd": ["make", "dtest"]
                 },
                 {
                     "name": "run",
                     "target": "terminus_exec",
                     "cancel": "terminus_cancel_build",
                     "cmd": ["make", "run"]
+                },
+                {
+                    "name": "debug run",
+                    "target": "terminus_exec",
+                    "cancel": "terminus_cancel_build",
+                    "cmd": ["make", "drun"]
                 }
             ]
         }

@@ -24,14 +24,16 @@ INC_ARGS := $(addprefix -I,$(INC))
 VERSION := $(BUILD)"/tmp/version.o"
 
 # short cuts
-.PHONY: build test debug run clean
+.PHONY: build test dtest run drun clean
 build: $(BUILD)/$(TARGET)
 test: build
 	@$(BUILD)/$(TARGET) $(TEST_ARGS)
-debug: build
-	@kdbg -a "$(RUN_ARGS)" $(BUILD)/$(TARGET)
+dtest: build
+	@kdbg -a "$(TEST_ARGS)" $(BUILD)/$(TARGET)
 run: build
 	@$(BUILD)/$(TARGET) $(RUN_ARGS)
+drun: build
+	@kdbg -a "$(RUN_ARGS)" $(BUILD)/$(TARGET)
 clean:
 	@rm -r $(BUILD)
 
