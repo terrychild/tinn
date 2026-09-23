@@ -58,6 +58,12 @@ void bufConfirmWrite(Buffer* buf, U64 n) {
     buf->length += n;
 }
 
+Slice bufAsSlice(Buffer* buf) {
+    return (Slice) {
+        .length = buf->length,
+        .start = buf->start
+    };
+}
 char* bufAsStr(Buffer* buf) {
     ensure(buf, 1);
     buf->start[buf->length] = '\0';

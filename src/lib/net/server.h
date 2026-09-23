@@ -4,6 +4,7 @@
 #include <netinet/in.h>
 
 #include "lib/types.h"
+#include "lib/mem/buffer.h"
 #include "lib/net/sockets.h"
 
 typedef void* (*SocketOpenFunc)(void* context);
@@ -28,6 +29,7 @@ typedef struct {
     Server* server;
     Allocator* allocator;
     Buffer* buf_in;
+    Slice data_out;
     void* context;
 } ServerConnection;
 

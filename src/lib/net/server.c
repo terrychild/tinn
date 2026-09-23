@@ -23,15 +23,32 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
             //flag = read_request(pfd, state);
 
             BufferSpace wrtie_buf = bufReadyWrite(connection->buf_in, KB(4));
-            int recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
+            ssize_t recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
             if (recvied > 0) {
                 bufConfirmWrite(connection->buf_in, recvied);
-                DEBUG("Recived: %d bytes", recvied);
+                DEBUG("Recived: %ld bytes", recvied);
                 bufHexDump(connection->buf_in);
                 allocatorDebug(connection->server->allocator);
                 if (strncmp(bufAsStr(connection->buf_in), "quit\r\n", 6)==0) {
                     serverClose(connection->server);
-                }            
+                } else {
+                    connection->data_out = bufAsSlice(connection->buf_in);
+                    ssize_t sent = send(pfd->fd, connection->data_out.start, connection->data_out.length, MSG_DONTWAIT);
+                    if (sent >= 0) {
+                        DEBUG("Sent: %ld/%ld bytes", sent, connection->data_out.length);
+                        if ((size_t)sent < connection->data_out.length) {
+                            connection->data_out.start += sent;
+                            connection->data_out.length -= sent;
+                            pfd->events = POLLOUT;
+                        } else {
+                            bufReset(connection->buf_in);
+                            pfd->events = POLLIN;
+                        }
+                    } else {
+                        ERROR("send error for %s (%d)", connection->address, pfd->fd);
+                        *close = true;
+                    }
+                }     
             }
             /*char buffer[256];
             int recvied = recv(pfd->fd, buffer, 256, 0);
@@ -52,6 +69,21 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
 
         } else if (pfd->revents & POLLOUT) {
             //flag = send_response(pfd, state);
+            ssize_t sent = send(pfd->fd, connection->data_out.start, connection->data_out.length, MSG_DONTWAIT);
+            if (sent >= 0) {
+                DEBUG("Sent: %ld/%ld bytes", sent, connection->data_out.length);
+                if ((size_t)sent < connection->data_out.length) {
+                    connection->data_out.start += sent;
+                    connection->data_out.length -= sent;
+                    pfd->events = POLLOUT;
+                } else {
+                    bufReset(connection->buf_in);
+                    pfd->events = POLLIN;
+                }
+            } else {
+                ERROR("send error for %s (%d)", connection->address, pfd->fd);
+                *close = true;
+            }
         }
     }
 }
