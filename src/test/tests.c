@@ -232,8 +232,6 @@ int runTests() {
     Buffer* buf = bufNew(allocator, 8, 0);
     expect("length", buf->length, 0);
     expect("size", buf->size, 8);
-    expect("allocator with buf", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Arena) + sizeof(Pool) + sizeof(Buffer));
-    allocatorDebug(allocator);
 
     bufAppend(buf, (U8*)"hello world", 5);
     expect("Appeding data", bufAsStr(buf), "hello");
@@ -278,6 +276,17 @@ int runTests() {
 
     bufHexDump(buf);
 
+    allocatorDebug(allocator);
+    allocatorPopFrame(allocator);
+
+    allocate(allocator, 48);
+    buf = bufNew(allocator, 8, 0);
+    bufAppendStr(buf, "more testing");
+    expect("allocator with data and buf", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + 48 + sizeof(Arena) + sizeof(Pool) + sizeof(Buffer));
+    allocatorDebug(allocator);
+    buf = bufNew(allocator, 8, 0);
+    bufAppendStr(buf, "double buffer time!");
+    expect("allocator with data and two buffers", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + 48 + sizeof(Arena) + sizeof(Pool) + sizeof(Buffer) + sizeof(Buffer));
     allocatorDebug(allocator);
     allocatorPopFrame(allocator);
 
