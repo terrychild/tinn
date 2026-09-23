@@ -3,9 +3,7 @@
 
 #include <netinet/in.h>
 
-#include "lib/mem/arena.h"
-#include "lib/mem/pool.h"
-#include "lib/mem/buffer.h"
+#include "lib/types.h"
 #include "lib/net/sockets.h"
 
 typedef void* (*SocketOpenFunc)(void* context);
@@ -13,7 +11,7 @@ typedef void (*SocketReceiveFunc)(void* context);
 typedef void (*SocketSendFunc)(void* context);
 
 typedef struct {
-    Arena* arena;
+    Allocator* allocator;
     Sockets* sockets;
     int socket;
     Pool* connections;
@@ -27,13 +25,14 @@ typedef struct {
 typedef struct {
     int socket;
     char address[INET6_ADDRSTRLEN];
-    Server* server;    
+    Server* server;
+    Allocator* allocator;
     Buffer* buf_in;
     void* context;
 } ServerConnection;
 
-Server* serverNew(Arena* arena, Sockets* sockets, char* port);
-bool serverInit(Server* server, Arena* arena, Sockets* sockets, char* port);
+Server* serverNew(Allocator* allocator, Sockets* sockets, char* port);
+bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* port);
 void serverClose(Server* server);
 
 #endif

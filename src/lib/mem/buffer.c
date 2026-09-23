@@ -3,18 +3,20 @@
 #include <assert.h>
 
 #include "lib/mem/buffer.h"
+#include "lib/mem/allocator.h"
+#include "lib/mem/arena.h"
 #include "lib/cli.h"
 
-Buffer* bufNew(Arena* arena, U64 initial_size, U64 max_size) {
-    Buffer* buf = arenaAlloc(arena, sizeof(Buffer));
-    bufInit(buf, arena, initial_size, max_size);
+Buffer* bufNew(Allocator* allocator, U64 initial_size, U64 max_size) {
+    Buffer* buf = allocate(allocator, sizeof(Buffer));
+    bufInit(buf, allocateArena(allocator, max_size), initial_size);
     return buf;
 }
-void bufInit(Buffer* buf, Arena* arena, U64 initial_size, U64 max_size) {
+void bufInit(Buffer* buf, Arena* arena, U64 initial_size) {
     assert(initial_size > 0);
-    buf->arena = arenaAddChild(arena, max_size, false);
-    assert(buf->arena->size >= initial_size);
+    assert(arena->size >= initial_size);
 
+    buf->arena = arena;
     buf->size = initial_size;
     buf->length = 0;
     buf->start = arenaAlloc(buf->arena, initial_size);

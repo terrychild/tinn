@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "lib/mem/pool.h"
+#include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
 #include "lib/log.h"
 #include "lib/cli.h"
@@ -17,24 +18,28 @@ static void buildFreeList(Pool* pool, U64 index) {
     node->next = NULL;
 }
 
-Pool* poolNew(Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity) {
-    Pool* pool = arenaAlloc(arena, sizeof(Pool));
-    poolInit(pool, arena, item_size, initial_capacity, max_capacity);
+static U64 nodeSize(U64 item_size) {
+    return sizeof(PoolNode*) + item_size;
+}
+
+Pool* poolNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity) {
+    Pool* pool = allocate(allocator, sizeof(Pool));
+    poolInit(pool, allocateArena(allocator, max_capacity * nodeSize(item_size)), item_size, initial_capacity);
     return pool;
 }
-void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity) {
-    pool->node_size = sizeof(PoolNode*) + item_size;
-    
+void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 initial_capacity) {
     assert(initial_capacity > 0);
-    pool->arena = arenaAddChild(arena, max_capacity * pool->node_size, false);
-    assert(pool->arena->size >= initial_capacity * pool->node_size);
+    assert(arena->size >= initial_capacity * nodeSize(item_size));
 
+    pool->arena = arena;
+    pool->node_size = nodeSize(item_size);
     pool->capacity = initial_capacity;
     pool->count = 0;
     pool->start = arenaAlloc(pool->arena, initial_capacity * pool->node_size);
     buildFreeList(pool, 0);
-    pool->first = NULL;    
+    pool->first = NULL;     
 }
+
 void poolReset(Pool* pool) {
     pool->count = 0;
     buildFreeList(pool, 0);
@@ -56,12 +61,14 @@ void* poolAdd(Pool* pool) {
 
     return poolData(node);
 }
+
 void* poolPush(Pool* pool, const void* item) {
     void* address = poolAdd(pool);
     memcpy(address, item, pool->node_size - sizeof(PoolNode*));
     return address;
 }
-void poolRemove(Pool* pool, void* item) {
+
+void poolRemove(Pool* pool, const void* item) {
     U8* end = pool->start + (pool->capacity * pool->node_size);
     U8* address = (U8*)item;
     if (pool->count > 0 && address >= pool->start && address < end) {

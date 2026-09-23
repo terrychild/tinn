@@ -1,19 +1,21 @@
 #include <unistd.h>
 
 #include "lib/net/sockets.h"
+#include "lib/mem/allocator.h"
+#include "lib/mem/array.h"
 #include "lib/log.h"
 
-Sockets* socketsNew(Arena* arena, U64 max_capacity) {
-    Sockets* sockets = arenaAlloc(arena, sizeof(*sockets));
-    socketsInit(sockets, arena, max_capacity);
+Sockets* socketsNew(Allocator* allocator, U64 max_capacity) {
+    Sockets* sockets = allocate(allocator, sizeof(*sockets));
+    socketsInit(sockets, allocator, max_capacity);
     return sockets;
 }
-void socketsInit(Sockets* list, Arena* arena, U64 max_capacity) {
+void socketsInit(Sockets* list, Allocator* allocator, U64 max_capacity) {
     U64 size = 8;
     max_capacity = max_capacity ? max_capacity : 256;
 
-    list->pollfds = arrayNew(arena, sizeof(struct pollfd), size, max_capacity);
-    list->callbacks = arrayNew(arena, sizeof(SocketCallback), size, max_capacity);
+    list->pollfds = arrayNew(allocator, sizeof(struct pollfd), size, max_capacity);
+    list->callbacks = arrayNew(allocator, sizeof(SocketCallback), size, max_capacity);
 }
 
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {

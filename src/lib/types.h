@@ -13,4 +13,10 @@ typedef uint16_t U16;
 typedef uint32_t U32;
 typedef uint64_t U64;
 
+typedef struct Arena Arena;
+typedef struct Allocator Allocator;
+typedef struct Array Array;
+typedef struct Pool Pool;
+typedef struct Buffer Buffer;
+
 #endif

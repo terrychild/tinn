@@ -7,6 +7,7 @@
 #include "lib/log.h"
 
 #include "lib/mem/arena.h"
+#include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
 #include "lib/mem/pool.h"
 #include "lib/mem/buffer.h"

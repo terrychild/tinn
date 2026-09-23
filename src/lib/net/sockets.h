@@ -3,8 +3,7 @@
 
 #include <poll.h>
 
-#include "lib/mem/arena.h"
-#include "lib/mem/array.h"
+#include "lib/types.h"
 
 typedef void (*SocketEventFunc)(struct pollfd* pfd, void* context, bool* close);
 typedef void (*SocketCloseFunc)(void* context);
@@ -20,8 +19,8 @@ typedef struct {
     Array* callbacks;
 } Sockets;
 
-Sockets* socketsNew(Arena* arena, U64 max_capacity);
-void socketsInit(Sockets* list, Arena* arena, U64 max_capacity);
+Sockets* socketsNew(Allocator* allocator, U64 max_capacity);
+void socketsInit(Sockets* list, Allocator* allocator, U64 max_capacity);
 
 void socketsAdd(Sockets* list, int new_socket, SocketCallback callback);
 void socketsRemove(Sockets* list, int old_socket);

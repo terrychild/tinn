@@ -2,18 +2,17 @@
 #define LIB_MEM_ARRAY_H
 
 #include "lib/types.h"
-#include "lib/mem/arena.h"
 
-typedef struct {
+struct Array {
     Arena* arena;
     U64 item_size;
     U64 capacity;
     U64 count;
     U8* start;
-} Array;
+};
 
-Array* arrayNew(Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity);
-void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity);
+Array* arrayNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity);
+void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity);
 void arrayReset(Array* array);
 
 U64 arrayPush(Array* array, const void* item);

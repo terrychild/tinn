@@ -2,22 +2,21 @@
 #define LIB_MEM_BUFFER_H
 
 #include "lib/types.h"
-#include "lib/mem/arena.h"
 
-typedef struct {
+struct Buffer {
     Arena* arena;
     U64 size;
     U64 length;
     U8* start;
-} Buffer;
+};
 
 typedef struct {
     U64 length;
     U8* start;
 } BufferSpace;
 
-Buffer* bufNew(Arena* arena, U64 initial_size, U64 max_size);
-void bufInit(Buffer* buf, Arena* arena, U64 initial_size, U64 max_size);
+Buffer* bufNew(Allocator* allocator, U64 initial_size, U64 max_size);
+void bufInit(Buffer* buf, Arena* arena, U64 initial_size);
 void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);

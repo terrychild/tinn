@@ -2,7 +2,7 @@
 
 #include "lib/log.h"
 #include "lib/cli.h"
-#include "lib/mem/arena.h"
+#include "lib/mem/allocator.h"
 #include "lib/net/sockets.h"
 #include "lib/net/server.h"
 #include "version.h"
@@ -12,9 +12,9 @@ int hostWebServer(int argc, char* argv[]) {
     LOG("Tinn Web Server %s (%s)", VERSION, BUILD_DATE);
 
     // create server
-    Arena* mem = arenaNew(0, true);
-    Sockets* sockets = socketsNew(mem, 0);
-    Server* server = serverNew(mem, sockets, cliValue(argc, argv, "--port", "8080"));
+    Allocator* allocator = allocatorNew();
+    Sockets* sockets = socketsNew(allocator, 0);
+    Server* server = serverNew(allocator, sockets, cliValue(argc, argv, "--port", "8080"));
     if (server == NULL) {
         ERROR("creating web server");
         return EXIT_FAILURE;
@@ -26,7 +26,7 @@ int hostWebServer(int argc, char* argv[]) {
 
     // tidy up, but we should never get here?
     DEBUG("Tidying up");
-    arenaRelease(mem);
+    allocatorRelease(allocator);
     DEBUG("Tidy up complete");
     logClose();
 

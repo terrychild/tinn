@@ -3,17 +3,19 @@
 #include <assert.h>
 
 #include "lib/mem/array.h"
+#include "lib/mem/allocator.h"
+#include "lib/mem/arena.h"
 
-Array* arrayNew(Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity) {
-    Array* array = arenaAlloc(arena, sizeof(Array));
-    arrayInit(array, arena, item_size, initial_capacity, max_capacity);
+Array* arrayNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity) {
+    Array* array = allocate(allocator, sizeof(Array));
+    arrayInit(array, allocateArena(allocator, max_capacity * item_size), item_size, initial_capacity);
     return array;
 }
-void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity, U64 max_capacity) {
+void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity) {
     assert(initial_capacity > 0);
-    array->arena = arenaAddChild(arena, max_capacity * item_size, false);
-    assert(array->arena->size >= initial_capacity * item_size);
+    assert(arena->size >= initial_capacity * item_size);
 
+    array->arena = arena;
     array->item_size = item_size;
     array->capacity = initial_capacity;
     array->count = 0;

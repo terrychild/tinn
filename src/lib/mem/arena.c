@@ -53,55 +53,28 @@ static void sysMemRelease(void* memory, U64 size) {
 }
 
 // Arena
-Arena* arenaNew(U64 size, bool stackable) {
+Arena* arenaNew(U64 size) {
     Arena temp_arena;
-    arenaInit(&temp_arena, size, false);
+    arenaInit(&temp_arena, size);
     Arena* arena = arenaAlloc(&temp_arena, sizeof(Arena));
     memcpy(arena, &temp_arena, sizeof(Arena));
-    if (stackable) {
-        arena->top = arenaAllocRaw(arena, sizeof(ArenaStackFrame));
-        arena->top->next = NULL;
-        arena->top->child = NULL;
-    }
     return arena;
 }
-void arenaInit(Arena* arena, U64 size, bool stackable) {
+void arenaInit(Arena* arena, U64 size) {
     arena->size = alignToPage(size ? size : ARENA_DEFAULT_SIZE);
     arena->committed = 0;
     arena->allocated = 0;
-    arena->data = sysMemReserve(arena->size);
-    if (stackable) {
-        arena->top = arenaAllocRaw(arena, sizeof(ArenaStackFrame));
-        arena->top->next = NULL;
-        arena->top->child = NULL;
-    } else {
-        arena->top = NULL;
-    }
+    arena->start = sysMemReserve(arena->size);
 }
 void arenaReset(Arena* arena) {
-    if (arena->top) {
-        do {
-            arenaPopFrame(arena);
-        } while(arena->top->next);
+    if ((U8*)arena == arena->start) {
+        arena->allocated = alignToWord(sizeof(Arena));
     } else {
-        if ((U8*)arena == arena->data) {
-            arena->allocated = alignToWord(sizeof(Arena));
-        } else {
-            arena->allocated = 0;
-        }
+        arena->allocated = 0;
     }
 }
 void arenaRelease(Arena* arena) {
-    ArenaStackFrame* frame = arena->top;
-    while (frame) {
-        ArenaChildArena* child = frame->child;
-        while (child) {
-            arenaRelease(child->arena);
-            child = child->next;
-        }
-        frame = frame->next;
-    }
-    sysMemRelease(arena->data, arena->size);
+    sysMemRelease(arena->start, arena->size);
 }
 
 static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
@@ -112,12 +85,12 @@ static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
         if (arena->committed + commit_size > arena->size) {
             PANIC("Arena is out of memory");
         } else {
-            sysMemCommit(arena->data + arena->committed, commit_size);
+            sysMemCommit(arena->start + arena->committed, commit_size);
             arena->committed += commit_size;
         }        
     }
 
-    void* new_data = arena->data + arena->allocated;
+    void* new_data = arena->start + arena->allocated;
     arena->allocated += size;
 
     if (zero) {
@@ -131,42 +104,4 @@ void* arenaAlloc(Arena* arena, U64 size) {
 }
 void* arenaAllocRaw(Arena* arena, U64 size) {
     return arenaAllocate(arena, size, false);
-}
-
-Arena* arenaAddChild(Arena* arena, U64 size, bool stackable) {
-    if (arena->top) {
-        ArenaChildArena* child = arenaAllocRaw(arena, sizeof(ArenaChildArena));
-        child->next = arena->top->child;
-        child->arena = arenaAllocRaw(arena, sizeof(Arena));
-        arenaInit(child->arena, size, stackable);
-        arena->top->child = child;
-        return child->arena;
-    }
-    return NULL;
-}
-
-void arenaPushFrame(Arena* arena) {
-    if (arena->top) {
-        ArenaStackFrame* frame = arenaAllocRaw(arena, sizeof(ArenaStackFrame));
-        frame->next = arena->top;
-        frame->child = NULL;
-        arena->top = frame;
-    }
-}
-void arenaPopFrame(Arena* arena) {
-    if (arena->top) {
-        ArenaChildArena* child = arena->top->child;
-        while (child) {
-            arenaRelease(child->arena);
-            child = child->next;
-        }
-
-        if (arena->top->next) {
-            arena->allocated = (U8*)arena->top - arena->data;
-            arena->top = arena->top->next;
-        } else {
-            arena->top->child = NULL;
-            arena->allocated = (U8*)arena->top - arena->data + alignToWord(sizeof(ArenaStackFrame));
-        }
-    }
 }

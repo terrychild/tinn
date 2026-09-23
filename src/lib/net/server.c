@@ -4,6 +4,9 @@
 #include "lib/macros.h"
 #include "lib/net/server.h"
 #include "lib/net/socket.h"
+#include "lib/mem/allocator.h"
+#include "lib/mem/pool.h"
+#include "lib/mem/buffer.h"
 #include "lib/log.h"
 
 static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
@@ -52,21 +55,23 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
     }
 }
 
-static void onConnectionClose(void* context) {
-    DEBUG("Client socket closed");
-    ServerConnection* connection = (ServerConnection*)context;
+static void connectionClose(ServerConnection* connection) {
     if (connection->server->closeConnection) {
         connection->server->closeConnection(connection);
     }
+    deallocateChild(connection->server->allocator, connection->allocator);
+}
+static void onConnectionClose(void* context) {
+    DEBUG("Client socket closed");
+    ServerConnection* connection = (ServerConnection*)context;
+    connectionClose(connection);
     poolRemove(connection->server->connections, connection);
 }
-static void closeConnections(Server* server) {    
+static void connectionsCloseAll(Server* server) {    
     PoolNode* node = server->connections->first;
     while (node != NULL) {
         ServerConnection* connection = (ServerConnection*)poolData(node);
-        if (server->closeConnection) {
-            server->closeConnection(connection);
-        }
+        connectionClose(connection);
         socketsRemove(connection->server->sockets, connection->socket);
         LOG("Connection from %s (%d) closed", connection->address, connection->socket);
         node = node->next;
@@ -87,7 +92,8 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         poolRemove(server->connections, connection);
     } else {
         connection->server = server;
-        connection->buf_in = bufNew(server->arena, KB(4), 0);
+        connection->allocator = allocateChild(server->allocator);
+        connection->buf_in = bufNew(connection->allocator, KB(4), 0);
         
         if (server->openConnection) {
             connection->context = server->openConnection(server->context);
@@ -107,23 +113,23 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
 
 static void onServerClose(void* context) {
     DEBUG("Server socket closed");
-    closeConnections((Server*)context);
+    connectionsCloseAll((Server*)context);
 }
 void serverClose(Server* server) {
     DEBUG("Close server");
-    closeConnections(server);
+    connectionsCloseAll(server);
     socketsRemove(server->sockets, server->socket);
 }
 
-Server* serverNew(Arena* arena, Sockets* sockets, char* port) {
-    Server* server = arenaAlloc(arena, sizeof(Server));
-    if (!serverInit(server, arena, sockets, port)) {
+Server* serverNew(Allocator* allocator, Sockets* sockets, char* port) {
+    Server* server = allocate(allocator, sizeof(Server));
+    if (!serverInit(server, allocator, sockets, port)) {
         return NULL;
     }
     return server;
 }
-bool serverInit(Server* server, Arena* arena, Sockets* sockets, char* port) {
-    server->arena = arena;
+bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* port) {
+    server->allocator = allocator;
     server->sockets = sockets;
 
     DEBUG("Opening server socket on port %s", port);
@@ -138,7 +144,7 @@ bool serverInit(Server* server, Arena* arena, Sockets* sockets, char* port) {
         .context = server
     });
 
-    server->connections = poolNew(arena, sizeof(ServerConnection), 256, 0);
+    server->connections = poolNew(allocator, sizeof(ServerConnection), 256, 0);
     
     server->openConnection = NULL;
     server->closeConnection = NULL;
