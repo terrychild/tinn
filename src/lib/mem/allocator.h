@@ -2,7 +2,6 @@
 #define LIB_MEM_ALLOCATOR_H
 
 #include <lib/types.h>
-#include <lib/mem/arena.h>
 
 typedef struct AllocatorFrame {
     struct AllocatorFrame* next;
@@ -11,13 +10,12 @@ typedef struct AllocatorFrame {
 } AllocatorFrame;
 
 struct Allocator {
-    Arena arena;
+    Arena* arena;
     AllocatorFrame* top;
-    U64 inital_allocated;
 };
 
 Allocator* allocatorNew();
-void allocatorInit(Allocator* allocator);
+void allocatorInit(Allocator* allocator, Arena* arena);
 void allocatorReset(Allocator* allocator);
 void allocatorRelease(Allocator* allocator);
 
@@ -31,5 +29,7 @@ Arena* allocateArena(Allocator* allocator, U64 size);
 void deallocateArena(Allocator* allocator, Arena* arena);
 
 void* allocate(Allocator* allocator, U64 size);
+
+void allocatorDebug(Allocator* allocator);
 
 #endif

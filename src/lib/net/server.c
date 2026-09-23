@@ -28,6 +28,7 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
                 bufConfirmWrite(connection->buf_in, recvied);
                 DEBUG("Recived: %d bytes", recvied);
                 bufHexDump(connection->buf_in);
+                allocatorDebug(connection->server->allocator);
                 if (strncmp(bufAsStr(connection->buf_in), "quit\r\n", 6)==0) {
                     serverClose(connection->server);
                 }            

@@ -61,9 +61,34 @@ int runTests() {
     PRINT(CC_BLUE, "================\n Allocator tests\n================\n");
 
     Allocator* allocator = allocatorNew();
-    expect("size", allocator->arena.size, GB(1));
-    expect("committed", allocator->arena.committed, KB(4));
-    expect("allocated", allocator->arena.allocated, sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * sizeof(Arena)) + (2 * sizeof(Pool)));    
+    expect("size", allocator->arena->size, GB(1));
+    expect("committed", allocator->arena->committed, KB(4));
+    expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool)))); 
+    allocatorDebug(allocator);
+
+    allocatorPushFrame(allocator);
+    expect("add frame", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + ( 2 * (sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))))));
+    allocatorDebug(allocator);
+    allocate(allocator, 96);
+    expect("add data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + ( 2 * (sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))))) + 96);
+    allocatorDebug(allocator);
+    allocatorPopFrame(allocator);
+    expect("pop frame", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))));
+    allocatorDebug(allocator);
+    allocatorPopFrame(allocator);
+    expect("pop bottom", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))));
+    allocatorDebug(allocator);
+
+    allocate(allocator, 96);
+    allocatorPushFrame(allocator);
+    allocate(allocator, 48);
+    expect("add data, frame, more data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + ( 2 * (sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))))) + 96 + 48);
+    allocatorDebug(allocator);
+    allocatorReset(allocator);    
+    expect("reset", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool)))); 
+    
+    
+
     
     PRINT(CC_BLUE, "================\n Array tests\n================\n");
     allocatorPushFrame(allocator);
@@ -98,6 +123,7 @@ int runTests() {
     arrayPush(array, &nums[8]);
     expect("added nine", array->count, 9);
     expect("capacity after nine", array->capacity, 16);
+    expect("arena size", array->arena->allocated, 16 * 8);
 
     expect("get 4", *((U64*)arrayGet(array, 4)), nums[4]);
     expect("get 8", *((U64*)arrayGet(array, 8)), nums[8]);
@@ -128,6 +154,7 @@ int runTests() {
     arraySet(array, 1, &nums[1]);
     expect("set 1", *((U64*)arrayGet(array, 1)), nums[1]);
 
+    allocatorDebug(allocator);
     allocatorPopFrame(allocator);
 
 
@@ -196,18 +223,17 @@ int runTests() {
     expect("count after add 1", pool->count, 1);
     poolDebug(pool);
 
+    allocatorDebug(allocator);
     allocatorPopFrame(allocator);
 
 
     PRINT(CC_BLUE, "================\n Buffer tests\n================\n");
-    expect("allocator before buf", allocator->arena.allocated, sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * sizeof(Arena)) + (2 * sizeof(Pool)));
     allocatorPushFrame(allocator);
-    expect("allocator buf frame", allocator->arena.allocated, sizeof(Allocator) + (2 * sizeof(AllocatorFrame)) + (4 * sizeof(Arena)) + (4 * sizeof(Pool)));
-
+    
     Buffer* buf = bufNew(allocator, 8, 0);
     expect("length", buf->length, 0);
     expect("size", buf->size, 8);
-    expect("allocator with buf", allocator->arena.allocated, sizeof(Allocator) + (2 * sizeof(AllocatorFrame)) + (4 * sizeof(Arena)) + (4 * sizeof(Pool)) + sizeof(Buffer));
+    expect("allocator with buf", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + ( 2 * (sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool))))) + sizeof(Buffer));
 
     bufAppend(buf, (U8*)"hello world", 5);
     expect("Appeding data", bufAsStr(buf), "hello");
@@ -252,12 +278,13 @@ int runTests() {
 
     bufHexDump(buf);
 
+    allocatorDebug(allocator);
     allocatorPopFrame(allocator);
 
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
-    expect("final allocator check", allocator->arena.allocated, sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * sizeof(Arena)) + (2 * sizeof(Pool)));
-    allocatorRelease(allocator);
+    expect("Final allocator check", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + (2 * (sizeof(Arena) + sizeof(Pool)))); 
+    allocatorDebug(allocator);
     
     if (expect_failed) {
         PRINT(CC_BRIGHT_RED, "Some tests failed!\n");
