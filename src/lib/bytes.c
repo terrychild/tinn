@@ -1,0 +1,45 @@
+#include "lib/types.h"
+#include "lib/cli.h"
+
+void hexDump(Slice slice, U64 from, U64 to) {
+    if (to == 0) {
+        to = slice.length;
+    }
+
+    bool skipped = false;
+    for (U64 i=0; i < slice.length; i+=16) {
+        bool has_data = false;
+        for (U64 j=0; j<16 && !has_data; j++) {
+            if (i+j < slice.length && slice.start[i+j] > 0) {
+                has_data = true;
+            }
+        }
+
+        if (!has_data) {
+            skipped = true;
+        } else {
+            PRINT(skipped ? CC_BOLD_WHITE : CC_WHITE, "%08lX  ", i);
+            skipped = false;
+            for (U64 j=0; j<16; j++) {
+                if (i+j < slice.length) {
+                    PRINT(i+j >= from && i+j < to ? CC_YELLOW : CC_BRIGHT_BLACK, "%02X ", slice.start[i+j]);
+                } else {
+                    PRINT(CC_BRIGHT_BLACK, ".. ");
+                }
+                if (j==7) {
+                    PRINT(CC_NULL, " ");
+                }
+            }
+            PRINT(CC_NULL, " ");
+
+            for (U64 j=0; j<16; j++) {
+                if (i+j < slice.length && slice.start[i+j] > 32 && slice.start[i+j] < 127) {
+                    PRINT(i+j >= from && i+j < to ? CC_CYAN : CC_BRIGHT_BLACK, "%c", slice.start[i+j]);
+                } else {
+                    PRINT(CC_NULL, " ");
+                }
+            }
+            PRINT(CC_NULL, "\n");
+        }
+    }
+}

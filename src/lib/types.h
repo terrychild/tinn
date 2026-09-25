@@ -19,4 +19,9 @@ typedef struct Array Array;
 typedef struct Pool Pool;
 typedef struct Buffer Buffer;
 
+typedef struct {
+    U64 length;
+    U8* start;
+} Slice;
+
 #endif

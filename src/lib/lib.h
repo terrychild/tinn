@@ -5,6 +5,8 @@
 #include "lib/macros.h"
 #include "lib/cli.h"
 #include "lib/log.h"
+#include "lib/bytes.h"
+#include "lib/slice.h"
 
 #include "lib/mem/arena.h"
 #include "lib/mem/allocator.h"

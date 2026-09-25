@@ -6,12 +6,13 @@
 #include "lib/mem/allocator.h"
 #include "lib/net/sockets.h"
 #include "lib/net/server.h"
+#include "lib/slice.h"
+#include "lib/bytes.h"
 #include "version.h"
 
-#include "lib/mem/buffer.h"
 void echo(ServerConnection* connection, Slice data) {
-    bufHexDump(connection->buffer);
-    if (strncmp(bufAsStr(connection->buffer), "quit\r\n", 6)==0) {
+    hexDump(data, 0, 0);
+    if (sliceCmpStr(data, "quit\r\n") == 0) {
         serverClose(connection->server);
     } else {
         connectionSend(connection, data);

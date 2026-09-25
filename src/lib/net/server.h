@@ -4,7 +4,6 @@
 #include <netinet/in.h>
 
 #include "lib/types.h"
-#include "lib/mem/buffer.h"
 #include "lib/net/sockets.h"
 
 typedef struct ServerConnection ServerConnection;
