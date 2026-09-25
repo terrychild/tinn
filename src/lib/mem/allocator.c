@@ -7,8 +7,8 @@
 
 #include <lib/cli.h>
 
-#define CHILDREN_PER_FRAME 16
-#define ARENAS_PER_FRAME 16
+static constexpr U64 CHILDREN_PER_FRAME = 16;
+static constexpr U64 ARENAS_PER_FRAME = 16;
 
 // frames
 static AllocatorFrame* frameAdd(Allocator* allocator, AllocatorFrame* next) {

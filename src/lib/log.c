@@ -8,7 +8,7 @@
 #include "lib/log.h"
 #include "lib/cli.h"
 
-#define MESSAGE_LEN KB(4)
+static constexpr U64 MESSAGE_LEN = KB(4);
 static const char* logLevels[] = {
     [LL_DEBUG] = "DEBUG",
     [LL_INFO]  = "INFO", 
