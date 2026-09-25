@@ -54,9 +54,12 @@ void print(FILE *stream, ColourCode colour, const char* format, ...) {
 }
 
 bool cliArg(int argc, char* argv[], const char* name) {
+    size_t len = strlen(name);
     for (int i=0; i<argc; i++) {
-        if (strcmp(argv[i], name)==0) {
-            return true;
+        if (strncmp(argv[i], name, len)==0) {
+            if (strlen(argv[i]) == len || (strlen(argv[i]) > len+1 && argv[i][len]=='=')) {
+                return true;
+            }
         }
     }
     return false;

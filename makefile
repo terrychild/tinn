@@ -1,6 +1,6 @@
 # config
 TARGET := tinn
-RUN_ARGS := host --verbose
+RUN_ARGS := host --verbose --echo
 TEST_ARGS := test --verbose
 
 COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g

@@ -7,6 +7,7 @@
 #include "help.h"
 #include "test/tests.h"
 #include "lib/mem/allocator.h"
+#include "lib/net/echo.h"
 #include "web.h"
 
 int host(int argc, char* argv[]) {
@@ -18,10 +19,12 @@ int host(int argc, char* argv[]) {
     Polling* polling = pollingNew(allocator, 0);
 
     // servers
-    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "8080")) == NULL) {
-        return EXIT_FAILURE;
+    if (cliArg(argc, argv, "--echo")) {
+        if (echoServer(allocator, polling, cliValue(argc, argv, "--echo", "7")) == NULL) {
+            return EXIT_FAILURE;
+        }
     }
-    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "8081")) == NULL) {
+    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "80")) == NULL) {
         return EXIT_FAILURE;
     }
 
