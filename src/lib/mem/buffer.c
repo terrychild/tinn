@@ -58,14 +58,14 @@ void bufConfirmWrite(Buffer* buf, U64 n) {
 }
 
 Slice bufSlice(Buffer* buf, U64 start, U64 length) {
-    if (start > buf->size) {
-        start = buf->size;
+    if (start > buf->length) {
+        start = buf->length;
     }
     if (length == 0) {
-        length = (start < buf->length ? buf->length : buf->size) - start;
+        length = buf->length - start;
     } else {
-        if (start + length > buf->size) {
-            length = buf->size - start;
+        if (start + length > buf->length) {
+            length = buf->length - start;
         }
     }
     return (Slice) {

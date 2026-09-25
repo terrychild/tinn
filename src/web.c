@@ -6,7 +6,7 @@
 #include "lib/bytes.h"
 
 void echo(ServerConnection* connection, Slice data) {
-    hexDump(data, 0, 0);
+    hexDump(data);
     if (sliceCmpStr(data, "quit\r\n") == 0) {
         serverClose(connection->server);
     } else {

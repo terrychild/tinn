@@ -1,11 +1,7 @@
 #include "lib/types.h"
 #include "lib/cli.h"
 
-void hexDump(Slice slice, U64 from, U64 to) {
-    if (to == 0) {
-        to = slice.length;
-    }
-
+void hexDump(Slice slice) {
     bool skipped = false;
     for (U64 i=0; i < slice.length; i+=16) {
         bool has_data = false;
@@ -22,7 +18,7 @@ void hexDump(Slice slice, U64 from, U64 to) {
             skipped = false;
             for (U64 j=0; j<16; j++) {
                 if (i+j < slice.length) {
-                    PRINT(i+j >= from && i+j < to ? CC_YELLOW : CC_BRIGHT_BLACK, "%02X ", slice.start[i+j]);
+                    PRINT(CC_YELLOW, "%02X ", slice.start[i+j]);
                 } else {
                     PRINT(CC_BRIGHT_BLACK, ".. ");
                 }
@@ -34,7 +30,7 @@ void hexDump(Slice slice, U64 from, U64 to) {
 
             for (U64 j=0; j<16; j++) {
                 if (i+j < slice.length && slice.start[i+j] > 32 && slice.start[i+j] < 127) {
-                    PRINT(i+j >= from && i+j < to ? CC_CYAN : CC_BRIGHT_BLACK, "%c", slice.start[i+j]);
+                    PRINT(CC_CYAN, "%c", slice.start[i+j]);
                 } else {
                     PRINT(CC_NULL, " ");
                 }

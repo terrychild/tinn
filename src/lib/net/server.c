@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-#include "lib/macros.h"
 #include "lib/net/server.h"
+#include "lib/macros.h"
 #include "lib/sys/sockets.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/pool.h"

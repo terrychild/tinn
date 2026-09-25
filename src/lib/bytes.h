@@ -3,6 +3,6 @@
 
 #include "lib/types.h"
 
-void hexDump(Slice slice, U64 from, U64 to);
+void hexDump(Slice slice);
 
 #endif

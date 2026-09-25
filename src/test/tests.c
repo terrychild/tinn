@@ -275,7 +275,7 @@ int runTests() {
     expect("length", buf->length, 26);
     expect("size", buf->size, 32);
 
-    hexDump(bufSlice(buf, 0, buf->size), 0, buf->length);
+    hexDump(bufAsSlice(buf));
 
     allocatorDebug(allocator);
     allocatorPopFrame(allocator);
