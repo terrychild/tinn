@@ -2,7 +2,7 @@
 
 #include "lib/macros.h"
 #include "lib/net/server.h"
-#include "lib/net/socket.h"
+#include "lib/sys/sockets.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/pool.h"
 #include "lib/mem/buffer.h"
@@ -14,27 +14,27 @@ static void connectionClose(ServerConnection* connection, U8 flags);
 
 // connection functions
 static ssize_t sendMessage(ServerConnection* connection) {
-    ssize_t sent = send(connection->socket->fd, connection->message.start, connection->message.length, MSG_DONTWAIT);
+    ssize_t sent = send(connection->socket, connection->message.start, connection->message.length, MSG_DONTWAIT);
     if (sent >= 0) {
         DEBUG("Sent: %ld/%ld bytes", sent, connection->message.length);
         if ((size_t)sent < connection->message.length) {
             connection->message.start += sent;
             connection->message.length -= sent;
-            connection->socket->events = POLLOUT;
+            pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
                 connection->server->onSent(connection);
             }
         }
     } else {
-        ERROR("send error for %s (%d)", connection->address, connection->socket->fd);
+        ERROR("send error for %s (%d)", connection->address, connection->socket);
     }
     return sent;
 }
 
 void connectionReceive(ServerConnection* connection) {
     bufReset(connection->buffer);
-    connection->socket->events = POLLIN;
+    pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
 void connectionSend(ServerConnection* connection, Slice message) {
     connection->message = message;
@@ -93,9 +93,9 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
         poolRemove(connection->server->connections, connection);
     }
     if (flags & REMOVE_SOCKET) {
-        socketsRemove(connection->server->sockets, connection->socket->fd);
+        pollingRemove(connection->server->polling, connection->socket);
     }
-    LOG("Connection from %s (%d) closed", connection->address, connection->socket->fd);
+    LOG("Connection from %s (%d) closed", connection->address, connection->socket);
 }
 static void connectionsCloseAll(Server* server) {    
     PoolNode* node = server->connections->first;
@@ -116,15 +116,10 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
 
     ServerConnection* connection = poolAdd(server->connections);
 
-    int connection_socket = acceptSocket(pfd->fd, connection->address);
-    if (connection_socket < 0) {
+    connection->socket = acceptSocket(pfd->fd, connection->address);
+    if (connection->socket < 0) {
         poolRemove(server->connections, connection);
     } else {
-        connection->socket = socketsAdd(server->sockets, connection_socket, (SocketCallback) {
-            .func = onConnectionEvent,
-            .context = connection
-        });
-
         connection->server = server;
         connection->allocator = allocateChild(server->allocator);
         connection->buffer = bufNew(connection->allocator, KB(4), 0);
@@ -134,35 +129,40 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
             server->onConnect(connection);
         }
 
-        LOG("Connection from %s (%d) opened", connection->address, connection_socket);
+        pollingAdd(server->polling, connection->socket, (PollingCallback) {
+            .func = onConnectionEvent,
+            .context = connection
+        });
+
+        LOG("Connection from %s (%d) opened", connection->address, connection->socket);
     }
 }
 
 void serverClose(Server* server) {
     DEBUG("Close server");
     connectionsCloseAll(server);
-    socketsRemove(server->sockets, server->socket->fd);
+    pollingRemove(server->polling, server->socket);
 }
 
 // server setup
-Server* serverNew(Allocator* allocator, Sockets* sockets, const char* port) {
+Server* serverNew(Allocator* allocator, Polling* polling, const char* port) {
     Server* server = allocate(allocator, sizeof(Server));
-    if (!serverInit(server, allocator, sockets, port)) {
+    if (!serverInit(server, allocator, polling, port)) {
         return NULL;
     }
     return server;
 }
-bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, const char* port) {
+bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port) {
     server->allocator = allocator;
-    server->sockets = sockets;
+    server->polling = polling;
 
     DEBUG("Opening server socket on port %s", port);
-    int server_socket = listenToSocket(port);
-    if (server_socket < 0) {
+    server->socket = listenToSocket(port);
+    if (server->socket < 0) {
         return false;
     }
 
-    server->socket = socketsAdd(sockets, server_socket, (SocketCallback) {
+    pollingAdd(server->polling, server->socket, (PollingCallback) {
         .func = onServerEvent,
         .context = server
     });

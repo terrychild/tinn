@@ -1,35 +1,35 @@
 #include <unistd.h>
 
-#include "lib/net/sockets.h"
+#include "lib/sys/polling.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
 #include "lib/log.h"
 
-Sockets* socketsNew(Allocator* allocator, U64 max_capacity) {
-    Sockets* sockets = allocate(allocator, sizeof(*sockets));
-    socketsInit(sockets, allocator, max_capacity);
-    return sockets;
+Polling* pollingNew(Allocator* allocator, U64 max_capacity) {
+    Polling* polling = allocate(allocator, sizeof(*polling));
+    pollingInit(polling, allocator, max_capacity);
+    return polling;
 }
-void socketsInit(Sockets* list, Allocator* allocator, U64 max_capacity) {
+void pollingInit(Polling* list, Allocator* allocator, U64 max_capacity) {
     U64 size = 8;
     max_capacity = max_capacity ? max_capacity : 256;
 
     list->pollfds = arrayNew(allocator, sizeof(struct pollfd), size, max_capacity);
-    list->callbacks = arrayNew(allocator, sizeof(SocketCallback), size, max_capacity);
+    list->callbacks = arrayNew(allocator, sizeof(PollingCallback), size, max_capacity);
 }
 
-struct pollfd* socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
-    arrayPush(list->callbacks, &callback);
-    return (struct pollfd*)arrayPush(list->pollfds, &(struct pollfd){
-        .fd = new_socket,
+void pollingAdd(Polling* list, int fd, PollingCallback callback) {
+    arrayPush(list->pollfds, &(struct pollfd){
+        .fd = fd,
         .events = POLLIN,
         .revents = 0
     });
+    arrayPush(list->callbacks, &callback);
 }
-void socketsRemove(Sockets* list, int old_socket) {
+void pollingRemove(Polling* list, int fd) {
     for (U64 i = 0; i < list->pollfds->count; i++) {
         struct pollfd* pfd = (struct pollfd*)arrayGet(list->pollfds, i);
-        if (pfd->fd == old_socket) {
+        if (pfd->fd == fd) {
             close(pfd->fd);
             arraySet(list->pollfds, i, arrayPop(list->pollfds));
             arraySet(list->callbacks, i, arrayPop(list->callbacks));
@@ -37,8 +37,17 @@ void socketsRemove(Sockets* list, int old_socket) {
         }
     }
 }
+void pollingEvents(Polling* list, int fd, short events) {
+    for (U64 i = 0; i < list->pollfds->count; i++) {
+        struct pollfd* pfd = (struct pollfd*)arrayGet(list->pollfds, i);
+        if (pfd->fd == fd) {
+            pfd->events = events;
+            return;
+        }
+    }
+}
 
-void socketsPoll(Sockets* list) {
+void pollingPoll(Polling* list) {
     while (list->pollfds->count > 0) {
         if (poll((struct pollfd*)list->pollfds->start, list->pollfds->count, -1) < 0 ) {
             PANIC("When polling");
@@ -47,13 +56,13 @@ void socketsPoll(Sockets* list) {
         for (U64 i = 0; i < list->pollfds->count; i++) {
             struct pollfd* pfd = (struct pollfd*)arrayGet(list->pollfds, i);
             if (pfd->revents) {
-                bool close_socket = false;
+                bool and_close = false;
 
-                SocketCallback* callback = (SocketCallback*)arrayGet(list->callbacks, i);
+                PollingCallback* callback = (PollingCallback*)arrayGet(list->callbacks, i);
 
-                callback->func(pfd, callback->context, &close_socket);
+                callback->func(pfd, callback->context, &and_close);
 
-                if (close_socket) {
+                if (and_close) {
                     close(pfd->fd);
                     arraySet(list->pollfds, i, arrayPop(list->pollfds));
                     arraySet(list->callbacks, i, arrayPop(list->callbacks));

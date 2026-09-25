@@ -14,8 +14,9 @@
 #include "lib/mem/pool.h"
 #include "lib/mem/buffer.h"
 
-#include "lib/net/socket.h"
-#include "lib/net/sockets.h"
+#include "lib/sys/sockets.h"
+#include "lib/sys/polling.h"
+
 #include "lib/net/server.h"
 
 #endif

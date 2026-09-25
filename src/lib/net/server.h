@@ -4,7 +4,7 @@
 #include <netinet/in.h>
 
 #include "lib/types.h"
-#include "lib/net/sockets.h"
+#include "lib/sys/polling.h"
 
 typedef struct ServerConnection ServerConnection;
 
@@ -15,8 +15,8 @@ typedef void (*ServerSentFunc)(ServerConnection* connection);
 
 typedef struct {
     Allocator* allocator;
-    Sockets* sockets;
-    struct pollfd* socket;
+    Polling* polling;
+    int socket;
     Pool* connections;
     ServerConnectFunc onConnect;
     ServerDisconnectFunc onDisconnect;
@@ -26,8 +26,8 @@ typedef struct {
 } Server;
 
 struct ServerConnection {
+    int socket;
     char address[INET6_ADDRSTRLEN];
-    struct pollfd* socket;
     Server* server;
     Allocator* allocator;
     Buffer* buffer;
@@ -35,8 +35,8 @@ struct ServerConnection {
     void* context;
 };
 
-Server* serverNew(Allocator* allocator, Sockets* sockets, const char* port);
-bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, const char* port);
+Server* serverNew(Allocator* allocator, Polling* polling, const char* port);
+bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port);
 void serverClose(Server* server);
 
 void connectionReceive(ServerConnection* connection);

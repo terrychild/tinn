@@ -11,7 +11,7 @@
 
 #include "lib/log.h"
 
-int listenToSocket(char* port) {
+int listenToSocket(const char* port) {
     int status;
 
     struct addrinfo hints;

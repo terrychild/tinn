@@ -2,9 +2,9 @@
 #define WEB_H
 
 #include "lib/types.h"
-#include "lib/net/sockets.h"
+#include "lib/sys/polling.h"
 #include "lib/net/server.h"
 
-Server* startWebServer(Allocator* allocator, Sockets* sockets, const char* port);
+Server* startWebServer(Allocator* allocator, Polling* polling, const char* port);
 
 #endif

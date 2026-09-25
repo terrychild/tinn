@@ -14,8 +14,8 @@ void echo(ServerConnection* connection, Slice data) {
     }
 }
 
-Server* startWebServer(Allocator* allocator, Sockets* sockets, const char* port) {
-    Server* server = serverNew(allocator, sockets, port);
+Server* startWebServer(Allocator* allocator, Polling* polling, const char* port) {
+    Server* server = serverNew(allocator, polling, port);
     if (server) {
         server->onReceive = echo;
     }    

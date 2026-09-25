@@ -15,19 +15,19 @@ int host(int argc, char* argv[]) {
 
     // resources
     Allocator* allocator = allocatorNew();
-    Sockets* sockets = socketsNew(allocator, 0);
+    Polling* polling = pollingNew(allocator, 0);
 
     // servers
-    if (startWebServer(allocator, sockets, cliValue(argc, argv, "--port", "8080")) == NULL) {
+    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "8080")) == NULL) {
         return EXIT_FAILURE;
     }
-    if (startWebServer(allocator, sockets, cliValue(argc, argv, "--port", "8081")) == NULL) {
+    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "8081")) == NULL) {
         return EXIT_FAILURE;
     }
 
-    // loop while there are sockets in the list, directing network traffic
+    // loop while there are things to poll
     LOG("Waiting for connections");
-    socketsPoll(sockets);
+    pollingPoll(polling);
 
     // tidy up
     DEBUG("Tidying up");
