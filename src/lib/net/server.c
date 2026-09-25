@@ -145,14 +145,14 @@ void serverClose(Server* server) {
 }
 
 // server setup
-Server* serverNew(Allocator* allocator, Sockets* sockets, char* port) {
+Server* serverNew(Allocator* allocator, Sockets* sockets, const char* port) {
     Server* server = allocate(allocator, sizeof(Server));
     if (!serverInit(server, allocator, sockets, port)) {
         return NULL;
     }
     return server;
 }
-bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* port) {
+bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, const char* port) {
     server->allocator = allocator;
     server->sockets = sockets;
 

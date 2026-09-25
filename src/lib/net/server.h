@@ -35,8 +35,8 @@ struct ServerConnection {
     void* context;
 };
 
-Server* serverNew(Allocator* allocator, Sockets* sockets, char* port);
-bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* port);
+Server* serverNew(Allocator* allocator, Sockets* sockets, const char* port);
+bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, const char* port);
 void serverClose(Server* server);
 
 void connectionReceive(ServerConnection* connection);

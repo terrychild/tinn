@@ -52,7 +52,7 @@ int listenToSocket(char* port) {
     // if address is null nothing bound
     if (address == NULL) {
         freeaddrinfo(addresses);
-        ERROR("unable to bind to a socket");
+        ERROR("Unable to bind to a socket");
         return -1;
     }
 
@@ -60,7 +60,7 @@ int listenToSocket(char* port) {
 
     // listen to socket
     if (listen(sock, 10) != 0) {
-        ERROR("unable to listen to a socket");
+        ERROR("Unable to listen to a socket");
         return -1;
     }
 
