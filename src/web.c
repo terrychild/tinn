@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "lib/log.h"
 #include "lib/cli.h"
@@ -6,6 +7,16 @@
 #include "lib/net/sockets.h"
 #include "lib/net/server.h"
 #include "version.h"
+
+#include "lib/mem/buffer.h"
+void echo(ServerConnection* connection, Slice data) {
+    bufHexDump(connection->buffer);
+    if (strncmp(bufAsStr(connection->buffer), "quit\r\n", 6)==0) {
+        serverClose(connection->server);
+    } else {
+        connectionSend(connection, data);
+    }
+}
 
 int hostWebServer(int argc, char* argv[]) {
     logOpen("./tinn.log");
@@ -19,6 +30,7 @@ int hostWebServer(int argc, char* argv[]) {
         ERROR("creating web server");
         return EXIT_FAILURE;
     }
+    server->onReceive = echo;
 
     // loop forever directing network traffic
     LOG("Waiting for connections");

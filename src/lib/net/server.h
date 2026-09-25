@@ -7,34 +7,40 @@
 #include "lib/mem/buffer.h"
 #include "lib/net/sockets.h"
 
-typedef void* (*SocketOpenFunc)(void* context);
-typedef void (*SocketReceiveFunc)(void* context);
-typedef void (*SocketSendFunc)(void* context);
+typedef struct ServerConnection ServerConnection;
+
+typedef void (*ServerConnectFunc)(ServerConnection* connection);
+typedef void (*ServerDisconnectFunc)(ServerConnection* connection);
+typedef void (*ServerReceiveFunc)(ServerConnection* connection, Slice data);
+typedef void (*ServerSentFunc)(ServerConnection* connection);
 
 typedef struct {
     Allocator* allocator;
     Sockets* sockets;
-    int socket;
+    struct pollfd* socket;
     Pool* connections;
-    SocketOpenFunc openConnection;
-    SocketCloseFunc closeConnection;
-    SocketReceiveFunc receive;
-    SocketSendFunc send;
+    ServerConnectFunc onConnect;
+    ServerDisconnectFunc onDisconnect;
+    ServerReceiveFunc onReceive;
+    ServerSentFunc onSent;
     void* context;
 } Server;
 
-typedef struct {
-    int socket;
+struct ServerConnection {
     char address[INET6_ADDRSTRLEN];
+    struct pollfd* socket;
     Server* server;
     Allocator* allocator;
-    Buffer* buf_in;
-    Slice data_out;
+    Buffer* buffer;
+    Slice message;
     void* context;
-} ServerConnection;
+};
 
 Server* serverNew(Allocator* allocator, Sockets* sockets, char* port);
 bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* port);
 void serverClose(Server* server);
+
+void connectionReceive(ServerConnection* connection);
+void connectionSend(ServerConnection* connection, Slice message);
 
 #endif

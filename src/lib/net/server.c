@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <string.h>
 
 #include "lib/macros.h"
 #include "lib/net/server.h"
@@ -9,108 +8,105 @@
 #include "lib/mem/buffer.h"
 #include "lib/log.h"
 
+#define CLEAN_POOL 1
+#define REMOVE_SOCKET 2
+static void connectionClose(ServerConnection* connection, U8 flags);
+
+// connection functions
+static ssize_t sendMessage(ServerConnection* connection) {
+    ssize_t sent = send(connection->socket->fd, connection->message.start, connection->message.length, MSG_DONTWAIT);
+    if (sent >= 0) {
+        DEBUG("Sent: %ld/%ld bytes", sent, connection->message.length);
+        if ((size_t)sent < connection->message.length) {
+            connection->message.start += sent;
+            connection->message.length -= sent;
+            connection->socket->events = POLLOUT;
+        } else {
+            if (connection->server->onSent) {
+                connection->server->onSent(connection);
+            }
+        }
+    } else {
+        ERROR("send error for %s (%d)", connection->address, connection->socket->fd);
+    }
+    return sent;
+}
+
+void connectionReceive(ServerConnection* connection) {
+    bufReset(connection->buffer);
+    connection->socket->events = POLLIN;
+}
+void connectionSend(ServerConnection* connection, Slice message) {
+    connection->message = message;
+    if (sendMessage(connection) < 0) {
+        connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
+    }
+}
+
+// connection events
 static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
     ServerConnection* connection = context;
 
     if (pfd->revents & POLLHUP) {
         LOG("Connection from %s (%d) hung up", connection->address, pfd->fd);
+        connectionClose(connection, CLEAN_POOL);
         *close = true;
     } else if (pfd->revents & (POLLERR | POLLNVAL)) {
         ERROR("Socket error from %s (%d): %d", connection->address, pfd->fd, pfd->revents);
+        connectionClose(connection, CLEAN_POOL);
         *close = true;
     } else {
         if (pfd->revents & POLLIN) {
-            //flag = read_request(pfd, state);
-
-            BufferSpace wrtie_buf = bufReadyWrite(connection->buf_in, KB(4));
+            BufferSpace wrtie_buf = bufReadyWrite(connection->buffer, KB(4));
             ssize_t recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
             if (recvied > 0) {
-                bufConfirmWrite(connection->buf_in, recvied);
                 DEBUG("Recived: %ld bytes", recvied);
-                bufHexDump(connection->buf_in);
-                allocatorDebug(connection->server->allocator);
-                if (strncmp(bufAsStr(connection->buf_in), "quit\r\n", 6)==0) {
-                    serverClose(connection->server);
-                } else {
-                    connection->data_out = bufAsSlice(connection->buf_in);
-                    ssize_t sent = send(pfd->fd, connection->data_out.start, connection->data_out.length, MSG_DONTWAIT);
-                    if (sent >= 0) {
-                        DEBUG("Sent: %ld/%ld bytes", sent, connection->data_out.length);
-                        if ((size_t)sent < connection->data_out.length) {
-                            connection->data_out.start += sent;
-                            connection->data_out.length -= sent;
-                            pfd->events = POLLOUT;
-                        } else {
-                            bufReset(connection->buf_in);
-                            pfd->events = POLLIN;
-                        }
-                    } else {
-                        ERROR("send error for %s (%d)", connection->address, pfd->fd);
-                        *close = true;
-                    }
-                }     
-            }
-            /*char buffer[256];
-            int recvied = recv(pfd->fd, buffer, 256, 0);
-            if (recvied > 0) {
-                DEBUG("recived: %d", recvied);
-                DEBUG("%.*s", recvied, buffer);
-                if (strncmp(buffer, "quit\r\n", 6)==0) {
-                    serverClose(connection->server);
+                bufConfirmWrite(connection->buffer, recvied);
+                if (connection->server->onReceive) {
+                    connection->server->onReceive(connection, bufAsSlice(connection->buffer));
                 }
-            }*/ else {
+            } else {
                 if (recvied < 0) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
                 } else {
                     LOG("Connection from %s (%d) closed", connection->address, pfd->fd);
                 }
+                connectionClose(connection, CLEAN_POOL);
                 *close = true;
             }
 
         } else if (pfd->revents & POLLOUT) {
-            //flag = send_response(pfd, state);
-            ssize_t sent = send(pfd->fd, connection->data_out.start, connection->data_out.length, MSG_DONTWAIT);
-            if (sent >= 0) {
-                DEBUG("Sent: %ld/%ld bytes", sent, connection->data_out.length);
-                if ((size_t)sent < connection->data_out.length) {
-                    connection->data_out.start += sent;
-                    connection->data_out.length -= sent;
-                    pfd->events = POLLOUT;
-                } else {
-                    bufReset(connection->buf_in);
-                    pfd->events = POLLIN;
-                }
-            } else {
-                ERROR("send error for %s (%d)", connection->address, pfd->fd);
+            if (sendMessage(connection) < 0) {
+                connectionClose(connection, CLEAN_POOL);
                 *close = true;
             }
         }
     }
 }
 
-static void connectionClose(ServerConnection* connection) {
-    if (connection->server->closeConnection) {
-        connection->server->closeConnection(connection);
+static void connectionClose(ServerConnection* connection, U8 flags) {
+    if (connection->server->onDisconnect) {
+        connection->server->onDisconnect(connection);
     }
     deallocateChild(connection->server->allocator, connection->allocator);
-}
-static void onConnectionClose(void* context) {
-    DEBUG("Client socket closed");
-    ServerConnection* connection = (ServerConnection*)context;
-    connectionClose(connection);
-    poolRemove(connection->server->connections, connection);
+    if (flags & CLEAN_POOL) {
+        poolRemove(connection->server->connections, connection);
+    }
+    if (flags & REMOVE_SOCKET) {
+        socketsRemove(connection->server->sockets, connection->socket->fd);
+    }
+    LOG("Connection from %s (%d) closed", connection->address, connection->socket->fd);
 }
 static void connectionsCloseAll(Server* server) {    
     PoolNode* node = server->connections->first;
     while (node != NULL) {
         ServerConnection* connection = (ServerConnection*)poolData(node);
-        connectionClose(connection);
-        socketsRemove(connection->server->sockets, connection->socket);
-        LOG("Connection from %s (%d) closed", connection->address, connection->socket);
+        connectionClose(connection, REMOVE_SOCKET);
         node = node->next;
     }
 }
 
+// server events
 static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* close) {
     Server* server = context;
 
@@ -120,40 +116,35 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
 
     ServerConnection* connection = poolAdd(server->connections);
 
-    connection->socket = acceptSocket(pfd->fd, connection->address);
-    if (connection->socket < 0) {
+    int connection_socket = acceptSocket(pfd->fd, connection->address);
+    if (connection_socket < 0) {
         poolRemove(server->connections, connection);
     } else {
-        connection->server = server;
-        connection->allocator = allocateChild(server->allocator);
-        connection->buf_in = bufNew(connection->allocator, KB(4), 0);
-        
-        if (server->openConnection) {
-            connection->context = server->openConnection(server->context);
-        } else {
-            connection->context = server->context;
-        }
-        
-        socketsAdd(server->sockets, connection->socket, (SocketCallback) {
-            .eventFunc = onConnectionEvent,
-            .closeFunc = onConnectionClose,
+        connection->socket = socketsAdd(server->sockets, connection_socket, (SocketCallback) {
+            .func = onConnectionEvent,
             .context = connection
         });
 
-        LOG("Connection from %s (%d) opened", connection->address, connection->socket);
+        connection->server = server;
+        connection->allocator = allocateChild(server->allocator);
+        connection->buffer = bufNew(connection->allocator, KB(4), 0);
+        connection->context = server->context;
+
+        if (server->onConnect) {
+            server->onConnect(connection);
+        }
+
+        LOG("Connection from %s (%d) opened", connection->address, connection_socket);
     }
 }
 
-static void onServerClose(void* context) {
-    DEBUG("Server socket closed");
-    connectionsCloseAll((Server*)context);
-}
 void serverClose(Server* server) {
     DEBUG("Close server");
     connectionsCloseAll(server);
-    socketsRemove(server->sockets, server->socket);
+    socketsRemove(server->sockets, server->socket->fd);
 }
 
+// server setup
 Server* serverNew(Allocator* allocator, Sockets* sockets, char* port) {
     Server* server = allocate(allocator, sizeof(Server));
     if (!serverInit(server, allocator, sockets, port)) {
@@ -166,23 +157,23 @@ bool serverInit(Server* server, Allocator* allocator, Sockets* sockets, char* po
     server->sockets = sockets;
 
     DEBUG("Opening server socket on port %s", port);
-    server->socket = listenToSocket(port);
-    if (server->socket < 0) {
+    int server_socket = listenToSocket(port);
+    if (server_socket < 0) {
         return false;
     }
 
-    socketsAdd(sockets, server->socket, (SocketCallback) {
-        .eventFunc = onServerEvent,
-        .closeFunc = onServerClose,
+    server->socket = socketsAdd(sockets, server_socket, (SocketCallback) {
+        .func = onServerEvent,
         .context = server
     });
 
     server->connections = poolNew(allocator, sizeof(ServerConnection), 256, 0);
     
-    server->openConnection = NULL;
-    server->closeConnection = NULL;
-    server->receive = NULL;
-    server->send = NULL;
+    server->onConnect = NULL;
+    server->onDisconnect = NULL;
+    server->onReceive = NULL;
+    server->onSent = connectionReceive;
+
     server->context = NULL;
 
     return true;

@@ -18,13 +18,13 @@ void socketsInit(Sockets* list, Allocator* allocator, U64 max_capacity) {
     list->callbacks = arrayNew(allocator, sizeof(SocketCallback), size, max_capacity);
 }
 
-void socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
-    arrayPush(list->pollfds, &(struct pollfd){
+struct pollfd* socketsAdd(Sockets* list, int new_socket, SocketCallback callback) {
+    arrayPush(list->callbacks, &callback);
+    return (struct pollfd*)arrayPush(list->pollfds, &(struct pollfd){
         .fd = new_socket,
         .events = POLLIN,
         .revents = 0
     });
-    arrayPush(list->callbacks, &callback);
 }
 void socketsRemove(Sockets* list, int old_socket) {
     for (U64 i = 0; i < list->pollfds->count; i++) {
@@ -51,14 +51,10 @@ void socketsPoll(Sockets* list) {
 
                 SocketCallback* callback = (SocketCallback*)arrayGet(list->callbacks, i);
 
-                callback->eventFunc(pfd, callback->context, &close_socket);
+                callback->func(pfd, callback->context, &close_socket);
 
                 if (close_socket) {
-                    if (callback->closeFunc) {
-                        callback->closeFunc(callback->context);
-                    }
                     close(pfd->fd);
-
                     arraySet(list->pollfds, i, arrayPop(list->pollfds));
                     arraySet(list->callbacks, i, arrayPop(list->callbacks));
                     i--;

@@ -102,7 +102,8 @@ int runTests() {
     expect("empty", array->count, 0);
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    expect("added one", arrayPush(array, &nums[0]), 1);
+    arrayPush(array, &nums[0]);
+    expect("added one", array->count, 1);
     expect("get one", *((U64*)arrayGet(array, 0)), nums[0]);
 
     arrayPush(array, &nums[1]);

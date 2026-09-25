@@ -25,7 +25,7 @@ void arrayReset(Array* array) {
     array->count = 0;
 }
 
-U64 arrayPush(Array* array, const void* item) {
+void* arrayPush(Array* array, const void* item) {
     if (array->count == array->capacity) {
         arenaAlloc(array->arena, array->capacity * array->item_size);
         array->capacity *= 2;
@@ -34,7 +34,7 @@ U64 arrayPush(Array* array, const void* item) {
     U8* address = array->start + (array->count * array->item_size);
     memcpy(address, item, array->item_size);
     array->count++;
-    return array->count;
+    return address;
 }
 
 void* arrayPop(Array* array) {
