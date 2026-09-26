@@ -1,0 +1,3 @@
+#include "version.h"
+
+const char* BUILD_DATE = "@BUILD_DATE@";

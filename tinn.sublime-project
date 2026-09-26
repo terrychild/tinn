@@ -16,40 +16,9 @@
     "build_systems": [
         {
             "name": "Build Project",
-
-            "target": "terminus_exec",
-            "cancel": "terminus_cancel_build",
-
-            "working_dir": "$project_path",
-            "cmd": ["make"],
-
-            "variants":         
-            [
-                {
-                    "name": "test",
-                    "target": "terminus_exec",
-                    "cancel": "terminus_cancel_build",
-                    "cmd": ["make", "test"]
-                },
-                {
-                    "name": "debug test",
-                    "target": "terminus_exec",
-                    "cancel": "terminus_cancel_build",
-                    "cmd": ["make", "dtest"]
-                },
-                {
-                    "name": "run",
-                    "target": "terminus_exec",
-                    "cancel": "terminus_cancel_build",
-                    "cmd": ["make", "run"]
-                },
-                {
-                    "name": "debug run",
-                    "target": "terminus_exec",
-                    "cancel": "terminus_cancel_build",
-                    "cmd": ["make", "drun"]
-                }
-            ]
+            "shell": true,
+            "working_dir": "$project_path/build",
+            "cmd": ["cmake .. && make"]
         }
     ]
 }

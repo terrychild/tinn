@@ -5,7 +5,7 @@
 #include "lib/log.h"
 #include "version.h"
 #include "help.h"
-#include "test/tests.h"
+//#include "test/tests.h"
 #include "lib/mem/allocator.h"
 #include "lib/net/echo.h"
 #include "lib/net/http.h"
@@ -59,9 +59,9 @@ int main(int argc, char* argv[]) {
         return printHelp(argc, argv);
     }
 
-    if (strcmp(argv[1], "test")==0) {
+    /*if (strcmp(argv[1], "test")==0) {
         return runTests();
-    }
+    }*/
 
     if (strcmp(argv[1], "host")==0) {
         return host(argc, argv);
