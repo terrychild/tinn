@@ -8,7 +8,7 @@
 #include "test/tests.h"
 #include "lib/mem/allocator.h"
 #include "lib/net/echo.h"
-#include "web.h"
+#include "lib/net/http.h"
 
 int host(int argc, char* argv[]) {
     logOpen("./tinn.log");
@@ -24,7 +24,7 @@ int host(int argc, char* argv[]) {
             return EXIT_FAILURE;
         }
     }
-    if (startWebServer(allocator, polling, cliValue(argc, argv, "--port", "80")) == NULL) {
+    if (httpServer(allocator, polling, cliValue(argc, argv, "--port", "80")) == NULL) {
         return EXIT_FAILURE;
     }
 

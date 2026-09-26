@@ -21,7 +21,7 @@ typedef struct Buffer Buffer;
 
 typedef struct {
     U64 length;
-    U8* start;
+    const U8* start;
 } Slice;
 
 #endif

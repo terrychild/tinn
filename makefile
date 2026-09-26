@@ -1,6 +1,6 @@
 # config
 TARGET := tinn
-RUN_ARGS := host --verbose --echo
+RUN_ARGS := host --verbose --port=8080
 TEST_ARGS := test --verbose
 
 COMP_ARGS := -Wall -Wextra -pedantic -std=c23 -g
