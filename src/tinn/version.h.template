@@ -8,6 +8,6 @@
 #define VERSION_PATCH 0
 
 #define VERSION "v" STR(VERSION_MAJOR) "." STR(VERSION_MINOR) "." STR(VERSION_PATCH)
-extern const char* BUILD_DATE;
+#define BUILD_DATE "@BUILD_DATE@"
 
 #endif
