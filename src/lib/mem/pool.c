@@ -8,49 +8,47 @@
 #include "lib/log.h"
 #include "lib/cli.h"
 
-static void buildFreeList(Pool* pool, U64 index) {
-    PoolNode* node = (PoolNode*)(pool->start + (index * pool->node_size));
+static void buildFreeList(Pool* pool, U8* start, U64 count) {
+    PoolNode* node = (PoolNode*)start;
     pool->free = node;
-    while (++index < pool->capacity) {
-        node->next = (PoolNode*)(pool->start + (index * pool->node_size));
+    for (U64 index = 1; index < count; index++) {
+        node->next = (PoolNode*)(start + (index * pool->node_size));
         node = node->next;
     }
     node->next = NULL;
 }
 
-static U64 nodeSize(U64 item_size) {
-    return sizeof(PoolNode*) + item_size;
-}
-
-Pool* poolNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity) {
+Pool* poolNew(Allocator* allocator, U64 item_size, U64 capacity) {
     Pool* pool = allocate(allocator, sizeof(Pool));
-    poolInit(pool, allocateArena(allocator, max_capacity * nodeSize(item_size)), item_size, initial_capacity);
+    poolInit(pool, allocator->arena, item_size, capacity);
     return pool;
 }
-void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 initial_capacity) {
-    assert(initial_capacity > 0);
-    assert(arena->size >= initial_capacity * nodeSize(item_size));
+void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 capacity) {
+    assert(capacity > 0);
 
     pool->arena = arena;
-    pool->node_size = nodeSize(item_size);
-    pool->capacity = initial_capacity;
+    pool->node_size = sizeof(PoolNode*) + item_size;
+    pool->capacity = capacity;
     pool->count = 0;
-    pool->start = arenaAlloc(pool->arena, initial_capacity * pool->node_size);
-    buildFreeList(pool, 0);
+    buildFreeList(pool, arenaAlloc(pool->arena, capacity * pool->node_size), capacity);
     pool->first = NULL;
 }
 
 void poolReset(Pool* pool) {
-    pool->count = 0;
-    buildFreeList(pool, 0);
+    PoolNode* node = pool->first;
+    while (node->next != NULL) {
+        node = node->next;
+    }
+    node->next = pool->free;
+    pool->free = pool->first;
     pool->first = NULL;
+    pool->count = 0;
 }
 
 void* poolAdd(Pool* pool) {
     if (pool->free == NULL) {
-        arenaAlloc(pool->arena, pool->capacity * pool->node_size);
+        buildFreeList(pool, arenaAlloc(pool->arena, pool->capacity * pool->node_size), pool->capacity);
         pool->capacity *= 2;
-        buildFreeList(pool, pool->count);
     }
 
     PoolNode* node = pool->free;
@@ -69,26 +67,22 @@ void* poolPush(Pool* pool, const void* item) {
 }
 
 void poolRemove(Pool* pool, const void* item) {
-    U8* end = pool->start + (pool->capacity * pool->node_size);
-    U8* address = (U8*)item;
-    if (pool->count > 0 && address >= pool->start && address < end) {
-        PoolNode* node = pool->first;
-        PoolNode* prev = NULL;
-        while (node != NULL) {
-            if (poolData(node) == item) {
-                if (prev) {
-                    prev->next = node->next;
-                } else {
-                    pool->first = node->next;
-                }
-                node->next = pool->free;
-                pool->free = node;
-                pool->count--;
-                return;
+    PoolNode* node = pool->first;
+    PoolNode* prev = NULL;
+    while (node != NULL) {
+        if (poolData(node) == item) {
+            if (prev) {
+                prev->next = node->next;
+            } else {
+                pool->first = node->next;
             }
-            prev = node;
-            node = node->next;
+            node->next = pool->free;
+            pool->free = node;
+            pool->count--;
+            return;
         }
+        prev = node;
+        node = node->next;
     }
 }
 
@@ -103,7 +97,7 @@ void poolDebug(Pool* pool) {
     PoolNode* node = pool->free;
     U64 count = 0;
     while (node != NULL && count<32) {
-        PRINT(CC_YELLOW, "%lu; ", (((U8*)node) - pool->start) / pool->node_size);
+        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->arena->start);
         node = node->next;
         count++;
     }
@@ -116,7 +110,7 @@ void poolDebug(Pool* pool) {
     node = pool->first;
     count = 0;
     while (node != NULL && count<32) {
-        PRINT(CC_YELLOW, "%lu; ", (((U8*)node) - pool->start) / pool->node_size);
+        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->arena->start);
         node = node->next;
         count++;
     }

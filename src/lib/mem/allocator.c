@@ -62,10 +62,7 @@ void allocatorPopFrame(Allocator* allocator) {
 // children
 Allocator* allocateChild(Allocator* allocator) {
     if (!allocator->top->children) {
-        Arena* children_arena = arenaAlloc(allocator->arena, sizeof(Arena));
-        arenaInit(children_arena, 0);
-        allocator->top->children = arenaAlloc(allocator->arena, sizeof(Pool));
-        poolInit(allocator->top->children, children_arena, sizeof(Allocator), CHILDREN_PER_FRAME);
+        allocator->top->children = poolNew(allocator, sizeof(Allocator), CHILDREN_PER_FRAME);
     }
     Arena* arena = arenaNew(0);
     Allocator* child = poolAdd(allocator->top->children);
@@ -81,10 +78,7 @@ void deallocateChild(Allocator* allocator, Allocator* child) {
 // sub arenas
 Arena* allocateArena(Allocator* allocator, U64 size) {
     if (!allocator->top->arenas) {
-        Arena* arenas_arena = arenaAlloc(allocator->arena, sizeof(Arena));
-        arenaInit(arenas_arena, 0);
-        allocator->top->arenas = arenaAlloc(allocator->arena, sizeof(Pool));
-        poolInit(allocator->top->arenas, arenas_arena, sizeof(Arena), ARENAS_PER_FRAME);
+        allocator->top->arenas = poolNew(allocator, sizeof(Arena), ARENAS_PER_FRAME);
     }
     Arena* arena = poolAdd(allocator->top->arenas);
     arenaInit(arena, size);

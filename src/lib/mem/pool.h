@@ -12,13 +12,12 @@ struct Pool {
     U64 node_size;
     U64 capacity;
     U64 count;
-    U8* start;
     PoolNode* free;
     PoolNode* first;
 };
 
-Pool* poolNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity);
-void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 initial_capacity);
+Pool* poolNew(Allocator* allocator, U64 item_size, U64 capacity);
+void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 capacity);
 void poolReset(Pool* pool);
 
 void* poolAdd(Pool* pool);

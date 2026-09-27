@@ -167,7 +167,7 @@ bool serverInit(Server* server, Allocator* allocator, Polling* polling, const ch
         .context = server
     });
 
-    server->connections = poolNew(allocator, sizeof(ServerConnection), 256, 0);
+    server->connections = poolNew(allocator, sizeof(ServerConnection), 256);
 
     server->onConnect = NULL;
     server->onDisconnect = NULL;
