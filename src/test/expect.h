@@ -3,7 +3,8 @@
 
 #include "lib/types.h"
 
-extern bool expect_failed;
+extern U64 expect_passed;
+extern U64 expect_failed;
 
 void expectVoidPtr(const char* name, void* value, void* expected);
 void expectI8(const char* name, U8 value, U8 expected);

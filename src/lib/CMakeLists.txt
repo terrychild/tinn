@@ -1,23 +1,21 @@
 add_library(lib
-    types.h
-    macros.h
-    cli.c cli.h
-    log.c log.h
-    bytes.c bytes.h
-    slice.c slice.h
+    cli.c
+    log.c
+    bytes.c
+    slice.c
 
-    mem/arena.c mem/arena.h
-    mem/allocator.c mem/allocator.h
-    mem/array.c mem/array.h
-    mem/pool.c mem/pool.h
-    mem/buffer.c mem/buffer.h
+    mem/arena.c
+    mem/allocator.c
+    mem/array.c
+    mem/pool.c
+    mem/buffer.c
 
-    sys/sockets.c sys/sockets.h
-    sys/polling.c sys/polling.h
+    sys/sockets.c
+    sys/polling.c
 
-    net/server.c net/server.h
-    net/echo.c net/echo.h
-    net/http.c net/http.h
+    net/server.c
+    net/echo.c
+    net/http.c
 )
 
 target_include_directories(lib PRIVATE "${CMAKE_SOURCE_DIR}/src")

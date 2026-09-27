@@ -10,4 +10,5 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_subdirectory(src/lib)
+add_subdirectory(src/test)
 add_subdirectory(src/tinn)

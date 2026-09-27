@@ -27,7 +27,6 @@ void printUsage() {
     printArg("host", "Host a tinn web server.");
     printArg("help", "Display help.");
     printArg("version", "Display the current version and build date.");
-    printArg("test", "Run test suite.");
     PRINT(CC_WHITE, "\nFor help on a specific command see: ");
     printCommand("help <command>\n");
 }
@@ -42,12 +41,6 @@ static void hostHelp() {
     printArg("--verbose", "Enable verbose logging.");    
 }
 
-static void testHelp() {
-    printCommand("test\n\n");
-    PRINT(CC_WHITE, "Runs a series of tests to ensure Tinn is (possibly) working.  It's hard to\n");
-    PRINT(CC_WHITE, "prove these things, but it will certainly flag any obvious errors.\n");
-}
-
 int printHelp(int argc, char* argv[]) {
     if (argc<3) {
         printUsage();
@@ -58,12 +51,7 @@ int printHelp(int argc, char* argv[]) {
         hostHelp();
         return EXIT_SUCCESS;
     }
-
-    if (strcmp(argv[2], "test")==0) {
-        testHelp();
-        return EXIT_SUCCESS;
-    }
-
+    
     PRINT(CC_WHITE, "No help available for command ");
     PRINT(CC_CYAN, "%s\n", argv[2]);
     return EXIT_FAILURE;

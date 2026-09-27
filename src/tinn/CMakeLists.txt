@@ -13,7 +13,7 @@ add_custom_target(generate_build_date
 # main executable
 add_executable(tinn
     main.c
-    help.c help.h    
+    help.c
 )
 
 add_dependencies(tinn generate_build_date)

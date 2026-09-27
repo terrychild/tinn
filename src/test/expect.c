@@ -3,7 +3,8 @@
 #include "lib/types.h"
 #include "lib/cli.h"
 
-bool expect_failed = false;
+U64 expect_passed = 0;
+U64 expect_failed = 0;
 
 #define MAKE_EXPECT(T, F) \
 void expect##T(const char* name, T value, T expected) { \
@@ -11,13 +12,14 @@ void expect##T(const char* name, T value, T expected) { \
         PRINT(CC_GREEN, "Passed"); \
         PRINT(CC_BRIGHT_WHITE, ": %s: ", name); \
         PRINT(CC_CYAN, F "\n", expected); \
+        expect_passed++; \
     } else { \
         PRINT(CC_BRIGHT_RED, "Failed"); \
         PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name); \
         PRINT(CC_CYAN, F, expected); \
         PRINT(CC_BRIGHT_WHITE, " got: "); \
         PRINT(CC_MAGENTA, F "\n", value); \
-        expect_failed = true; \
+        expect_failed++; \
     } \
 }
 
@@ -30,13 +32,14 @@ void expectVoidPtr(const char* name, const void* value, const void* expected) {
     if (value == expected) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s\n", name);
+        expect_passed++;
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
         PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
         PRINT(CC_CYAN, "%lu", expected);
         PRINT(CC_BRIGHT_WHITE, " got: ");
         PRINT(CC_MAGENTA, "%lu\n", value);
-        expect_failed = true;
+        expect_failed++;
     }
 }
 
@@ -45,13 +48,14 @@ void expectCharPtr(const char* name, const char* value, const char* expected) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s: ", name);
         PRINT(CC_CYAN, "%s\n", expected);
+        expect_passed++;
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
         PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
         PRINT(CC_CYAN, "%s", expected);
         PRINT(CC_BRIGHT_WHITE, " got: ");
         PRINT(CC_MAGENTA, "%s\n", value);
-        expect_failed = true;
+        expect_failed++;
     }
 }
 
@@ -60,11 +64,12 @@ void expectNull(const char* name, void* value) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s: ", name);
         PRINT(CC_CYAN, "NULL\n");
+        expect_passed++;
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
         PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
         PRINT(CC_CYAN, "NULL");
         PRINT(CC_BRIGHT_WHITE, " got something else\n");
-        expect_failed = true;
+        expect_failed++;
     }
 }
