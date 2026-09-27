@@ -66,6 +66,7 @@ static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 void responseError(HttpServerResponse* response, HttpStatusCode status_code) {
     response->status_code = status_code;
     response->content_type = "html";
+    bufReset(response->content);
 	bufAppendFormat(response->content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 }
 
