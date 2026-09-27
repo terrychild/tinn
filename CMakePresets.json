@@ -1,15 +1,42 @@
 {
-    "version": 8,
+    "version": 11,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 20,
+        "patch": 0
+    },
     "configurePresets": [
         {
-            "name": "debug",
-            "displayName": "Debug",
+            "name": "base",
+            "hidden": true,
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build/${presetName}",
-            "cacheVariables": {                
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_C_FLAGS": "-Wall -Wextra -pedantic"
+            "binaryDir": "${sourceDir}/build"
+        },
+        {
+            "name": "default",
+            "inherits": ["base"],
+            "displayName": "Release with Debug Info",
+            "description": "Optimizations: on. Debug information: on.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+            }
+        },
+        {
+            "name": "debug",
+            "inherits": ["base"],
+            "displayName": "Debug",
+            "description": "Optimizations: off. Debug information: on.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        },
+        {
+            "name": "release",
+            "inherits": ["base"],
+            "displayName": "Release",
+            "description": "Optimizations: on. Debug information: off.",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
             }
         }
     ]

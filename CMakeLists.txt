@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
+add_compile_options(-Wall -Wextra -pedantic)
+
 # Auto-create a .gitignore in the specified build directory.
 if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)  
   file(GENERATE OUTPUT .gitignore CONTENT "*")
