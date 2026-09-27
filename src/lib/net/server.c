@@ -122,7 +122,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
     } else {
         connection->server = server;
         connection->allocator = allocateChild(server->allocator);
-        connection->buffer = bufNew(connection->allocator, KB(4), 0);
+        connection->buffer = bufNew(connection->allocator, KB(4));
         connection->context = server->context;
 
         if (server->onConnect) {

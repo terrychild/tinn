@@ -8,19 +8,19 @@
 #include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
 
-Buffer* bufNew(Allocator* allocator, U64 initial_size, U64 max_size) {
+Buffer* bufNew(Allocator* allocator, U64 size) {
     Buffer* buf = allocate(allocator, sizeof(Buffer));
-    bufInit(buf, allocateArena(allocator, max_size), initial_size);
+    bufInit(buf, allocator->arena, size);
     return buf;
 }
-void bufInit(Buffer* buf, Arena* arena, U64 initial_size) {
-    assert(initial_size > 0);
-    assert(arena->size >= initial_size);
+void bufInit(Buffer* buf, Arena* arena, U64 size) {
+    assert(size > 0);
 
     buf->arena = arena;
-    buf->size = initial_size;
+    buf->size = size;
     buf->length = 0;
-    buf->start = arenaAlloc(buf->arena, initial_size);
+    buf->start = arenaAlloc(buf->arena, size);
+    buf->arena_allocated = buf->arena->allocated;
 }
 void bufReset(Buffer* buf) {
     buf->length = 0;
@@ -32,8 +32,15 @@ static void ensure(Buffer* buf, U64 n) {
         new_size *= 2;
     }
     if (new_size > buf->size) {
-        arenaAlloc(buf->arena, new_size - buf->size);
+        if (buf->arena_allocated == buf->arena->allocated) {
+            arenaAlloc(buf->arena, new_size - buf->size);
+        } else {
+            U8* new_start = arenaAlloc(buf->arena, new_size);
+            memcpy(new_start, buf->start, buf->length);
+            buf->start = new_start;
+        }
         buf->size = new_size;
+        buf->arena_allocated = buf->arena->allocated;
     }
 }
 

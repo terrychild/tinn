@@ -112,8 +112,8 @@ static void onConnect(ServerConnection* connection) {
     context->response.version = "HTTP/1.1";
     context->response.content_type = NULL;
     context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32, 0);
-    context->response.header = bufNew(connection->allocator, KB(4), 0);
-    context->response.content = bufNew(connection->allocator, KB(4), 0);
+    context->response.header = bufNew(connection->allocator, KB(4));
+    context->response.content = bufNew(connection->allocator, KB(4));
 
     connection->context = context;
 }

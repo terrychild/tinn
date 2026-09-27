@@ -5,6 +5,7 @@
 
 struct Buffer {
     Arena* arena;
+    U64 arena_allocated;
     U64 size;
     U64 length;
     U8* start;
@@ -15,8 +16,8 @@ typedef struct {
     U8* start;
 } BufferSpace;
 
-Buffer* bufNew(Allocator* allocator, U64 initial_size, U64 max_size);
-void bufInit(Buffer* buf, Arena* arena, U64 initial_size);
+Buffer* bufNew(Allocator* allocator, U64 size);
+void bufInit(Buffer* buf, Arena* arena, U64 size);
 void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);
