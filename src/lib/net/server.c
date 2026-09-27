@@ -8,8 +8,8 @@
 #include "lib/mem/buffer.h"
 #include "lib/log.h"
 
-static constexpr U8 CLEAN_POOL = 1;
-static constexpr U8 REMOVE_SOCKET = 2;
+static const U8 CLEAN_POOL = 1;
+static const U8 REMOVE_SOCKET = 2;
 static void connectionClose(ServerConnection* connection, U8 flags);
 
 // connection functions

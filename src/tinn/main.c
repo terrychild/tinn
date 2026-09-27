@@ -59,10 +59,6 @@ int main(int argc, char* argv[]) {
         return printHelp(argc, argv);
     }
 
-    /*if (strcmp(argv[1], "test")==0) {
-        return runTests();
-    }*/
-
     if (strcmp(argv[1], "host")==0) {
         return host(argc, argv);
     }

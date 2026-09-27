@@ -6,7 +6,7 @@
 #include "lib/macros.h"
 #include "lib/log.h"
 
-static constexpr U64 ARENA_DEFAULT_SIZE = GB(1);
+static const U64 ARENA_DEFAULT_SIZE = GB(1);
 
 // align pointers/lengths to page/word boundaries
 static bool isPowerOfTwo(U64 ptr) {

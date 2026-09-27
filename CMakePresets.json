@@ -9,7 +9,7 @@
             "cacheVariables": {                
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_C_COMPILER": "gcc",
-                "CMAKE_C_FLAGS": "-Wall -Wextra -pedantic -std=c23 -g"
+                "CMAKE_C_FLAGS": "-Wall -Wextra -pedantic"
             }
         }
     ]
