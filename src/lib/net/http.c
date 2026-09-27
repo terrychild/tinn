@@ -1,3 +1,5 @@
+#include <time.h>
+
 #include "lib/net/http.h"
 #include "lib/net/mime.h"
 #include "lib/macros.h"
@@ -20,6 +22,21 @@ static const char* status_text[] = {
     [HTTP_NOT_IMPLEMENTED] = "Not Implemented",
     [HTTP_VERSION_NOT_SUPPORTED] = "HTTP Version Not Supported"
 };
+
+static const size_t IMF_DATE_LEN = 30; // length of a date in Internet Messaging Format with null terminator
+static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
+	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&seconds));
+	return buf;
+}
+/*static time_t fromImfDate(const char* date, size_t len) {
+	struct tm tm;
+	memset(&tm, 0, sizeof(tm));
+	if (strptime(date, "%a, %d %b %Y %H:%M:%S GMT", &tm) == NULL) {
+		ERROR("Invalid IMF date (%.*s)", len, date);
+		return 0;
+	}
+	return mktime(&tm);
+}*/
 
 // message generation
 #define ERROR_TEMPLATE \
@@ -59,10 +76,10 @@ static Slice generateResponseHeader(HttpServerResponse* response) {
     bufAppendFormat(response->header, "%s %d %s\r\n", response->version, response->status_code, status_text[response->status_code]);
 
     // date header
-	/*buf_append_str(response->header, "Date: ");
-	to_imf_date(buf_reserve(response->header, IMF_DATE_LEN), IMF_DATE_LEN, time(NULL));
-	buf_advance_write(response->header, -1);
-	buf_append_str(response->header, "\r\n");*/
+	bufAppendStr(response->header, "Date: ");
+	toImfDate((char *)bufReadyWrite(response->header, IMF_DATE_LEN).start, IMF_DATE_LEN, time(NULL));
+	bufConfirmWrite(response->header, IMF_DATE_LEN-1);
+	bufAppendStr(response->header, "\r\n");
 
 	// server header
 	bufAppendStr(response->header, "Server: Tinn\r\n");
@@ -115,7 +132,9 @@ static void onReceive(ServerConnection* connection, Slice data) {
             context->request.version = nextToken(&words);
 
             if (context->request.method.length == 0 || context->request.target.length == 0 || context->request.version.length == 0) {
-                DEBUG("Invalid request line");
+                context->status = HTTP_SEND_HEADER;
+                responseError(&context->response, HTTP_BAD_REQUEST);
+                connectionSend(connection, generateResponseHeader(&context->response));
                 return;
             }
             DEBUG("Request line: %.*s %.*s %.*s",
