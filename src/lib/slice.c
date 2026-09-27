@@ -74,7 +74,7 @@ static void find(const Slice source, const Slice search, U64 start, U64 end, int
             return;
         }
         i += direction;
-    }    
+    }
 }
 static void findFirst(const Slice source, const Slice search, bool* found, U64* pos) {
     find(source, search, 0, source.length - search.length, 1, found, pos);

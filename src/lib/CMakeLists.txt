@@ -16,7 +16,7 @@ add_library(lib
     net/server.c
     net/echo.c
     net/mime.c
-    net/http.c    
+    net/http.c
 )
 
 target_include_directories(lib PRIVATE "${CMAKE_SOURCE_DIR}/src")

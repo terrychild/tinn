@@ -57,7 +57,7 @@ static Slice generateResponseHeader(HttpServerResponse* response) {
 
     // status line
     bufAppendFormat(response->header, "%s %d %s\r\n", response->version, response->status_code, status_text[response->status_code]);
-    
+
     // date header
 	/*buf_append_str(response->header, "Date: ");
 	to_imf_date(buf_reserve(response->header, IMF_DATE_LEN), IMF_DATE_LEN, time(NULL));
@@ -70,7 +70,7 @@ static Slice generateResponseHeader(HttpServerResponse* response) {
 	// content headers
     if (response->content_type != NULL || response->content->length > 0) {
         bufAppendFormat(response->header, "Content-Type: %s\r\n", mimeFromExt(response->content_type));
-        bufAppendFormat(response->header, "Content-Length: %ld\r\n", response->content->length);        
+        bufAppendFormat(response->header, "Content-Length: %ld\r\n", response->content->length);
     }
 
 	// other headers
@@ -118,9 +118,9 @@ static void onReceive(ServerConnection* connection, Slice data) {
                 DEBUG("Invalid request line");
                 return;
             }
-            DEBUG("Request line: %.*s %.*s %.*s", 
-                context->request.method.length, context->request.method.start, 
-                context->request.target.length, context->request.target.start, 
+            DEBUG("Request line: %.*s %.*s %.*s",
+                context->request.method.length, context->request.method.start,
+                context->request.target.length, context->request.target.start,
                 context->request.version.length, context->request.version.start
             );
 
@@ -154,6 +154,6 @@ Server* httpServer(Allocator* allocator, Polling* polling, const char* port) {
         server->onConnect = onConnect,
         server->onReceive = onReceive;
         server->onSent = onSent;
-    }    
+    }
     return server;
 }

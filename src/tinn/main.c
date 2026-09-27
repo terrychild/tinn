@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (argc<2) {
-        printUsage();  
+        printUsage();
         return EXIT_FAILURE;
     }
 

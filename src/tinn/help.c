@@ -38,7 +38,7 @@ static void hostHelp() {
     printArg("--dir=<path>", "Path for the content directoy, defaults to current");
     printArgCont("directory.");
     printArg("--port=<num>", "Port to listen on, defaults to 8080.");
-    printArg("--verbose", "Enable verbose logging.");    
+    printArg("--verbose", "Enable verbose logging.");
 }
 
 int printHelp(int argc, char* argv[]) {
@@ -51,7 +51,7 @@ int printHelp(int argc, char* argv[]) {
         hostHelp();
         return EXIT_SUCCESS;
     }
-    
+
     PRINT(CC_WHITE, "No help available for command ");
     PRINT(CC_CYAN, "%s\n", argv[2]);
     return EXIT_FAILURE;

@@ -11,7 +11,7 @@
 static const U64 MESSAGE_LEN = KB(4);
 static const char* logLevels[] = {
     [LL_DEBUG] = "DEBUG",
-    [LL_INFO]  = "INFO", 
+    [LL_INFO]  = "INFO",
     [LL_WARN]  = "WARN",
     [LL_ERROR] = "ERROR",
     [LL_PANIC] = "PANIC"
@@ -35,7 +35,7 @@ static void colourPrint(FILE* stream, time_t* now, LogLevel level, char* message
     char timestamp[9];
     strftime(timestamp, sizeof(timestamp), "%H:%M:%S", localtime(now));
     print(stream, CC_BLUE, "%s ", timestamp);
-    
+
     switch(level) {
         case LL_DEBUG:
             printColour(stream, CC_CYAN);
@@ -62,7 +62,7 @@ static void filePrint(FILE* stream, time_t* now, LogLevel level, char* message) 
 
     fprintf(stream, "%s [%s] %s\n",
         timestamp,
-        logLevels[level],        
+        logLevels[level],
         message
     );
 }
@@ -83,7 +83,7 @@ void logAppend(LogLevel level, bool inc_errno, const char* format, ...) {
         // file
         if (file != NULL) {
             filePrint(file, &now, level, message);
-            fflush(file);   
+            fflush(file);
         }
     }
 }

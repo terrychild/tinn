@@ -87,7 +87,7 @@ static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
         } else {
             sysMemCommit(arena->start + arena->committed, commit_size);
             arena->committed += commit_size;
-        }        
+        }
     }
 
     void* new_data = arena->start + arena->allocated;

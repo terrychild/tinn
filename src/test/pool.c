@@ -10,7 +10,7 @@ void testPool(Allocator* allocator) {
     PRINT(CC_BLUE, "================\n Pool tests\n================\n");
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    
+
     Pool* pool = poolNew(allocator, sizeof(U64), 4, 0);
     expect("capacity", pool->capacity, 4);
     poolDebug(pool);
@@ -74,5 +74,5 @@ void testPool(Allocator* allocator) {
     poolDebug(pool);
 
     allocatorDebug(allocator);
-    allocatorPopFrame(allocator);    
+    allocatorPopFrame(allocator);
 }

@@ -25,7 +25,7 @@ typedef enum {
     CC_BRIGHT_MAGENTA,
     CC_BRIGHT_CYAN,
     CC_BRIGHT_WHITE,
-    
+
     CC_BOLD_BLACK,
     CC_BOLD_RED,
     CC_BOLD_GREEN,

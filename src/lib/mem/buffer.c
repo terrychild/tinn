@@ -47,7 +47,7 @@ void bufAppendSlice(Buffer* buf, const Slice slice) {
     bufAppend(buf, slice.start, slice.length);
 }
 void bufAppendStr(Buffer* buf, const char* str) {
-    bufAppend(buf, (U8*)str, strlen(str));  
+    bufAppend(buf, (U8*)str, strlen(str));
 }
 void bufAppendFormat(Buffer* buf, const char* format, ...) {
     va_list args;

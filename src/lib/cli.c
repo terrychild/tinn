@@ -42,7 +42,7 @@ void print(FILE *stream, ColourCode colour, const char* format, ...) {
     if (colour != CC_NULL) {
         printColour(stream, colour);
     }
-        
+
     va_list args;
     va_start(args, format);
     vfprintf(stream, format, args);

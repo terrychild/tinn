@@ -18,7 +18,7 @@ void testArena() {
     expect("committed after alloc", arena.committed, KB(4));
     expect("allocated after alloc", arena.allocated, 16);
     expect("zero data", data[11], 0);
-    data[11] = 14;    
+    data[11] = 14;
     expect("data", data[11], 14);
     arenaRelease(&arena);
 
@@ -33,7 +33,7 @@ void testArena() {
     expect("committed after alloc", arena_ptr->committed, KB(4));
     expect("allocated after alloc", arena_ptr->allocated, sizeof(Arena) + 8);
     expect("zero data", *data, 0);
-    *data = 14;    
+    *data = 14;
     expect("data", *data, 14);
     arenaReset(arena_ptr);
     expect("allocated after reset", arena_ptr->allocated, sizeof(Arena));

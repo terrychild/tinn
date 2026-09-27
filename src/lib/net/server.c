@@ -97,7 +97,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
     }
     LOG("Connection from %s (%d) closed", connection->address, connection->socket);
 }
-static void connectionsCloseAll(Server* server) {    
+static void connectionsCloseAll(Server* server) {
     PoolNode* node = server->connections->first;
     while (node != NULL) {
         ServerConnection* connection = (ServerConnection*)poolData(node);
@@ -168,7 +168,7 @@ bool serverInit(Server* server, Allocator* allocator, Polling* polling, const ch
     });
 
     server->connections = poolNew(allocator, sizeof(ServerConnection), 256, 0);
-    
+
     server->onConnect = NULL;
     server->onDisconnect = NULL;
     server->onReceive = NULL;

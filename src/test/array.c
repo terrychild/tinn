@@ -9,10 +9,10 @@
 
 void testArray(Allocator* allocator) {
     PRINT(CC_BLUE, "================\n Array tests\n================\n");
-    
+
     Array* array = arrayNew(allocator, 1, 10, 0);
     expect("allocated capacity (10 * U8)", array->capacity, 10);
-    
+
     array = arrayNew(allocator, sizeof(U64), 4, 0);
     expect("allocated capacity (4 * U64)", array->capacity, 4);
     expect("empty", array->count, 0);

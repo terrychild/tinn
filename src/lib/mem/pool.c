@@ -37,7 +37,7 @@ void poolInit(Pool* pool, Arena* arena, U64 item_size, U64 initial_capacity) {
     pool->count = 0;
     pool->start = arenaAlloc(pool->arena, initial_capacity * pool->node_size);
     buildFreeList(pool, 0);
-    pool->first = NULL;     
+    pool->first = NULL;
 }
 
 void poolReset(Pool* pool) {

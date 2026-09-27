@@ -135,10 +135,10 @@ static void debug(Allocator* allocator, U8 level) {
     while (frame) {
         U64 start = (U8*)frame - allocator->arena->start;
         U64 size = end - start - sizeof(AllocatorFrame);
-        PRINT(CC_MAGENTA, "%s  Frame, allocated: %lu, children: %lu, arenas: %lu\n", 
-            indent, 
-            size, 
-            frame->children ? frame->children->count : 0, 
+        PRINT(CC_MAGENTA, "%s  Frame, allocated: %lu, children: %lu, arenas: %lu\n",
+            indent,
+            size,
+            frame->children ? frame->children->count : 0,
             frame->arenas ? frame->arenas->count : 0
         );
 

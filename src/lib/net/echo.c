@@ -13,6 +13,6 @@ Server* echoServer(Allocator* allocator, Polling* polling, const char* port) {
     Server* server = serverNew(allocator, polling, port);
     if (server) {
         server->onReceive = echo;
-    }    
+    }
     return server;
 }

@@ -11,7 +11,7 @@
 
 void testBuffer(Allocator* allocator) {
     PRINT(CC_BLUE, "================\n Buffer tests\n================\n");
-    
+
     Buffer* buf = bufNew(allocator, 8, 0);
     expect("length", buf->length, 0);
     expect("size", buf->size, 8);

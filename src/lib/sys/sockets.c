@@ -84,7 +84,7 @@ int acceptSocket(int fd, char* text_address) {
         ERROR("Accepting connection");
         return -1;
     }
-    
+
     inet_ntop(bin_address.ss_family, getSocketAddr((struct sockaddr *)&bin_address), text_address, INET6_ADDRSTRLEN);
 
     return client_socket;

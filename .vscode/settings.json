@@ -3,7 +3,7 @@
         "args": [
             "host",
             "--port=8080",
-            "--verbose"        
+            "--verbose"
         ]
     }
 }

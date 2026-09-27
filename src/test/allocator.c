@@ -8,10 +8,10 @@
 
 void testAllocator(Allocator* allocator) {
     PRINT(CC_BLUE, "================\n Allocator tests\n================\n");
-    
+
     expect("size", allocator->arena->size, GB(1));
     expect("committed", allocator->arena->committed, KB(4));
-    expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame)); 
+    expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
     allocatorDebug(allocator);
 
     allocatorPushFrame(allocator);
@@ -36,6 +36,6 @@ void testAllocator(Allocator* allocator) {
     allocate(allocator, 48);
     expect("add data, frame, more data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + 96 + sizeof(AllocatorFrame) + 48);
     allocatorDebug(allocator);
-    allocatorReset(allocator);    
+    allocatorReset(allocator);
     expect("reset", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
 }
