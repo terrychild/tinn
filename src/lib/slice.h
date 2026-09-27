@@ -3,6 +3,9 @@
 
 #include "lib/types.h"
 
+Slice sliceNew(Allocator* allocator, U64 length);
+Slice sliceFromStr(const char* str);
+
 I8 sliceCmp(const Slice a, const Slice b);
 I8 sliceCmpStr(const Slice a, const char* b);
 

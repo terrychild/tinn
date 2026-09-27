@@ -20,7 +20,9 @@ void bufInit(Buffer* buf, Arena* arena, U64 initial_size);
 void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);
+void bufAppendSlice(Buffer* buf, const Slice slice);
 void bufAppendStr(Buffer* buf, const char* str);
+void bufAppendFormat(Buffer* buf, const char* format, ...);
 
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size);
 void bufConfirmWrite(Buffer* buf, U64 n);

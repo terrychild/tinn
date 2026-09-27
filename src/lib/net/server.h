@@ -41,5 +41,6 @@ void serverClose(Server* server);
 
 void connectionReceive(ServerConnection* connection);
 void connectionSend(ServerConnection* connection, Slice message);
+void connectionSent(ServerConnection* connection);
 
 #endif

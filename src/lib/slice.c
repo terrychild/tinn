@@ -1,6 +1,20 @@
 #include <string.h>
 
 #include "lib/slice.h"
+#include "lib/mem/allocator.h"
+
+Slice sliceNew(Allocator* allocator, U64 length) {
+    return (Slice) {
+        .length = length,
+        .start = allocate(allocator, length)
+    };
+}
+Slice sliceFromStr(const char* str) {
+    return (Slice) {
+        .length = strlen(str),
+        .start = (const U8*)str
+    };
+}
 
 I8 sliceCmp(const Slice a, const Slice b) {
     for (U64 i=0; i<a.length; i++) {
@@ -86,7 +100,7 @@ Slice sliceLeft(const Slice source, const Slice search) {
     }
 }
 Slice sliceLeftStr(const Slice source, const char* search) {
-    return sliceLeft(source, (Slice){.length = strlen(search), .start = (const U8*)search});
+    return sliceLeft(source, sliceFromStr(search));
 }
 Slice sliceRight(const Slice source, const Slice search) {
     bool found;
@@ -105,7 +119,7 @@ Slice sliceRight(const Slice source, const Slice search) {
     }
 }
 Slice sliceRightStr(const Slice source, const char* search) {
-    return sliceRight(source, (Slice){.length = strlen(search), .start = (const U8*)search});
+    return sliceRight(source, sliceFromStr(search));
 }
 
 Tokeniser sliceTokeniser(const Slice source, const Slice delim) {
@@ -116,10 +130,7 @@ Tokeniser sliceTokeniser(const Slice source, const Slice delim) {
 }
 Tokeniser sliceTokeniserStr(const Slice source, const char* delim) {
     return (Tokeniser) {
-        .delim = {
-            .length = strlen(delim),
-            .start = (const U8*)delim
-        },
+        .delim = sliceFromStr(delim),
         .slice = source
     };
 }

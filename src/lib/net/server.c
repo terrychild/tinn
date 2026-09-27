@@ -32,15 +32,15 @@ static ssize_t sendMessage(ServerConnection* connection) {
     return sent;
 }
 
-void connectionReceive(ServerConnection* connection) {
-    bufReset(connection->buffer);
-    pollingEvents(connection->server->polling, connection->socket, POLLIN);
-}
 void connectionSend(ServerConnection* connection, Slice message) {
     connection->message = message;
     if (sendMessage(connection) < 0) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
+}
+void connectionSent(ServerConnection* connection) {
+    bufReset(connection->buffer);
+    pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
 
 // connection events
@@ -172,7 +172,7 @@ bool serverInit(Server* server, Allocator* allocator, Polling* polling, const ch
     server->onConnect = NULL;
     server->onDisconnect = NULL;
     server->onReceive = NULL;
-    server->onSent = connectionReceive;
+    server->onSent = connectionSent;
 
     server->context = NULL;
 

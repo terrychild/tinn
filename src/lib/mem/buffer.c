@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #include "lib/mem/buffer.h"
 #include "lib/mem/allocator.h"
@@ -41,8 +43,25 @@ void bufAppend(Buffer* buf, const U8* data, U64 n) {
     memcpy(buf->start + buf->length, data, n);
     buf->length += n;
 }
+void bufAppendSlice(Buffer* buf, const Slice slice) {
+    bufAppend(buf, slice.start, slice.length);
+}
 void bufAppendStr(Buffer* buf, const char* str) {
     bufAppend(buf, (U8*)str, strlen(str));  
+}
+void bufAppendFormat(Buffer* buf, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    U64 n = vsnprintf(NULL, (U64)0, format, args);
+    va_end(args);
+
+    ensure(buf, n+1);
+
+    va_start(args, format);
+    vsnprintf((char*)buf->start + buf->length, n+1, format, args);
+    va_end(args);
+
+    buf->length += n;
 }
 
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size) {
