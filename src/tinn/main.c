@@ -16,7 +16,7 @@ int host(int argc, char* argv[]) {
 
     // resources
     Allocator* allocator = allocatorNew();
-    Polling* polling = pollingNew(allocator, 0);
+    Polling* polling = pollingNew(allocator, 32);
 
     // servers
     if (cliArg(argc, argv, "--echo")) {

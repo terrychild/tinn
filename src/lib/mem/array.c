@@ -6,20 +6,20 @@
 #include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
 
-Array* arrayNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity) {
+Array* arrayNew(Allocator* allocator, U64 item_size, U64 capacity) {
     Array* array = allocate(allocator, sizeof(Array));
-    arrayInit(array, allocateArena(allocator, max_capacity * item_size), item_size, initial_capacity);
+    arrayInit(array, allocator->arena, item_size, capacity);
     return array;
 }
-void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity) {
-    assert(initial_capacity > 0);
-    assert(arena->size >= initial_capacity * item_size);
+void arrayInit(Array* array, Arena* arena, U64 item_size, U64 capacity) {
+    assert(capacity > 0);
 
     array->arena = arena;
     array->item_size = item_size;
-    array->capacity = initial_capacity;
+    array->capacity = capacity;
     array->count = 0;
-    array->start = arenaAlloc(array->arena, initial_capacity * item_size);
+    array->start = arenaAlloc(array->arena, capacity * item_size);
+    array->arena_allocated = array->arena->allocated;
 }
 void arrayReset(Array* array) {
     array->count = 0;
@@ -27,8 +27,16 @@ void arrayReset(Array* array) {
 
 void* arrayPush(Array* array, const void* item) {
     if (array->count == array->capacity) {
-        arenaAlloc(array->arena, array->capacity * array->item_size);
+        U64 size = array->capacity * array->item_size;
+        if (array->arena_allocated == array->arena->allocated) {
+            arenaAlloc(array->arena, size);
+        } else {
+            U8* new_start = arenaAlloc(array->arena, size * 2);
+            memcpy(new_start, array->start, size);
+            array->start = new_start;
+        }
         array->capacity *= 2;
+        array->arena_allocated = array->arena->allocated;
     }
 
     U8* address = array->start + (array->count * array->item_size);

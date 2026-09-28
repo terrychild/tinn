@@ -5,14 +5,15 @@
 
 struct Array {
     Arena* arena;
+    U64 arena_allocated;
     U64 item_size;
     U64 capacity;
     U64 count;
     U8* start;
 };
 
-Array* arrayNew(Allocator* allocator, U64 item_size, U64 initial_capacity, U64 max_capacity);
-void arrayInit(Array* array, Arena* arena, U64 item_size, U64 initial_capacity);
+Array* arrayNew(Allocator* allocator, U64 item_size, U64 capacity);
+void arrayInit(Array* array, Arena* arena, U64 item_size, U64 capacity);
 void arrayReset(Array* array);
 
 void* arrayPush(Array* array, const void* item);

@@ -1,21 +1,21 @@
 #include <unistd.h>
+#include <assert.h>
 
 #include "lib/sys/polling.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
 #include "lib/log.h"
 
-Polling* pollingNew(Allocator* allocator, U64 max_capacity) {
+Polling* pollingNew(Allocator* allocator, U64 capacity) {
     Polling* polling = allocate(allocator, sizeof(*polling));
-    pollingInit(polling, allocator, max_capacity);
+    pollingInit(polling, allocator, capacity);
     return polling;
 }
-void pollingInit(Polling* list, Allocator* allocator, U64 max_capacity) {
-    U64 size = 8;
-    max_capacity = max_capacity ? max_capacity : 256;
+void pollingInit(Polling* list, Allocator* allocator, U64 capacity) {
+    assert(capacity > 0);
 
-    list->pollfds = arrayNew(allocator, sizeof(struct pollfd), size, max_capacity);
-    list->callbacks = arrayNew(allocator, sizeof(PollingCallback), size, max_capacity);
+    list->pollfds = arrayNew(allocator, sizeof(struct pollfd), capacity);
+    list->callbacks = arrayNew(allocator, sizeof(PollingCallback), capacity);
 }
 
 void pollingAdd(Polling* list, int fd, PollingCallback callback) {

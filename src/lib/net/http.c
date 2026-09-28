@@ -107,11 +107,11 @@ static void onConnect(ServerConnection* connection) {
     HttpServerConnection* context = allocate(connection->allocator, sizeof(HttpServerConnection));
     context->status = HTTP_RECEIVE_HEADER;
 
-    context->request.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32, 0);
+    context->request.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
 
     context->response.version = "HTTP/1.1";
     context->response.content_type = NULL;
-    context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32, 0);
+    context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
     context->response.header = bufNew(connection->allocator, KB(4));
     context->response.content = bufNew(connection->allocator, KB(4));
 
