@@ -16,7 +16,6 @@ add_library(lib
 
     net/server.c
     net/echo.c
-    net/mime.c
     net/http.c
 )
 

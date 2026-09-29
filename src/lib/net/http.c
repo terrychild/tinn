@@ -1,7 +1,7 @@
+#include <string.h>
 #include <time.h>
 
 #include "lib/net/http.h"
-#include "lib/net/mime.h"
 #include "lib/macros.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
@@ -38,7 +38,87 @@ static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 	return mktime(&tm);
 }*/
 
+static const char* validiateContentType(const char* content_type) {
+	if (content_type != NULL && strlen(content_type) > 0) {
+		if (content_type[0] == '.') {
+			content_type += 1;
+		}
+
+		if (strcmp(content_type, "html")==0 || strcmp(content_type, "htm")==0) {
+			return "text/html; charset=utf-8";
+		} else if (strcmp(content_type, "css")==0) {
+			return "text/css; charset=utf-8";
+		} else if (strcmp(content_type, "js")==0) {
+			return "text/javascript; charset=utf-8";
+		} else if (strcmp(content_type, "jpeg")==0 || strcmp(content_type, "jpg")==0) {
+			return "image/jpeg";
+		} else if (strcmp(content_type, "png")==0) {
+			return "image/png";
+		} else if (strcmp(content_type, "gif")==0) {
+			return "image/gif";
+		} else if (strcmp(content_type, "bmp")==0) {
+			return "image/bmp";
+		} else if (strcmp(content_type, "svg")==0) {
+			return "image/svg+xml";
+		} else if (strcmp(content_type, "ico")==0) {
+			return "image/vnd.microsoft.icon";
+		} else if (strcmp(content_type, "mp3")==0) {
+			return "audio/mpeg";
+		}
+
+        return content_type;
+	}
+
+	return "text/plain; charset=utf-8";
+}
+
 // message generation
+static Slice generateResponseHeader(HttpServerConnectionContext* context) {
+    Buffer* header = bufNew(context->connection->allocator, KB(4));
+
+    // status line
+    bufAppendFormat(header, "%s %d %s\r\n", context->response->version, context->response->status_code, status_text[context->response->status_code]);
+
+    // date header
+	bufAppendStr(header, "Date: ");
+	toImfDate((char *)bufReadyWrite(header, IMF_DATE_LEN).start, IMF_DATE_LEN, time(NULL));
+	bufConfirmWrite(header, IMF_DATE_LEN-1);
+	bufAppendStr(header, "\r\n");
+
+	// server header
+	bufAppendStr(header, "Server: Tinn\r\n");
+
+	// content headers
+    if (context->response->content_type != NULL || context->response->content.length > 0) {
+        bufAppendFormat(header, "Content-Type: %s\r\n", context->response->content_type);
+        bufAppendFormat(header, "Content-Length: %ld\r\n", context->response->content.length);
+    }
+
+	// other headers
+	/*for (size_t i=0; i<response->headers_count; i++) {
+		buf_append_format(response->headers, "%s: %s\r\n", response->header_names[i], response->header_values[i]);
+	}*/
+
+	// close with empty line
+	bufAppendStr(header, "\r\n");
+
+    return bufAsSlice(header);
+}
+
+void httpServerSetStatus(HttpServerConnectionContext* context, HttpStatusCode status_code) {
+    context->response->status_code = status_code;
+}
+
+void httpServerSetContent(HttpServerConnectionContext* context, char* content_type, Slice content) {
+    context->response->content_type = validiateContentType(content_type);
+    context->response->content = content;
+}
+
+void httpServerSend(HttpServerConnectionContext* context) {
+    context->status = HTTP_SEND_HEADER;
+    connectionSend(context->connection, generateResponseHeader(context));
+}
+
 #define ERROR_TEMPLATE \
 	"<!DOCTYPE html>" \
 	"<html lang=\"en\">" \
@@ -63,63 +143,39 @@ static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 	"</body>" \
 	"</html>"
 
-void responseError(HttpServerResponse* response, HttpStatusCode status_code) {
-    response->status_code = status_code;
-    response->content_type = "html";
-    bufReset(response->content);
-	bufAppendFormat(response->content, ERROR_TEMPLATE, status_code, status_text[status_code]);
-}
+void httpServerSendError(HttpServerConnectionContext* context, HttpStatusCode status_code) {
+    Buffer* content = bufNew(context->connection->allocator, KB(4));
+    bufAppendFormat(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
-static Slice generateResponseHeader(HttpServerResponse* response) {
-    bufReset(response->header);
-
-    // status line
-    bufAppendFormat(response->header, "%s %d %s\r\n", response->version, response->status_code, status_text[response->status_code]);
-
-    // date header
-	bufAppendStr(response->header, "Date: ");
-	toImfDate((char *)bufReadyWrite(response->header, IMF_DATE_LEN).start, IMF_DATE_LEN, time(NULL));
-	bufConfirmWrite(response->header, IMF_DATE_LEN-1);
-	bufAppendStr(response->header, "\r\n");
-
-	// server header
-	bufAppendStr(response->header, "Server: Tinn\r\n");
-
-	// content headers
-    if (response->content_type != NULL || response->content->length > 0) {
-        bufAppendFormat(response->header, "Content-Type: %s\r\n", mimeFromExt(response->content_type));
-        bufAppendFormat(response->header, "Content-Length: %ld\r\n", response->content->length);
-    }
-
-	// other headers
-	/*for (size_t i=0; i<response->headers_count; i++) {
-		buf_append_format(response->headers, "%s: %s\r\n", response->header_names[i], response->header_values[i]);
-	}*/
-
-	// close with empty line
-	bufAppendStr(response->header, "\r\n");
-
-    return bufAsSlice(response->header);
+    httpServerSetStatus(context, status_code);
+    httpServerSetContent(context, "html", bufAsSlice(content));
+    httpServerSend(context);
 }
 
 // events
 static void onConnect(ServerConnection* connection) {
-    HttpServerConnection* context = allocate(connection->allocator, sizeof(HttpServerConnection));
-    context->status = HTTP_RECEIVE_HEADER;
-
-    context->request.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
-
-    context->response.version = "HTTP/1.1";
-    context->response.content_type = NULL;
-    context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
-    context->response.header = bufNew(connection->allocator, KB(4));
-    context->response.content = bufNew(connection->allocator, KB(4));
+    HttpServerConnectionContext* context = allocate(connection->allocator, sizeof(HttpServerConnectionContext));
+    context->connection = connection;
+    context->status = HTTP_WAITING;
+    context->request = NULL;
+    context->response = NULL;
 
     connection->context = context;
 }
 
 static void onReceive(ServerConnection* connection, Slice data) {
-    HttpServerConnection* context = (HttpServerConnection*)connection->context;
+    HttpServerConnectionContext* context = (HttpServerConnectionContext*)connection->context;
+
+    if (context->status == HTTP_WAITING) {
+        context->allocator = allocateChild(connection->allocator);
+        context->request = allocate(connection->allocator, sizeof(HttpServerRequest));
+        context->response = allocate(connection->allocator, sizeof(HttpServerResponse));
+        context->response->version = "HTTP/1.1";
+        //context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
+
+        context->status = HTTP_RECEIVE_HEADER;
+    }
+
     if (context->status == HTTP_RECEIVE_HEADER) {
         Slice header = sliceLeftStr(data, "\r\n\r\n");
         if (header.length > 0) {
@@ -128,42 +184,44 @@ static void onReceive(ServerConnection* connection, Slice data) {
             // request line
             Slice request_line = nextToken(&lines);
             Tokeniser words = sliceTokeniserStr(request_line, " ");
-            context->request.method = nextToken(&words);
-            context->request.target = nextToken(&words);
-            context->request.version = nextToken(&words);
+            context->request->method = nextToken(&words);
+            context->request->target = nextToken(&words);
+            context->request->version = nextToken(&words);
 
-            if (context->request.method.length == 0 || context->request.target.length == 0 || context->request.version.length == 0) {
-                context->status = HTTP_SEND_HEADER;
-                responseError(&context->response, HTTP_BAD_REQUEST);
-                connectionSend(connection, generateResponseHeader(&context->response));
-                return;
+            if (context->request->method.length == 0 || context->request->target.length == 0 || context->request->version.length == 0) {
+                httpServerSendError(context, HTTP_BAD_REQUEST);
+            } else {
+                DEBUG("Request line: %.*s %.*s %.*s",
+                    context->request->method.length, context->request->method.start,
+                    context->request->target.length, context->request->target.start,
+                    context->request->version.length, context->request->version.start
+                );
+
+                // temp response
+                httpServerSetStatus(context, HTTP_OK);
+                httpServerSetContent(context, "html", sliceFromStr("Hello world!"));
+                httpServerSend(context);
             }
-            DEBUG("Request line: %.*s %.*s %.*s",
-                context->request.method.length, context->request.method.start,
-                context->request.target.length, context->request.target.start,
-                context->request.version.length, context->request.version.start
-            );
-
-            // temp response
-            responseError(&context->response, HTTP_NOT_IMPLEMENTED);
-            //context->response.status_code = HTTP_NOT_IMPLEMENTED;
-            //bufAppendStr(context->response.content, "Hello, World!");
-
-            context->status = HTTP_SEND_HEADER;
-            connectionSend(connection, generateResponseHeader(&context->response));
         }
+
     } else if (context->status == HTTP_RECEIVE_CONTENT) {
         // TODO: read content
+        httpServerSendError(context, HTTP_NOT_IMPLEMENTED);
     }
 }
 
 static void onSent(ServerConnection* connection) {
-    HttpServerConnection* context = (HttpServerConnection*)connection->context;
+    HttpServerConnectionContext* context = (HttpServerConnectionContext*)connection->context;
+
     if (context->status == HTTP_SEND_HEADER) {
         context->status = HTTP_SEND_CONTENT;
-        connectionSend(connection, bufAsSlice(context->response.content));
+        connectionSend(connection, context->response->content);
+
     } else if (context->status == HTTP_SEND_CONTENT) {
-        context->status = HTTP_RECEIVE_HEADER;
+        allocatorDebug(connection->server->allocator);
+        deallocateChild(connection->allocator, context->allocator);
+        allocatorDebug(connection->server->allocator);
+        context->status = HTTP_WAITING;
         connectionSent(connection);
     }
 }

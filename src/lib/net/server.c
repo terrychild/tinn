@@ -96,6 +96,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
         pollingRemove(connection->server->polling, connection->socket);
     }
     LOG("Connection from %s (%d) closed", connection->address, connection->socket);
+    allocatorDebug(connection->server->allocator);
 }
 static void connectionsCloseAll(Server* server) {
     PoolNode* node = server->connections->first;
@@ -122,7 +123,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
     } else {
         connection->server = server;
         connection->allocator = allocateChild(server->allocator);
-        connection->buffer = bufNew(connection->allocator, KB(4));
+        connection->buffer = bufNew(connection->allocator, KB(8));
         connection->context = server->context;
 
         if (server->onConnect) {
@@ -135,6 +136,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         });
 
         LOG("Connection from %s (%d) opened", connection->address, connection->socket);
+        allocatorDebug(server->allocator);
     }
 }
 
