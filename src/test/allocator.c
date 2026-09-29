@@ -5,37 +5,36 @@
 #include "lib/cli.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
+#include "lib/mem/pool.h"
 
 void testAllocator(Allocator* allocator) {
     PRINT(CC_BLUE, "================\n Allocator tests\n================\n");
 
     expect("size", allocator->arena->size, GB(1));
     expect("committed", allocator->arena->committed, KB(4));
-    expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
+    expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
     allocatorDebug(allocator);
 
-    allocatorPushFrame(allocator);
-    expect("add frame", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + (2 * sizeof(AllocatorFrame)) );
-    allocatorDebug(allocator);
-    allocate(allocator, 96);
-    expect("add data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + (2 * sizeof(AllocatorFrame)) + 96);
-    allocatorDebug(allocator);
-    allocatorPopFrame(allocator);
-    expect("pop frame", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
-    allocatorDebug(allocator);
-    allocatorPopFrame(allocator);
-    expect("pop bottom", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
+    Allocator* child = allocateChild(allocator);
+    expect("add child (parent allocated)", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (16 * (sizeof(PoolNode) + sizeof(Allocator))));
+    expect("add child (count)", allocator->children->count, 1);
+    expect("add child (child allocated)", child->arena->allocated, sizeof(Arena));
     allocatorDebug(allocator);
 
-    allocate(allocator, 96);
-    expect("add data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + 96);
-    allocatorPopFrame(allocator);
-    expect("pop bottom", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
-    allocate(allocator, 96);
-    allocatorPushFrame(allocator);
-    allocate(allocator, 48);
-    expect("add data, frame, more data", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + 96 + sizeof(AllocatorFrame) + 48);
+    allocate(child, 96);
+    expect("add data", child->arena->allocated, sizeof(Arena) + 96);
     allocatorDebug(allocator);
+
+    deallocateChild(allocator, child);
+    expect("remove child (parent allocated)", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (16 * (sizeof(PoolNode) + sizeof(Allocator))));
+    expect("remove child (count)", allocator->children->count, 0);
+    allocatorDebug(allocator);
+
+    deallocateChild(allocator, child);
+    expect("double remove child (count)", allocator->children->count, 0);
+    allocatorDebug(allocator);
+
     allocatorReset(allocator);
-    expect("reset", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
+    expect("reset", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
+    allocatorDebug(allocator);
 }

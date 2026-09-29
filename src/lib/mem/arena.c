@@ -1,34 +1,12 @@
 #include <string.h>
-#include <unistd.h>
 #include <sys/mman.h>
 
 #include "lib/mem/arena.h"
+#include "lib/mem/align.h"
 #include "lib/macros.h"
 #include "lib/log.h"
 
 static const U64 ARENA_DEFAULT_SIZE = GB(1);
-
-// align pointers/lengths to page/word boundaries
-static bool isPowerOfTwo(U64 ptr) {
-    return (ptr & (ptr-1)) == 0;
-}
-static U64 align(U64 ptr, U64 multiple) {
-    if (!isPowerOfTwo(multiple)) {
-        PANIC("Alignment is not a power of two");
-    }
-
-    U64 mod = ptr & (multiple - 1);
-    if (mod != 0) {
-        ptr += multiple - mod;
-    }
-    return ptr;
-}
-static U64 alignToPage(U64 ptr) {
-    return align(ptr, sysconf(_SC_PAGE_SIZE));
-}
-static U64 alignToWord(U64 ptr) {
-    return align(ptr, sizeof(void*));
-}
 
 // system calls
 // TODO: support more than linux?

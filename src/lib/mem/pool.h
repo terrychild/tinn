@@ -22,7 +22,7 @@ void poolReset(Pool* pool);
 
 void* poolAdd(Pool* pool);
 void* poolPush(Pool* pool, const void* item);
-void poolRemove(Pool* pool, const void* item);
+void* poolRemove(Pool* pool, const void* item);
 
 void* poolData(PoolNode* node);
 

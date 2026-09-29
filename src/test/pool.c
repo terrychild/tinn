@@ -14,7 +14,7 @@ void testPool(Allocator* allocator) {
 
     Pool* pool = poolNew(allocator, sizeof(U64), 4);
     expect("capacity", pool->capacity, 4);
-    expect("total allocated", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Pool) + (4 * (sizeof(PoolNode) + sizeof(U64))));
+    expect("total allocated", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (4 * (sizeof(PoolNode) + sizeof(U64))));
     poolDebug(pool);
     U64* p0 = poolPush(pool, &nums[0]);
     expect("add 1", pool->count, 1);
@@ -43,17 +43,17 @@ void testPool(Allocator* allocator) {
     U64* p7 = poolPush(pool, &nums[7]);
     expect("add two more", pool->count, 8);
     expect("after two more", pool->capacity, 8);
-    expect("total allocated", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Pool) + (8 * (sizeof(PoolNode) + sizeof(U64))));
+    expect("total allocated", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (8 * (sizeof(PoolNode) + sizeof(U64))));
     poolDebug(pool);
     allocatorDebug(allocator);
 
     allocate(allocator, 1);
-    expect("allocated something else", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Pool) + (8 * (sizeof(PoolNode) + sizeof(U64))) + 8);
+    expect("allocated something else", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (8 * (sizeof(PoolNode) + sizeof(U64))) + 8);
 
     U64* p8 = poolPush(pool, &nums[8]);
     expect("count after extra one", pool->count, 9);
     expect("capacity after extra one", pool->capacity, 16);
-    expect("allocated something else", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Pool) + (16 * (sizeof(PoolNode) + sizeof(U64))) + 8);
+    expect("allocated something else", pool->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (16 * (sizeof(PoolNode) + sizeof(U64))) + 8);
     poolDebug(pool);
 
     poolRemove(pool, p1);
@@ -109,5 +109,5 @@ void testPool(Allocator* allocator) {
     poolDebug(pool);
 
     allocatorDebug(allocator);
-    allocatorPopFrame(allocator);
+    allocatorReset(allocator);
 }

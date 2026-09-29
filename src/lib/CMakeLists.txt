@@ -4,6 +4,7 @@ add_library(lib
     bytes.c
     slice.c
 
+    mem/align.c
     mem/arena.c
     mem/allocator.c
     mem/array.c

@@ -2,91 +2,27 @@
 #include <string.h>
 
 #include "lib/mem/allocator.h"
-#include <lib/mem/arena.h>
-#include <lib/mem/pool.h>
+#include "lib/mem/align.h"
+#include "lib/mem/arena.h"
+#include "lib/mem/pool.h"
 
-#include <lib/cli.h>
-
-static const U64 CHILDREN_PER_FRAME = 16;
-static const U64 ARENAS_PER_FRAME = 16;
-
-// frames
-static AllocatorFrame* frameAdd(Allocator* allocator, AllocatorFrame* next) {
-    AllocatorFrame* frame = arenaAlloc(allocator->arena, sizeof(AllocatorFrame));
-    frame->next = next;
-    frame->children = NULL;
-    frame->arenas = NULL;
-    return frame;
-}
-static U8* frameRelease(AllocatorFrame* frame) {
-    if (frame->children) {
-        PoolNode* node = frame->children->first;
-        while (node != NULL) {
-            allocatorRelease((Allocator*)poolData(node));
-            node = node->next;
-        }
-    }
-
-    if (frame->arenas) {
-        PoolNode* node = frame->arenas->first;
-        while (node != NULL) {
-            arenaRelease((Arena*)poolData(node));
-            node = node->next;
-        }
-    }
-
-    return (U8*)frame;
-}
-static U8* frameReleaseAll(Allocator* allocator) {
-    AllocatorFrame* frame = allocator->top;
-    U8* bottom;
-    do {
-        bottom = frameRelease(frame);
-        frame = frame->next;
-    } while (frame);
-    return bottom;
-}
-
-void allocatorPushFrame(Allocator* allocator) {
-    AllocatorFrame* frame = frameAdd(allocator, allocator->top);
-    allocator->top = frame;
-}
-void allocatorPopFrame(Allocator* allocator) {
-    allocator->arena->allocated = frameRelease(allocator->top) - allocator->arena->start;
-    allocator->top = allocator->top->next;
-    if (!allocator->top) {
-        allocator->top = frameAdd(allocator, NULL);
-    }
-}
+#include "lib/cli.h"
 
 // children
 Allocator* allocateChild(Allocator* allocator) {
-    if (!allocator->top->children) {
-        allocator->top->children = poolNew(allocator, sizeof(Allocator), CHILDREN_PER_FRAME);
+    if (!allocator->children) {
+        allocator->children = poolNew(allocator, sizeof(Allocator), 16);
     }
     Arena* arena = arenaNew(0);
-    Allocator* child = poolAdd(allocator->top->children);
+    Allocator* child = poolAdd(allocator->children);
     allocatorInit(child, arena);
     return child;
 }
 void deallocateChild(Allocator* allocator, Allocator* child) {
-    if (allocator->top->children) {
-        poolRemove(allocator->top->children, child);
-    }
-}
-
-// sub arenas
-Arena* allocateArena(Allocator* allocator, U64 size) {
-    if (!allocator->top->arenas) {
-        allocator->top->arenas = poolNew(allocator, sizeof(Arena), ARENAS_PER_FRAME);
-    }
-    Arena* arena = poolAdd(allocator->top->arenas);
-    arenaInit(arena, size);
-    return arena;
-}
-void deallocateArena(Allocator* allocator, Arena* arena) {
-    if (allocator->top->arenas) {
-        poolRemove(allocator->top->arenas, arena);
+    if (allocator->children) {
+        if (poolRemove(allocator->children, child)) {
+            allocatorRelease(child);
+        }
     }
 }
 
@@ -104,14 +40,35 @@ Allocator* allocatorNew() {
 }
 void allocatorInit(Allocator* allocator, Arena* arena) {
     allocator->arena = arena;
-    allocator->top = frameAdd(allocator, NULL);
+    allocator->children = NULL;
 }
 void allocatorReset(Allocator* allocator) {
-    allocator->arena->allocated = frameReleaseAll(allocator) - allocator->arena->start;
-    allocator->top = frameAdd(allocator, NULL);
+    // release children
+    if (allocator->children) {
+        PoolNode* node = allocator->children->first;
+        while (node != NULL) {
+            allocatorRelease((Allocator*)poolData(node));
+            node = node->next;
+        }
+    }
+
+    // reset arena
+    const U64 AREAN_SIZE = alignToWord(sizeof(Arena));
+    const U64 ALLOCATOR_SIZE = alignToWord(sizeof(Allocator));
+
+    if ((U8*)allocator->arena == allocator->arena->start) {
+        if ((U8*)allocator == allocator->arena->start + AREAN_SIZE) {
+            allocator->arena->allocated = AREAN_SIZE + ALLOCATOR_SIZE;
+        } else {
+            allocator->arena->allocated = AREAN_SIZE;
+        }
+    } else {
+        allocator->arena->allocated = 0;
+    }
+
+    allocator->children = NULL;
 }
 void allocatorRelease(Allocator* allocator) {
-    frameReleaseAll(allocator);
     arenaRelease(allocator->arena);
 }
 
@@ -119,41 +76,17 @@ void allocatorRelease(Allocator* allocator) {
 static void debug(Allocator* allocator, U8 level) {
     char indent[256];
     for (U8 i=0; i<level; i++) {
-        indent[i] = ' ';
+        indent[i] = '  ';
     }
     indent[level] = '\0';
 
-    PRINT(CC_MAGENTA, "%sAllocator, allocated: %lu\n", indent, allocator->arena->allocated);
-    U64 end = allocator->arena->allocated;
-    AllocatorFrame* frame = allocator->top;
-    while (frame) {
-        U64 start = (U8*)frame - allocator->arena->start;
-        U64 size = end - start - sizeof(AllocatorFrame);
-        PRINT(CC_MAGENTA, "%s  Frame, allocated: %lu, children: %lu, arenas: %lu\n",
-            indent,
-            size,
-            frame->children ? frame->children->count : 0,
-            frame->arenas ? frame->arenas->count : 0
-        );
-
-        if (frame->children) {
-            PoolNode* node = frame->children->first;
-            while (node != NULL) {
-                debug((Allocator*)poolData(node), level+4);
-                node = node->next;
-            }
+    PRINT(CC_MAGENTA, "%sAllocated: %lu, children: %lu\n", indent, allocator->arena->allocated, allocator->children ? allocator->children->count : 0);
+    if (allocator->children) {
+        PoolNode* node = allocator->children->first;
+        while (node != NULL) {
+            debug((Allocator*)poolData(node), level+1);
+            node = node->next;
         }
-
-        if (frame->arenas) {
-            PoolNode* node = frame->arenas->first;
-            while (node != NULL) {
-                PRINT(CC_MAGENTA, "%s    Arena, allocated: %lu\n", indent, ((Arena*)poolData(node))->allocated);
-                node = node->next;
-            }
-        }
-
-        end = start;
-        frame = frame->next;
     }
 }
 void allocatorDebug(Allocator* allocator) {

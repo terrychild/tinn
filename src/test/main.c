@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
     }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
-    expect("Final allocator check", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame));
+    expect("Final allocator check", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
 
     PRINT(CC_BRIGHT_WHITE, "Tests passed: ");
     if (expect_failed > 0) {

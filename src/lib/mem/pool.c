@@ -66,7 +66,7 @@ void* poolPush(Pool* pool, const void* item) {
     return address;
 }
 
-void poolRemove(Pool* pool, const void* item) {
+void* poolRemove(Pool* pool, const void* item) {
     PoolNode* node = pool->first;
     PoolNode* prev = NULL;
     while (node != NULL) {
@@ -79,11 +79,12 @@ void poolRemove(Pool* pool, const void* item) {
             node->next = pool->free;
             pool->free = node;
             pool->count--;
-            return;
+            return node;
         }
         prev = node;
         node = node->next;
     }
+    return NULL;
 }
 
 void* poolData(PoolNode* node) {

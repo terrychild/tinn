@@ -3,6 +3,7 @@
 #include "lib/macros.h"
 #include "lib/types.h"
 #include "lib/cli.h"
+#include "lib/mem/align.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
 #include "lib/mem/arena.h"
@@ -12,10 +13,12 @@ void testArray(Allocator* allocator) {
 
     Array* array = arrayNew(allocator, 1, 10);
     expect("allocated capacity (10 * U8)", array->capacity, 10);
+    expect("arena size", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Array) + alignToWord(10 * sizeof(U8)));
 
     array = arrayNew(allocator, sizeof(U64), 4);
     expect("allocated capacity (4 * U64)", array->capacity, 4);
     expect("empty", array->count, 0);
+    expect("arena size", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Array) + alignToWord(10 * sizeof(U8)) + sizeof(Array) + (4 * sizeof(U64)));
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     arrayPush(array, &nums[0]);
@@ -41,7 +44,7 @@ void testArray(Allocator* allocator) {
     arrayPush(array, &nums[8]);
     expect("added nine", array->count, 9);
     expect("capacity after nine", array->capacity, 16);
-    expect("arena size", array->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(AllocatorFrame) + sizeof(Array) + 16 + sizeof(Array) + (16 * 8));
+    expect("arena size", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Array) + alignToWord(10 * sizeof(U8)) + sizeof(Array) + (16 * sizeof(U64)));
 
     expect("get 4", *((U64*)arrayGet(array, 4)), nums[4]);
     expect("get 8", *((U64*)arrayGet(array, 8)), nums[8]);
@@ -73,5 +76,5 @@ void testArray(Allocator* allocator) {
     expect("set 1", *((U64*)arrayGet(array, 1)), nums[1]);
 
     allocatorDebug(allocator);
-    allocatorPopFrame(allocator);
+    allocatorReset(allocator);
 }
