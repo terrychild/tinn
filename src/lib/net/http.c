@@ -158,9 +158,9 @@ static HttpServerExchange* getExchange(ServerConnection* connection) {
         return (HttpServerExchange*)connection->context;
     }
 
-    HttpServerExchange* exchange = allocate(connection->exchange->scope, sizeof(ServerConnection));
+    HttpServerExchange* exchange = allocate(connection->exchange_scope, sizeof(ServerConnection));
     exchange->connection = connection;
-    exchange->scope = connection->exchange->scope;
+    exchange->scope = connection->exchange_scope;
     exchange->status = HTTP_RECEIVE_HEADER;
     exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
     exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));

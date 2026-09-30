@@ -33,13 +33,13 @@ struct ServerConnection {
     char address[INET6_ADDRSTRLEN];
     Server* server;
     Allocator* scope;
+    Allocator* exchange_scope;
     ServerExchange* exchange;
     void* context;
 };
 
 struct ServerExchange {
     ServerConnection* connection;
-    Allocator* scope;
     Buffer* buffer;
     Slice message;
 };

@@ -15,16 +15,14 @@ static void connectionClose(ServerConnection* connection, U8 flags);
 // connection functions
 ServerExchange* connectionStartExchange(ServerConnection* connection) {
     connectionEndExchange(connection);
-    Allocator* allocator = allocateChild(connection->scope, connection->server->exchange_size);
-    connection->exchange = allocate(allocator, sizeof(ServerExchange));
+    connection->exchange = allocate(connection->exchange_scope, sizeof(ServerExchange));
     connection->exchange->connection = connection;
-    connection->exchange->scope = allocator;
-    connection->exchange->buffer = bufNew(allocator, KB(4));
+    connection->exchange->buffer = bufNew(connection->exchange_scope, KB(4));
     return connection->exchange;
 }
 void connectionEndExchange(ServerConnection* connection) {
     if (connection->exchange) {
-        allocatorReset(connection->exchange->scope);
+        allocatorReset(connection->exchange_scope);
         connection->exchange = NULL;
     }
 }
@@ -145,6 +143,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
     } else {
         connection->server = server;
         connection->scope = allocateChild(server->scope, server->connection_size);
+        connection->exchange_scope = allocateChild(connection->scope, server->exchange_size);
         connection->exchange = NULL;
         connection->context = server->context;
 
