@@ -7,6 +7,7 @@
 #include "lib/sys/polling.h"
 
 typedef struct ServerConnection ServerConnection;
+typedef struct ServerExchange ServerExchange;
 
 typedef void (*ServerConnectFunc)(ServerConnection* connection);
 typedef void (*ServerDisconnectFunc)(ServerConnection* connection);
@@ -14,7 +15,7 @@ typedef void (*ServerReceiveFunc)(ServerConnection* connection, Slice data);
 typedef void (*ServerSentFunc)(ServerConnection* connection);
 
 typedef struct {
-    Allocator* allocator;
+    Allocator* scope;
     Polling* polling;
     int socket;
     Pool* connections;
@@ -29,15 +30,24 @@ struct ServerConnection {
     int socket;
     char address[INET6_ADDRSTRLEN];
     Server* server;
-    Allocator* allocator;
+    Allocator* scope;
+    ServerExchange* exchange;
+    void* context;
+};
+
+struct ServerExchange {
+    ServerConnection* connection;
+    Allocator* scope;
     Buffer* buffer;
     Slice message;
-    void* context;
 };
 
 Server* serverNew(Allocator* allocator, Polling* polling, const char* port);
 bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port);
 void serverClose(Server* server);
+
+ServerExchange* connectionStartExchange(ServerConnection* connection);
+void connectionEndExchange(ServerConnection* connection);
 
 void connectionReceive(ServerConnection* connection);
 void connectionSend(ServerConnection* connection, Slice message);

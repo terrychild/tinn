@@ -18,7 +18,6 @@ typedef enum {
 } HttpStatusCode;
 
 typedef enum {
-    HTTP_WAITING,
     HTTP_RECEIVE_HEADER,
     HTTP_RECEIVE_CONTENT,
     HTTP_SEND_HEADER,
@@ -48,11 +47,11 @@ typedef struct {
 
 typedef struct {
     ServerConnection* connection;
-    Allocator* allocator;
+    Allocator* scope;
     HttpServerConnectionStatus status;
     HttpServerRequest* request;
     HttpServerResponse* response;
-} HttpServerConnectionContext;
+} HttpServerExchange;
 
 Server* httpServer(Allocator* allocator, Polling* polling, const char* port);
 

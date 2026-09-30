@@ -73,11 +73,11 @@ static const char* validiateContentType(const char* content_type) {
 }
 
 // message generation
-static Slice generateResponseHeader(HttpServerConnectionContext* context) {
-    Buffer* header = bufNew(context->connection->allocator, KB(4));
+static Slice generateResponseHeader(HttpServerExchange* exchange) {
+    Buffer* header = bufNew(exchange->scope, KB(4));
 
     // status line
-    bufAppendFormat(header, "%s %d %s\r\n", context->response->version, context->response->status_code, status_text[context->response->status_code]);
+    bufAppendFormat(header, "%s %d %s\r\n", exchange->response->version, exchange->response->status_code, status_text[exchange->response->status_code]);
 
     // date header
 	bufAppendStr(header, "Date: ");
@@ -89,9 +89,9 @@ static Slice generateResponseHeader(HttpServerConnectionContext* context) {
 	bufAppendStr(header, "Server: Tinn\r\n");
 
 	// content headers
-    if (context->response->content_type != NULL || context->response->content.length > 0) {
-        bufAppendFormat(header, "Content-Type: %s\r\n", context->response->content_type);
-        bufAppendFormat(header, "Content-Length: %ld\r\n", context->response->content.length);
+    if (exchange->response->content_type != NULL || exchange->response->content.length > 0) {
+        bufAppendFormat(header, "Content-Type: %s\r\n", exchange->response->content_type);
+        bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content.length);
     }
 
 	// other headers
@@ -105,18 +105,18 @@ static Slice generateResponseHeader(HttpServerConnectionContext* context) {
     return bufAsSlice(header);
 }
 
-void httpServerSetStatus(HttpServerConnectionContext* context, HttpStatusCode status_code) {
-    context->response->status_code = status_code;
+void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_code) {
+    exchange->response->status_code = status_code;
 }
 
-void httpServerSetContent(HttpServerConnectionContext* context, char* content_type, Slice content) {
-    context->response->content_type = validiateContentType(content_type);
-    context->response->content = content;
+void httpServerSetContent(HttpServerExchange* exchange, char* content_type, Slice content) {
+    exchange->response->content_type = validiateContentType(content_type);
+    exchange->response->content = content;
 }
 
-void httpServerSend(HttpServerConnectionContext* context) {
-    context->status = HTTP_SEND_HEADER;
-    connectionSend(context->connection, generateResponseHeader(context));
+void httpServerSend(HttpServerExchange* exchange) {
+    exchange->status = HTTP_SEND_HEADER;
+    connectionSend(exchange->connection, generateResponseHeader(exchange));
 }
 
 #define ERROR_TEMPLATE \
@@ -143,40 +143,39 @@ void httpServerSend(HttpServerConnectionContext* context) {
 	"</body>" \
 	"</html>"
 
-void httpServerSendError(HttpServerConnectionContext* context, HttpStatusCode status_code) {
-    Buffer* content = bufNew(context->connection->allocator, KB(4));
+void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code) {
+    Buffer* content = bufNew(exchange->scope, KB(4));
     bufAppendFormat(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
-    httpServerSetStatus(context, status_code);
-    httpServerSetContent(context, "html", bufAsSlice(content));
-    httpServerSend(context);
+    httpServerSetStatus(exchange, status_code);
+    httpServerSetContent(exchange, "html", bufAsSlice(content));
+    httpServerSend(exchange);
 }
 
 // events
-static void onConnect(ServerConnection* connection) {
-    HttpServerConnectionContext* context = allocate(connection->allocator, sizeof(HttpServerConnectionContext));
-    context->connection = connection;
-    context->status = HTTP_WAITING;
-    context->request = NULL;
-    context->response = NULL;
+static HttpServerExchange* getExchange(ServerConnection* connection) {
+    if (connection->context != NULL) {
+        return (HttpServerExchange*)connection->context;
+    }
 
-    connection->context = context;
+    HttpServerExchange* exchange = allocate(connection->exchange->scope, sizeof(ServerConnection));
+    exchange->connection = connection;
+    exchange->scope = connection->exchange->scope;
+    exchange->status = HTTP_RECEIVE_HEADER;
+    exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
+    exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));
+    exchange->response->version = "HTTP/1.1";
+    //exchange->response.headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
+
+
+    connection->context = exchange;
+    return exchange;
 }
 
 static void onReceive(ServerConnection* connection, Slice data) {
-    HttpServerConnectionContext* context = (HttpServerConnectionContext*)connection->context;
+    HttpServerExchange* exchange = getExchange(connection);
 
-    if (context->status == HTTP_WAITING) {
-        context->allocator = allocateChild(connection->allocator);
-        context->request = allocate(connection->allocator, sizeof(HttpServerRequest));
-        context->response = allocate(connection->allocator, sizeof(HttpServerResponse));
-        context->response->version = "HTTP/1.1";
-        //context->response.headers = arrayNew(connection->allocator, sizeof(HttpHeader), 32);
-
-        context->status = HTTP_RECEIVE_HEADER;
-    }
-
-    if (context->status == HTTP_RECEIVE_HEADER) {
+    if (exchange->status == HTTP_RECEIVE_HEADER) {
         Slice header = sliceLeftStr(data, "\r\n\r\n");
         if (header.length > 0) {
             Tokeniser lines = sliceTokeniserStr(header, "\r\n");
@@ -184,52 +183,52 @@ static void onReceive(ServerConnection* connection, Slice data) {
             // request line
             Slice request_line = nextToken(&lines);
             Tokeniser words = sliceTokeniserStr(request_line, " ");
-            context->request->method = nextToken(&words);
-            context->request->target = nextToken(&words);
-            context->request->version = nextToken(&words);
+            exchange->request->method = nextToken(&words);
+            exchange->request->target = nextToken(&words);
+            exchange->request->version = nextToken(&words);
 
-            if (context->request->method.length == 0 || context->request->target.length == 0 || context->request->version.length == 0) {
-                httpServerSendError(context, HTTP_BAD_REQUEST);
+            if (exchange->request->method.length == 0 || exchange->request->target.length == 0 || exchange->request->version.length == 0) {
+                httpServerSendError(exchange, HTTP_BAD_REQUEST);
             } else {
                 DEBUG("Request line: %.*s %.*s %.*s",
-                    context->request->method.length, context->request->method.start,
-                    context->request->target.length, context->request->target.start,
-                    context->request->version.length, context->request->version.start
+                    exchange->request->method.length, exchange->request->method.start,
+                    exchange->request->target.length, exchange->request->target.start,
+                    exchange->request->version.length, exchange->request->version.start
                 );
 
                 // temp response
-                httpServerSetStatus(context, HTTP_OK);
-                httpServerSetContent(context, "html", sliceFromStr("Hello world!"));
-                httpServerSend(context);
+                httpServerSetStatus(exchange, HTTP_OK);
+                httpServerSetContent(exchange, "html", sliceFromStr("Hello world!"));
+                httpServerSend(exchange);
             }
         }
 
-    } else if (context->status == HTTP_RECEIVE_CONTENT) {
+    } else if (exchange->status == HTTP_RECEIVE_CONTENT) {
         // TODO: read content
-        httpServerSendError(context, HTTP_NOT_IMPLEMENTED);
+        httpServerSendError(exchange, HTTP_NOT_IMPLEMENTED);
     }
 }
 
 static void onSent(ServerConnection* connection) {
-    HttpServerConnectionContext* context = (HttpServerConnectionContext*)connection->context;
+    if (connection->context != NULL) {
+        HttpServerExchange* exchange = (HttpServerExchange*)connection->context;
 
-    if (context->status == HTTP_SEND_HEADER) {
-        context->status = HTTP_SEND_CONTENT;
-        connectionSend(connection, context->response->content);
+        if (exchange->status == HTTP_SEND_HEADER) {
+            exchange->status = HTTP_SEND_CONTENT;
+            connectionSend(connection, exchange->response->content);
 
-    } else if (context->status == HTTP_SEND_CONTENT) {
-        allocatorDebug(connection->server->allocator);
-        deallocateChild(connection->allocator, context->allocator);
-        allocatorDebug(connection->server->allocator);
-        context->status = HTTP_WAITING;
-        connectionSent(connection);
+        } else if (exchange->status == HTTP_SEND_CONTENT) {
+            allocatorDebug(connection->server->scope);
+            connectionSent(connection);
+            connection->context = NULL;
+            allocatorDebug(connection->server->scope);
+        }
     }
 }
 
 Server* httpServer(Allocator* allocator, Polling* polling, const char* port) {
     Server* server = serverNew(allocator, polling, port);
     if (server) {
-        server->onConnect = onConnect,
         server->onReceive = onReceive;
         server->onSent = onSent;
     }

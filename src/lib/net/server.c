@@ -13,13 +13,29 @@ static const U8 REMOVE_SOCKET = 2;
 static void connectionClose(ServerConnection* connection, U8 flags);
 
 // connection functions
+ServerExchange* connectionStartExchange(ServerConnection* connection) {
+    connectionEndExchange(connection);
+    Allocator* allocator = allocateChild(connection->scope);
+    connection->exchange = allocate(allocator, sizeof(ServerExchange));
+    connection->exchange->connection = connection;
+    connection->exchange->scope = allocator;
+    connection->exchange->buffer = bufNew(allocator, KB(4));
+    return connection->exchange;
+}
+void connectionEndExchange(ServerConnection* connection) {
+    if (connection->exchange) {
+        allocatorReset(connection->exchange->scope);
+        connection->exchange = NULL;
+    }
+}
+
 static ssize_t sendMessage(ServerConnection* connection) {
-    ssize_t sent = send(connection->socket, connection->message.start, connection->message.length, MSG_DONTWAIT);
+    ssize_t sent = send(connection->socket, connection->exchange->message.start, connection->exchange->message.length, MSG_DONTWAIT);
     if (sent >= 0) {
-        DEBUG("Sent: %ld/%ld bytes", sent, connection->message.length);
-        if ((size_t)sent < connection->message.length) {
-            connection->message.start += sent;
-            connection->message.length -= sent;
+        DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->message.length);
+        if ((size_t)sent < connection->exchange->message.length) {
+            connection->exchange->message.start += sent;
+            connection->exchange->message.length -= sent;
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
@@ -33,13 +49,16 @@ static ssize_t sendMessage(ServerConnection* connection) {
 }
 
 void connectionSend(ServerConnection* connection, Slice message) {
-    connection->message = message;
+    if (!connection->exchange) {
+        connectionStartExchange(connection);
+    }
+    connection->exchange->message = message;
     if (sendMessage(connection) < 0) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
 }
 void connectionSent(ServerConnection* connection) {
-    bufReset(connection->buffer);
+    connectionEndExchange(connection);
     pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
 
@@ -56,14 +75,17 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
         connectionClose(connection, CLEAN_POOL);
         *close = true;
     } else {
+        if (!connection->exchange) {
+            connectionStartExchange(connection);
+        }
         if (pfd->revents & POLLIN) {
-            BufferSpace wrtie_buf = bufReadyWrite(connection->buffer, KB(4));
+            BufferSpace wrtie_buf = bufReadyWrite(connection->exchange->buffer, KB(1));
             ssize_t recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
             if (recvied > 0) {
                 DEBUG("Recived: %ld bytes", recvied);
-                bufConfirmWrite(connection->buffer, recvied);
+                bufConfirmWrite(connection->exchange->buffer, recvied);
                 if (connection->server->onReceive) {
-                    connection->server->onReceive(connection, bufAsSlice(connection->buffer));
+                    connection->server->onReceive(connection, bufAsSlice(connection->exchange->buffer));
                 }
             } else {
                 if (recvied < 0) {
@@ -88,7 +110,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
     if (connection->server->onDisconnect) {
         connection->server->onDisconnect(connection);
     }
-    deallocateChild(connection->server->allocator, connection->allocator);
+    deallocateChild(connection->server->scope, connection->scope);
     if (flags & CLEAN_POOL) {
         poolRemove(connection->server->connections, connection);
     }
@@ -96,7 +118,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
         pollingRemove(connection->server->polling, connection->socket);
     }
     LOG("Connection from %s (%d) closed", connection->address, connection->socket);
-    allocatorDebug(connection->server->allocator);
+    allocatorDebug(connection->server->scope);
 }
 static void connectionsCloseAll(Server* server) {
     PoolNode* node = server->connections->first;
@@ -122,8 +144,8 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         poolRemove(server->connections, connection);
     } else {
         connection->server = server;
-        connection->allocator = allocateChild(server->allocator);
-        connection->buffer = bufNew(connection->allocator, KB(8));
+        connection->scope = allocateChild(server->scope);
+        connection->exchange = NULL;
         connection->context = server->context;
 
         if (server->onConnect) {
@@ -136,7 +158,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         });
 
         LOG("Connection from %s (%d) opened", connection->address, connection->socket);
-        allocatorDebug(server->allocator);
+        allocatorDebug(server->scope);
     }
 }
 
@@ -155,7 +177,7 @@ Server* serverNew(Allocator* allocator, Polling* polling, const char* port) {
     return server;
 }
 bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port) {
-    server->allocator = allocator;
+    server->scope = allocator;
     server->polling = polling;
 
     DEBUG("Opening server socket on port %s", port);
@@ -169,7 +191,7 @@ bool serverInit(Server* server, Allocator* allocator, Polling* polling, const ch
         .context = server
     });
 
-    server->connections = poolNew(allocator, sizeof(ServerConnection), 256);
+    server->connections = poolNew(server->scope, sizeof(ServerConnection), 256);
 
     server->onConnect = NULL;
     server->onDisconnect = NULL;

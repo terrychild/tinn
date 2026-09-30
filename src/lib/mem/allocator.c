@@ -11,7 +11,7 @@
 // children
 Allocator* allocateChild(Allocator* allocator) {
     if (!allocator->children) {
-        allocator->children = poolNew(allocator, sizeof(Allocator), 16);
+        allocator->children = poolNew(allocator, sizeof(Allocator), 8);
     }
     Arena* arena = arenaNew(0);
     Allocator* child = poolAdd(allocator->children);
@@ -76,7 +76,7 @@ void allocatorRelease(Allocator* allocator) {
 static void debug(Allocator* allocator, U8 level) {
     char indent[256];
     for (U8 i=0; i<level; i++) {
-        indent[i] = '  ';
+        indent[i] = ' ';
     }
     indent[level] = '\0';
 
@@ -84,7 +84,7 @@ static void debug(Allocator* allocator, U8 level) {
     if (allocator->children) {
         PoolNode* node = allocator->children->first;
         while (node != NULL) {
-            debug((Allocator*)poolData(node), level+1);
+            debug((Allocator*)poolData(node), level+2);
             node = node->next;
         }
     }
