@@ -15,7 +15,7 @@ int host(int argc, char* argv[]) {
     LOG("Tinn Web Server %s (%s)", VERSION, BUILD_DATE);
 
     // resources
-    Allocator* allocator = allocatorNew();
+    Allocator* allocator = allocatorNew(0);
     Polling* polling = pollingNew(allocator, 32);
 
     // servers

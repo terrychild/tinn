@@ -15,7 +15,7 @@ static void connectionClose(ServerConnection* connection, U8 flags);
 // connection functions
 ServerExchange* connectionStartExchange(ServerConnection* connection) {
     connectionEndExchange(connection);
-    Allocator* allocator = allocateChild(connection->scope);
+    Allocator* allocator = allocateChild(connection->scope, connection->server->exchange_size);
     connection->exchange = allocate(allocator, sizeof(ServerExchange));
     connection->exchange->connection = connection;
     connection->exchange->scope = allocator;
@@ -144,7 +144,7 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         poolRemove(server->connections, connection);
     } else {
         connection->server = server;
-        connection->scope = allocateChild(server->scope);
+        connection->scope = allocateChild(server->scope, server->connection_size);
         connection->exchange = NULL;
         connection->context = server->context;
 
@@ -192,6 +192,9 @@ bool serverInit(Server* server, Allocator* allocator, Polling* polling, const ch
     });
 
     server->connections = poolNew(server->scope, sizeof(ServerConnection), 256);
+
+    server->connection_size = MB(1);
+    server->exchange_size = MB(100);
 
     server->onConnect = NULL;
     server->onDisconnect = NULL;

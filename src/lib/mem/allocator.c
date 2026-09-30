@@ -9,11 +9,11 @@
 #include "lib/cli.h"
 
 // children
-Allocator* allocateChild(Allocator* allocator) {
+Allocator* allocateChild(Allocator* allocator, U64 size) {
     if (!allocator->children) {
         allocator->children = poolNew(allocator, sizeof(Allocator), 8);
     }
-    Arena* arena = arenaNew(0);
+    Arena* arena = arenaNew(size);
     Allocator* child = poolAdd(allocator->children);
     allocatorInit(child, arena);
     return child;
@@ -32,8 +32,8 @@ void* allocate(Allocator* allocator, U64 size) {
 }
 
 // Allocator
-Allocator* allocatorNew() {
-    Arena* arena = arenaNew(0);
+Allocator* allocatorNew(U64 size) {
+    Arena* arena = arenaNew(size);
     Allocator* allocator = arenaAlloc(arena, sizeof(Allocator));
     allocatorInit(allocator, arena);
     return allocator;

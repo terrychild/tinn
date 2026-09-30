@@ -19,6 +19,8 @@ typedef struct {
     Polling* polling;
     int socket;
     Pool* connections;
+    U64 connection_size;
+    U64 exchange_size;
     ServerConnectFunc onConnect;
     ServerDisconnectFunc onDisconnect;
     ServerReceiveFunc onReceive;

@@ -15,7 +15,7 @@ void testAllocator(Allocator* allocator) {
     expect("allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
     allocatorDebug(allocator);
 
-    Allocator* child = allocateChild(allocator);
+    Allocator* child = allocateChild(allocator, 0);
     expect("add child (parent allocated)", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Pool) + (16 * (sizeof(PoolNode) + sizeof(Allocator))));
     expect("add child (count)", allocator->children->count, 1);
     expect("add child (child allocated)", child->arena->allocated, sizeof(Arena));

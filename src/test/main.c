@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 
     expect_passed = 0;
     expect_failed = 0;
-    Allocator* allocator = allocatorNew();
+    Allocator* allocator = allocatorNew(0);
 
     if (all || strcmp(argv[1], "types") == 0) {
         testTypes();
