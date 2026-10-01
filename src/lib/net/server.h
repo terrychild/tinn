@@ -40,8 +40,8 @@ struct ServerConnection {
 
 struct ServerExchange {
     ServerConnection* connection;
-    Buffer* buffer;
-    Slice message;
+    Buffer* request;
+    Slice response;
 };
 
 Server* serverNew(Allocator* allocator, Polling* polling, const char* port);

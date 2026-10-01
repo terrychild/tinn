@@ -17,7 +17,7 @@ ServerExchange* connectionStartExchange(ServerConnection* connection) {
     connectionEndExchange(connection);
     connection->exchange = allocate(connection->exchange_scope, sizeof(ServerExchange));
     connection->exchange->connection = connection;
-    connection->exchange->buffer = bufNew(connection->exchange_scope, KB(4));
+    connection->exchange->request = bufNew(connection->exchange_scope, KB(4));
     return connection->exchange;
 }
 void connectionEndExchange(ServerConnection* connection) {
@@ -28,12 +28,12 @@ void connectionEndExchange(ServerConnection* connection) {
 }
 
 static ssize_t sendMessage(ServerConnection* connection) {
-    ssize_t sent = send(connection->socket, connection->exchange->message.start, connection->exchange->message.length, MSG_DONTWAIT);
+    ssize_t sent = send(connection->socket, connection->exchange->response.start, connection->exchange->response.length, MSG_DONTWAIT);
     if (sent >= 0) {
-        DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->message.length);
-        if ((size_t)sent < connection->exchange->message.length) {
-            connection->exchange->message.start += sent;
-            connection->exchange->message.length -= sent;
+        DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->response.length);
+        if ((size_t)sent < connection->exchange->response.length) {
+            connection->exchange->response.start += sent;
+            connection->exchange->response.length -= sent;
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
@@ -46,11 +46,11 @@ static ssize_t sendMessage(ServerConnection* connection) {
     return sent;
 }
 
-void connectionSend(ServerConnection* connection, Slice message) {
+void connectionSend(ServerConnection* connection, Slice response) {
     if (!connection->exchange) {
         connectionStartExchange(connection);
     }
-    connection->exchange->message = message;
+    connection->exchange->response = response;
     if (sendMessage(connection) < 0) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
@@ -77,13 +77,13 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
             connectionStartExchange(connection);
         }
         if (pfd->revents & POLLIN) {
-            BufferSpace wrtie_buf = bufReadyWrite(connection->exchange->buffer, KB(1));
+            BufferSpace wrtie_buf = bufReadyWrite(connection->exchange->request, KB(1));
             ssize_t recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
             if (recvied > 0) {
                 DEBUG("Recived: %ld bytes", recvied);
-                bufConfirmWrite(connection->exchange->buffer, recvied);
+                bufConfirmWrite(connection->exchange->request, recvied);
                 if (connection->server->onReceive) {
-                    connection->server->onReceive(connection, bufAsSlice(connection->exchange->buffer));
+                    connection->server->onReceive(connection, bufAsSlice(connection->exchange->request));
                 }
             } else {
                 if (recvied < 0) {
