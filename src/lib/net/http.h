@@ -1,6 +1,10 @@
 #ifndef LIB_NET_HTTP_H
 #define LIB_NET_HTTP_H
 
+#define __USE_XOPEN
+
+#include <time.h>
+
 #include "lib/types.h"
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
@@ -33,7 +37,9 @@ typedef struct {
     Slice method;
     Slice target;
     Slice version;
-    Array* headers;
+    Slice host;
+    Slice connection;
+    time_t if_modified_since;
     Slice content;
 } HttpServerRequest;
 

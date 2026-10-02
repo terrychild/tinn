@@ -8,6 +8,8 @@ Slice sliceFromStr(const char* str);
 
 I8 sliceCmp(const Slice a, const Slice b);
 I8 sliceCmpStr(const Slice a, const char* b);
+bool sliceIs(const Slice a, const Slice b);
+bool sliceIsStr(const Slice a, const char* b);
 
 Slice slice(const Slice source, U64 start, U64 length);
 
@@ -15,6 +17,8 @@ Slice sliceLeft(const Slice source, const Slice search);
 Slice sliceLeftStr(const Slice source, const char* search);
 Slice sliceRight(const Slice source, const Slice search);
 Slice sliceRightStr(const Slice source, const char* search);
+
+Slice sliceTrim(const Slice source);
 
 typedef struct {
     Slice delim;

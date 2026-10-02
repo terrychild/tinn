@@ -34,6 +34,12 @@ I8 sliceCmp(const Slice a, const Slice b) {
 I8 sliceCmpStr(const Slice a, const char* b) {
     return sliceCmp(a, (Slice){.length = strlen(b), .start = (const U8*)b});
 }
+bool sliceIs(const Slice a, const Slice b) {
+    return sliceCmp(a, b) == 0;
+}
+bool sliceIsStr(const Slice a, const char* b) {
+    return sliceCmpStr(a, b) == 0;
+}
 
 Slice slice(Slice slice, U64 start, U64 length) {
     if (start > slice.length) {
@@ -120,6 +126,21 @@ Slice sliceRight(const Slice source, const Slice search) {
 }
 Slice sliceRightStr(const Slice source, const char* search) {
     return sliceRight(source, sliceFromStr(search));
+}
+
+Slice sliceTrim(const Slice source) {
+    U64 start = 0;
+    while (start < source.length && (source.start[start] == ' ' || source.start[start] == '\t')) {
+        start++;
+    }
+    U64 end = source.length;
+    while (end > start && (source.start[end - 1] == ' ' || source.start[end - 1] == '\t')) {
+        end--;
+    }
+    return (Slice) {
+        .length = end - start,
+        .start = source.start + start
+    };
 }
 
 Tokeniser sliceTokeniser(const Slice source, const Slice delim) {

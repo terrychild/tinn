@@ -12,7 +12,7 @@ typedef struct ServerExchange ServerExchange;
 typedef void (*ServerConnectFunc)(ServerConnection* connection);
 typedef void (*ServerDisconnectFunc)(ServerConnection* connection);
 typedef void (*ServerReceiveFunc)(ServerConnection* connection, Slice data);
-typedef void (*ServerSentFunc)(ServerConnection* connection);
+typedef void (*ServerSentFunc)(ServerConnection* connection, bool* close);
 
 typedef struct {
     Allocator* scope;
@@ -53,6 +53,6 @@ void connectionEndExchange(ServerConnection* connection);
 
 void connectionReceive(ServerConnection* connection);
 void connectionSend(ServerConnection* connection, Slice message);
-void connectionSent(ServerConnection* connection);
+void connectionSent(ServerConnection* connection, bool* close);
 
 #endif

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <time.h>
 
 #include "lib/net/http.h"
 #include "lib/macros.h"
@@ -28,7 +27,7 @@ static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&seconds));
 	return buf;
 }
-/*static time_t fromImfDate(const char* date, size_t len) {
+static time_t fromImfDate(const char* date, size_t len) {
 	struct tm tm;
 	memset(&tm, 0, sizeof(tm));
 	if (strptime(date, "%a, %d %b %Y %H:%M:%S GMT", &tm) == NULL) {
@@ -36,7 +35,7 @@ static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 		return 0;
 	}
 	return mktime(&tm);
-}*/
+}
 
 static const char* validiateContentType(const char* content_type) {
 	if (content_type != NULL && strlen(content_type) > 0) {
@@ -196,6 +195,34 @@ static void onReceive(ServerConnection* connection, Slice data) {
                     exchange->request->version.length, exchange->request->version.start
                 );
 
+                // headers
+                Slice line = nextToken(&lines);
+                while (line.length > 0) {
+                    Slice name = sliceLeftStr(line, ":");
+                    Slice value = sliceTrim(sliceRightStr(line, ":"));
+                    //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
+
+                    if (sliceIsStr(name, "Host")) {
+						exchange->request->host = value;
+					} else if (sliceIsStr(name, "Connection")) {
+						exchange->request->connection = value;
+					} else if (sliceIsStr(name, "If-Modified-Since")) {
+						exchange->request->if_modified_since = fromImfDate((const char*)value.start, value.length);
+					}
+
+                    line = nextToken(&lines);
+                }
+
+                if (exchange->request->connection.length==0) {
+					if (sliceIsStr(exchange->request->version, "HTTP/1.0")) {
+						exchange->request->connection = sliceFromStr("close");
+					} else {
+						exchange->request->connection = sliceFromStr("keep-alive");
+					}
+				}
+
+                DEBUG("Connection: %.*s", exchange->request->connection.length, exchange->request->connection.start);
+
                 // temp response
                 httpServerSetStatus(exchange, HTTP_OK);
                 httpServerSetContent(exchange, "html", sliceFromStr("Hello world!"));
@@ -209,7 +236,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
     }
 }
 
-static void onSent(ServerConnection* connection) {
+static void onSent(ServerConnection* connection, bool* close) {
     if (connection->context != NULL) {
         HttpServerExchange* exchange = (HttpServerExchange*)connection->context;
 
@@ -218,9 +245,12 @@ static void onSent(ServerConnection* connection) {
             connectionSend(connection, exchange->response->content);
 
         } else if (exchange->status == HTTP_SEND_CONTENT) {
-            allocatorDebug(connection->server->scope);
-            connectionSent(connection);
-            connection->context = NULL;
+            if (sliceIsStr(exchange->request->connection, "close")) {
+                *close = true;
+            } else {
+                connectionSent(connection, close);
+                connection->context = NULL;
+            }
             allocatorDebug(connection->server->scope);
         }
     }

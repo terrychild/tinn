@@ -27,7 +27,7 @@ void connectionEndExchange(ServerConnection* connection) {
     }
 }
 
-static ssize_t sendMessage(ServerConnection* connection) {
+static ssize_t sendMessage(ServerConnection* connection, bool* close) {
     ssize_t sent = send(connection->socket, connection->exchange->response.start, connection->exchange->response.length, MSG_DONTWAIT);
     if (sent >= 0) {
         DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->response.length);
@@ -37,7 +37,7 @@ static ssize_t sendMessage(ServerConnection* connection) {
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
-                connection->server->onSent(connection);
+                connection->server->onSent(connection, close);
             }
         }
     } else {
@@ -51,11 +51,12 @@ void connectionSend(ServerConnection* connection, Slice response) {
         connectionStartExchange(connection);
     }
     connection->exchange->response = response;
-    if (sendMessage(connection) < 0) {
+    bool and_close = false;
+    if (sendMessage(connection, &and_close) < 0 || and_close) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
 }
-void connectionSent(ServerConnection* connection) {
+void connectionSent(ServerConnection* connection, bool* close) {
     connectionEndExchange(connection);
     pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
@@ -96,7 +97,8 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
             }
 
         } else if (pfd->revents & POLLOUT) {
-            if (sendMessage(connection) < 0) {
+            bool and_close = false;
+            if (sendMessage(connection, &and_close) < 0 || and_close) {
                 connectionClose(connection, CLEAN_POOL);
                 *close = true;
             }
