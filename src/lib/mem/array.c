@@ -25,7 +25,7 @@ void arrayReset(Array* array) {
     array->count = 0;
 }
 
-void* arrayAdd(Array* array) {
+static void* add(Array* array) {
     if (array->count == array->capacity) {
         U64 size = array->capacity * array->item_size;
         if (array->arena_allocated == array->arena->allocated) {
@@ -43,9 +43,13 @@ void* arrayAdd(Array* array) {
     array->count++;
     return address;
 }
-
+void* arrayAdd(Array* array) {
+    U8* address = add(array);
+    memset(address, 0, array->item_size);
+    return address;
+}
 void* arrayPush(Array* array, const void* item) {
-    U8* address = arrayAdd(array);
+    U8* address = add(array);
     memcpy(address, item, array->item_size);
     return address;
 }

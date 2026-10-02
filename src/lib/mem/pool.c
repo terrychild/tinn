@@ -45,7 +45,7 @@ void poolReset(Pool* pool) {
     pool->count = 0;
 }
 
-void* poolAdd(Pool* pool) {
+static void* add(Pool* pool) {
     if (pool->free == NULL) {
         buildFreeList(pool, arenaAlloc(pool->arena, pool->capacity * pool->node_size), pool->capacity);
         pool->capacity *= 2;
@@ -59,9 +59,13 @@ void* poolAdd(Pool* pool) {
 
     return poolData(node);
 }
-
+void* poolAdd(Pool* pool) {
+    void* address = add(pool);
+    memset(address, 0, pool->node_size - sizeof(PoolNode*));
+    return address;
+}
 void* poolPush(Pool* pool, const void* item) {
-    void* address = poolAdd(pool);
+    void* address = add(pool);
     memcpy(address, item, pool->node_size - sizeof(PoolNode*));
     return address;
 }
