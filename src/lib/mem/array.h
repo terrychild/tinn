@@ -16,6 +16,7 @@ Array* arrayNew(Allocator* allocator, U64 item_size, U64 capacity);
 void arrayInit(Array* array, Arena* arena, U64 item_size, U64 capacity);
 void arrayReset(Array* array);
 
+void* arrayAdd(Array* array);
 void* arrayPush(Array* array, const void* item);
 void* arrayPop(Array* array);
 void arraySet(Array* array, U64 index, const void* item);

@@ -12,8 +12,9 @@
 
 static const char* status_text[] = {
     [HTTP_OK] = "OK",
-    [HTTP_MOVED_PERMANENTLY] = "Moved Permanently",
+    [HTTP_NO_CONTENT] = "No Content",
     [HTTP_NOT_MODIFIED] = "Not Modified",
+    [HTTP_PERMANENT_REDIRECT] = "Permanent Redirect",
     [HTTP_BAD_REQUEST] = "Bad Request",
     [HTTP_NOT_FOUND] = "Not Found",
     [HTTP_METHOD_NOT_ALLOWED] = "Method Not Allowed",
@@ -37,7 +38,7 @@ static time_t fromImfDate(const char* date, size_t len) {
 	return mktime(&tm);
 }
 
-static const char* validiateContentType(const char* content_type) {
+static const char* validateContentType(const char* content_type) {
 	if (content_type != NULL && strlen(content_type) > 0) {
 		if (content_type[0] == '.') {
 			content_type += 1;
@@ -75,6 +76,11 @@ static const char* validiateContentType(const char* content_type) {
 static Slice generateResponseHeader(HttpServerExchange* exchange) {
     Buffer* header = bufNew(exchange->scope, KB(4));
 
+    // default status code
+    if (exchange->response->status_code == 0) {
+        exchange->response->status_code = exchange->response->content.length == 0 ? HTTP_NO_CONTENT : HTTP_OK;
+    }
+
     // status line
     bufAppendFormat(header, "%s %d %s\r\n", exchange->response->version, exchange->response->status_code, status_text[exchange->response->status_code]);
 
@@ -88,15 +94,18 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 	bufAppendStr(header, "Server: Tinn\r\n");
 
 	// content headers
-    if (exchange->response->content_type != NULL || exchange->response->content.length > 0) {
-        bufAppendFormat(header, "Content-Type: %s\r\n", exchange->response->content_type);
+    if (exchange->response->status_code != HTTP_NO_CONTENT) {
         bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content.length);
+        if (exchange->response->content_type) {
+            bufAppendFormat(header, "Content-Type: %s\r\n", exchange->response->content_type);
+        }
     }
 
 	// other headers
-	/*for (size_t i=0; i<response->headers_count; i++) {
-		buf_append_format(response->headers, "%s: %s\r\n", response->header_names[i], response->header_values[i]);
-	}*/
+	for (size_t i=0; i<exchange->response->headers->count; i++) {
+        HttpHeader* kvp = (HttpHeader*)arrayGet(exchange->response->headers, i);
+		bufAppendFormat(header, "%.*s: %.*s\r\n", kvp->name.length, kvp->name.start, kvp->value.length, kvp->value.start);
+	}
 
 	// close with empty line
 	bufAppendStr(header, "\r\n");
@@ -109,8 +118,14 @@ void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_cod
 }
 
 void httpServerSetContent(HttpServerExchange* exchange, char* content_type, Slice content) {
-    exchange->response->content_type = validiateContentType(content_type);
+    exchange->response->content_type = validateContentType(content_type);
     exchange->response->content = content;
+}
+
+void httpServerAddHeader(HttpServerExchange* exchange, Slice name, Slice value) {
+    HttpHeader* header = arrayAdd(exchange->response->headers);
+    header->name = name;
+    header->value = value;
 }
 
 void httpServerSend(HttpServerExchange* exchange) {
@@ -151,6 +166,12 @@ void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_cod
     httpServerSend(exchange);
 }
 
+void httpServerRedirect(HttpServerExchange* exchange, const char* location) {
+    httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
+    httpServerAddHeader(exchange, sliceFromStr("Location"), sliceFromStr(location));
+    httpServerSend(exchange);
+}
+
 // events
 static HttpServerExchange* getExchange(ServerConnection* connection) {
     if (connection->context != NULL) {
@@ -164,8 +185,7 @@ static HttpServerExchange* getExchange(ServerConnection* connection) {
     exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
     exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));
     exchange->response->version = "HTTP/1.1";
-    //exchange->response.headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
-
+    exchange->response->headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
 
     connection->context = exchange;
     return exchange;
@@ -224,9 +244,13 @@ static void onReceive(ServerConnection* connection, Slice data) {
                 DEBUG("Connection: %.*s", exchange->request->connection.length, exchange->request->connection.start);
 
                 // temp response
-                httpServerSetStatus(exchange, HTTP_OK);
-                httpServerSetContent(exchange, "html", sliceFromStr("Hello world!"));
-                httpServerSend(exchange);
+                if (sliceIsStr(exchange->request->target, "/")) {
+                    httpServerRedirect(exchange, "/index.html");
+                } else {
+                    httpServerSetStatus(exchange, HTTP_OK);
+                    httpServerSetContent(exchange, "html", sliceFromStr("<html><body><h1>Hello world!</h1></body></html>"));
+                    httpServerSend(exchange);
+                }
             }
         }
 
