@@ -94,7 +94,7 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 	bufAppendStr(header, "Server: Tinn\r\n");
 
 	// content headers
-    if (exchange->response->status_code != HTTP_NO_CONTENT) {
+    if (exchange->response->status_code != HTTP_NO_CONTENT && exchange->response->status_code != HTTP_NOT_MODIFIED) {
         bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content.length);
         if (exchange->response->content_type) {
             bufAppendFormat(header, "Content-Type: %s\r\n", exchange->response->content_type);
