@@ -4,16 +4,21 @@
 
 #include "lib/cli.h"
 #include "lib/log.h"
-#include "version.h"
-#include "help.h"
-#include "static.h"
 #include "lib/mem/allocator.h"
 #include "lib/net/echo.h"
 #include "lib/net/http.h"
 
+#include "version.h"
+#include "help.h"
+#include "static.h"
+#include "blog.h"
 
-void tinnWebServer(HttpServerExchange* exchange) {
-    if (staticFileServer(exchange)) {
+void tinnWebServer(HttpServerExchange* exchange, void* context) {
+    Blog* blog = (Blog*)context;
+    if (blogContent(blog, exchange)) {
+        return;
+    }
+    if (staticContent(exchange)) {
         return;
     }
 
@@ -35,6 +40,10 @@ int host(int argc, char* argv[]) {
     // resources
     Allocator* allocator = allocatorNew(0);
     Polling* polling = pollingNew(allocator, 32);
+    Blog* blog = blogNew(allocator);
+    if (!blog) {
+        return EXIT_FAILURE;
+    }
 
     // servers
     if (cliArg(argc, argv, "--echo")) {
@@ -45,6 +54,7 @@ int host(int argc, char* argv[]) {
     HttpServer* http_server = httpServer(allocator, polling, cliValue(argc, argv, "--port", "80"));
     if (http_server) {
         http_server->onRequest = tinnWebServer;
+        http_server->context = blog;
     } else {
         return EXIT_FAILURE;
     }

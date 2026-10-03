@@ -210,11 +210,11 @@ static void onReceive(ServerConnection* connection, Slice data) {
     if (exchange->status == HTTP_RECEIVE_HEADER) {
         Slice header = sliceLeftStr(data, "\r\n\r\n");
         if (header.length > 0) {
-            Tokeniser lines = sliceTokeniserStr(header, "\r\n");
+            Tokeniser lines = sliceTokeniserStr(header, "\r\n", false);
 
             // request line
             Slice request_line = nextToken(&lines);
-            Tokeniser words = sliceTokeniserStr(request_line, " ");
+            Tokeniser words = sliceTokeniserStr(request_line, " ", false);
             exchange->request->method = nextToken(&words);
             exchange->request->target = urlParseOrigin(connection->exchange_scope, nextToken(&words));
             exchange->request->version = nextToken(&words);
@@ -234,7 +234,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
 
                 // headers
                 Slice line = nextToken(&lines);
-                while (line.length > 0) {
+                while (line.start) {
                     Slice name = sliceToLowerCase(sliceLeftStr(line, ":"));
                     Slice value = sliceTrim(sliceRightStr(line, ":"));
                     //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
@@ -260,7 +260,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
 
                 // respond
                 if (http_server->onRequest) {
-                    http_server->onRequest(exchange);
+                    http_server->onRequest(exchange, http_server->context);
                 } else {
                     httpServerSetStatus(exchange, HTTP_NO_CONTENT);
                     httpServerSend(exchange);

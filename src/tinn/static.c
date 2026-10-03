@@ -10,7 +10,7 @@
 #include "lib/mem/slice.h"
 #include "lib/net/url.h"
 
-bool staticFileServer(HttpServerExchange* exchange) {
+bool staticContent(HttpServerExchange* exchange) {
     // build a local path
     URL target = exchange->request->target;
     char local_path[1 + target.path.length + 11 + 1]; // 1 for leading dot, 11 for possible /index.html, 1 for null terminator

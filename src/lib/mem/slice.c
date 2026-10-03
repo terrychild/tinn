@@ -15,6 +15,12 @@ Slice sliceFromStr(const char* str) {
         .start = (const U8*)str
     };
 }
+Slice sliceEmpty() {
+    return (Slice) {
+        .length = 0,
+        .start = NULL
+    };
+}
 
 I8 sliceCmp(const Slice a, const Slice b) {
     for (U64 i=0; i<a.length; i++) {
@@ -66,7 +72,7 @@ static void find(const Slice source, const Slice search, U64 start, U64 end, int
     }
     U64 i = start;
     while(true) {
-        if (sliceCmp((Slice){.length = search.length, .start = source.start + i}, search)==0) {
+        if (sliceCmp(slice(source, i, i + search.length), search)==0) {
             *found = true;
             *pos = i;
             return;
@@ -94,15 +100,9 @@ static Slice left(const Slice source, const Slice search, bool backwards) {
         findFirst(source, search, &found, &pos);
     }
     if (found) {
-        return (Slice) {
-            .length = pos,
-            .start = source.start
-        };
+        return slice(source, 0, pos);
     } else {
-        return (Slice) {
-            .length = 0,
-            .start = NULL
-        };
+        return sliceEmpty();
     }
 }
 Slice sliceLeft(const Slice source, const Slice search) {
@@ -127,15 +127,9 @@ static Slice right(const Slice source, const Slice search, bool backwards) {
         findFirst(source, search, &found, &pos);
     }
     if (found) {
-        return (Slice) {
-            .length = source.length - pos - search.length,
-            .start = source.start + pos + search.length
-        };
+        return slice(source, pos, -1);
     } else {
-        return (Slice) {
-            .length = 0,
-            .start = NULL
-        };
+        return sliceEmpty();
     }
 }
 Slice sliceRight(const Slice source, const Slice search) {
@@ -160,10 +154,7 @@ Slice sliceTrim(const Slice source) {
     while (end > start && (source.start[end - 1] == ' ' || source.start[end - 1] == '\t')) {
         end--;
     }
-    return (Slice) {
-        .length = end - start,
-        .start = source.start + start
-    };
+    return slice(source, start, end);
 }
 
 Slice sliceToLowerCase(Slice source) {
@@ -183,16 +174,18 @@ Slice sliceToUpperCase(Slice source) {
     return source;
 }
 
-Tokeniser sliceTokeniser(const Slice source, const Slice delim) {
+Tokeniser sliceTokeniser(const Slice source, const Slice delim, bool greedy) {
     return (Tokeniser) {
+        .slice = source,
         .delim = delim,
-        .slice = source
+        .greedy = greedy
     };
 }
-Tokeniser sliceTokeniserStr(const Slice source, const char* delim) {
+Tokeniser sliceTokeniserStr(const Slice source, const char* delim, bool greedy) {
     return (Tokeniser) {
+        .slice = source,
         .delim = sliceFromStr(delim),
-        .slice = source
+        .greedy = greedy
     };
 }
 Slice nextToken(Tokeniser* tokeniser) {
@@ -200,21 +193,18 @@ Slice nextToken(Tokeniser* tokeniser) {
     U64 pos;
     findFirst(tokeniser->slice, tokeniser->delim, &found, &pos);
     if (found) {
-        Slice rv = {
-            .length = pos,
-            .start = tokeniser->slice.start
-        };
-        tokeniser->slice = (Slice) {
-            .length = tokeniser->slice.length - pos - tokeniser->delim.length,
-            .start = tokeniser->slice.start + pos + tokeniser->delim.length
-        };
+        U64 next_pos = pos + tokeniser->delim.length;
+        if (tokeniser->greedy) {
+            while (sliceIs(slice(tokeniser->slice, next_pos, next_pos + tokeniser->delim.length), tokeniser->delim)) {
+                next_pos += tokeniser->delim.length;
+            }
+        }
+        Slice rv = slice(tokeniser->slice, 0, pos);
+        tokeniser->slice = slice(tokeniser->slice, next_pos, -1);
         return rv;
     } else {
         Slice rv = tokeniser->slice;
-        tokeniser->slice = (Slice) {
-            .length = 0,
-            .start = NULL
-        };
+        tokeniser->slice = sliceEmpty();
         return rv;
     }
 }

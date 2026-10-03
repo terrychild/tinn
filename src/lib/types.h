@@ -14,6 +14,7 @@ typedef uint32_t U32;
 typedef uint64_t U64;
 
 typedef struct Arena Arena;
+typedef struct File File;
 typedef struct Allocator Allocator;
 typedef struct Array Array;
 typedef struct Pool Pool;

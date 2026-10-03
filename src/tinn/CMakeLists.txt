@@ -15,6 +15,7 @@ add_executable(tinn
     main.c
     help.c
     static.c
+    blog.c
 )
 
 add_dependencies(tinn generate_build_date)

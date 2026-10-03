@@ -5,6 +5,7 @@
 
 Slice sliceNew(Allocator* allocator, U64 length);
 Slice sliceFromStr(const char* str);
+Slice sliceEmpty();
 
 I8 sliceCmp(const Slice a, const Slice b);
 I8 sliceCmpStr(const Slice a, const char* b);
@@ -28,12 +29,13 @@ Slice sliceToLowerCase(Slice source);
 Slice sliceToUpperCase(Slice source);
 
 typedef struct {
-    Slice delim;
     Slice slice;
+    Slice delim;
+    bool greedy;
 } Tokeniser;
 
-Tokeniser sliceTokeniser(const Slice source, const Slice delim);
-Tokeniser sliceTokeniserStr(const Slice source, const char* delim);
+Tokeniser sliceTokeniser(const Slice source, const Slice delim, bool greedy);
+Tokeniser sliceTokeniserStr(const Slice source, const char* delim, bool greedy);
 Slice nextToken(Tokeniser* tokeniser);
 
 #endif
