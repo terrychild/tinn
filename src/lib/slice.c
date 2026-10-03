@@ -41,19 +41,15 @@ bool sliceIsStr(const Slice a, const char* b) {
     return sliceCmpStr(a, b) == 0;
 }
 
-Slice slice(Slice slice, U64 start, U64 length) {
+Slice slice(Slice slice, U64 start, U64 end) {
     if (start > slice.length) {
         start = slice.length;
     }
-    if (length == 0) {
-        length = slice.length - start;
-    } else {
-        if (start + length > slice.length) {
-            length = slice.length - start;
-        }
+    if (end > slice.length) {
+        end = slice.length;
     }
     return (Slice) {
-        .length = length,
+        .length = end - start,
         .start = slice.start + start
     };
 }

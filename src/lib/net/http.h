@@ -8,6 +8,7 @@
 #include "lib/types.h"
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
+#include "lib/net/url.h"
 
 typedef enum {
     HTTP_OK = 200,
@@ -36,7 +37,7 @@ typedef struct {
 
 typedef struct {
     Slice method;
-    Slice target;
+    URL target;
     Slice version;
     Slice host;
     Slice connection;

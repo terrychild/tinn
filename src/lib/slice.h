@@ -11,7 +11,7 @@ I8 sliceCmpStr(const Slice a, const char* b);
 bool sliceIs(const Slice a, const Slice b);
 bool sliceIsStr(const Slice a, const char* b);
 
-Slice slice(const Slice source, U64 start, U64 length);
+Slice slice(const Slice source, U64 start, U64 end);
 
 Slice sliceLeft(const Slice source, const Slice search);
 Slice sliceLeftStr(const Slice source, const char* search);
