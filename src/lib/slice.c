@@ -139,6 +139,23 @@ Slice sliceTrim(const Slice source) {
     };
 }
 
+Slice sliceToLowerCase(Slice source) {
+    for (U64 i=0; i<source.length; i++) {
+        if (source.start[i] >= 'A' && source.start[i] <= 'Z') {
+            ((U8*)source.start)[i] += 32;
+        }
+    }
+    return source;
+}
+Slice sliceToUpperCase(Slice source) {
+    for (U64 i=0; i<source.length; i++) {
+        if (source.start[i] >= 'a' && source.start[i] <= 'z') {
+            ((U8*)source.start)[i] -= 32;
+        }
+    }
+    return source;
+}
+
 Tokeniser sliceTokeniser(const Slice source, const Slice delim) {
     return (Tokeniser) {
         .delim = delim,

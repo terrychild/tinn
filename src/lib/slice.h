@@ -20,6 +20,9 @@ Slice sliceRightStr(const Slice source, const char* search);
 
 Slice sliceTrim(const Slice source);
 
+Slice sliceToLowerCase(Slice source);
+Slice sliceToUpperCase(Slice source);
+
 typedef struct {
     Slice delim;
     Slice slice;

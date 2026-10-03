@@ -222,15 +222,15 @@ static void onReceive(ServerConnection* connection, Slice data) {
                 // headers
                 Slice line = nextToken(&lines);
                 while (line.length > 0) {
-                    Slice name = sliceLeftStr(line, ":");
+                    Slice name = sliceToLowerCase(sliceLeftStr(line, ":"));
                     Slice value = sliceTrim(sliceRightStr(line, ":"));
-                    //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
+                    DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
 
-                    if (sliceIsStr(name, "Host")) {
+                    if (sliceIsStr(name, "host")) {
 						exchange->request->host = value;
-					} else if (sliceIsStr(name, "Connection")) {
+					} else if (sliceIsStr(name, "connection")) {
 						exchange->request->connection = value;
-					} else if (sliceIsStr(name, "If-Modified-Since")) {
+					} else if (sliceIsStr(name, "if-modified-since")) {
 						exchange->request->if_modified_since = fromImfDate((const char*)value.start, value.length);
 					}
 
