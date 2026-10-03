@@ -2,8 +2,9 @@
     "cmake.debugConfig": {
         "args": [
             "host",
+            "--verbose",
             "--port=8080",
-            "--verbose"
+            "--dir=${workspaceFolder}/../moohar/www"
         ]
     }
 }

@@ -49,7 +49,7 @@ typedef struct {
 typedef struct {
     const char* version;
     HttpStatusCode status_code;
-    const char* content_type;
+    Slice content_type;
     Array* headers;
     Slice content;
 } HttpServerResponse;
@@ -62,6 +62,24 @@ typedef struct {
     HttpServerResponse* response;
 } HttpServerExchange;
 
-Server* httpServer(Allocator* allocator, Polling* polling, const char* port);
+typedef void (*HttpServerRequestFunc)(HttpServerExchange* exchange);
+
+typedef struct {
+    HttpServerExchange* exchange;
+    HttpServerRequestFunc onRequest;
+} HttpServer;
+
+HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port);
+
+void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_code);
+void httpServerSetContentType(HttpServerExchange* exchange, Slice content_type);
+void httpServerSetContent(HttpServerExchange* exchange, Slice content_type, Slice content);
+void httpServerAddHeader(HttpServerExchange* exchange, Slice name, Slice value);
+void httpServerAddDateHeader(HttpServerExchange* exchange, Slice name, time_t seconds);
+
+void httpServerSend(HttpServerExchange* exchange);
+void httpServerSendRedirect(HttpServerExchange* exchange, Slice location);
+void httpServerSendNotModified(HttpServerExchange* exchange);
+void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code);
 
 #endif

@@ -19,6 +19,7 @@ void arrayReset(Array* array);
 void* arrayAdd(Array* array);
 void* arrayPush(Array* array, const void* item);
 void* arrayPop(Array* array);
+void* arrayPeek(Array* array);
 void arraySet(Array* array, U64 index, const void* item);
 void* arrayGet(Array* array, U64 index);
 void arrayRemove(Array* array, U64 index);

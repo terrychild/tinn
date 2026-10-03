@@ -85,10 +85,14 @@ static void findLast(const Slice source, const Slice search, bool* found, U64* p
     find(source, search, source.length - search.length, 0, -1, found, pos);
 }
 
-Slice sliceLeft(const Slice source, const Slice search) {
+static Slice left(const Slice source, const Slice search, bool backwards) {
     bool found;
     U64 pos;
-    findFirst(source, search, &found, &pos);
+    if (backwards) {
+        findLast(source, search, &found, &pos);
+    } else {
+        findFirst(source, search, &found, &pos);
+    }
     if (found) {
         return (Slice) {
             .length = pos,
@@ -101,13 +105,27 @@ Slice sliceLeft(const Slice source, const Slice search) {
         };
     }
 }
-Slice sliceLeftStr(const Slice source, const char* search) {
-    return sliceLeft(source, sliceFromStr(search));
+Slice sliceLeft(const Slice source, const Slice search) {
+    return left(source, search, false);
 }
-Slice sliceRight(const Slice source, const Slice search) {
+Slice sliceLeftStr(const Slice source, const char* search) {
+    return left(source, sliceFromStr(search), false);
+}
+Slice sliceLeftBack(const Slice source, const Slice search) {
+    return left(source, search, true);
+}
+Slice sliceLeftBackStr(const Slice source, const char* search) {
+    return left(source, sliceFromStr(search), true);
+}
+
+static Slice right(const Slice source, const Slice search, bool backwards) {
     bool found;
     U64 pos;
-    findLast(source, search, &found, &pos);
+    if (backwards) {
+        findLast(source, search, &found, &pos);
+    } else {
+        findFirst(source, search, &found, &pos);
+    }
     if (found) {
         return (Slice) {
             .length = source.length - pos - search.length,
@@ -120,8 +138,17 @@ Slice sliceRight(const Slice source, const Slice search) {
         };
     }
 }
+Slice sliceRight(const Slice source, const Slice search) {
+    return right(source, search, false);
+}
 Slice sliceRightStr(const Slice source, const char* search) {
-    return sliceRight(source, sliceFromStr(search));
+    return right(source, sliceFromStr(search), false);
+}
+Slice sliceRightBack(const Slice source, const Slice search) {
+    return right(source, search, true);
+}
+Slice sliceRightBackStr(const Slice source, const char* search) {
+    return right(source, sliceFromStr(search), true);
 }
 
 Slice sliceTrim(const Slice source) {

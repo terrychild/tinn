@@ -1,5 +1,5 @@
-#ifndef VERSION_H
-#define VERSION_H
+#ifndef TINN_VERSION_H
+#define TINN_VERSION_H
 
 #include "lib/macros.h"
 

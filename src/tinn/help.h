@@ -1,5 +1,5 @@
-#ifndef HELP_H
-#define HELP_H
+#ifndef TINN_HELP_H
+#define TINN_HELP_H
 
 void printVersion();
 void printUsage();

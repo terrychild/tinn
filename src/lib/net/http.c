@@ -39,38 +39,39 @@ static time_t fromImfDate(const char* date, size_t len) {
 	return mktime(&tm);
 }
 
-static const char* validateContentType(const char* content_type) {
-	if (content_type != NULL && strlen(content_type) > 0) {
-		if (content_type[0] == '.') {
-			content_type += 1;
+static Slice validateContentType(Slice content_type) {
+	if (content_type.length > 0) {
+		if (content_type.start[0] == '.') {
+			content_type.start += 1;
+			content_type.length -= 1;
 		}
 
-		if (strcmp(content_type, "html")==0 || strcmp(content_type, "htm")==0) {
-			return "text/html; charset=utf-8";
-		} else if (strcmp(content_type, "css")==0) {
-			return "text/css; charset=utf-8";
-		} else if (strcmp(content_type, "js")==0) {
-			return "text/javascript; charset=utf-8";
-		} else if (strcmp(content_type, "jpeg")==0 || strcmp(content_type, "jpg")==0) {
-			return "image/jpeg";
-		} else if (strcmp(content_type, "png")==0) {
-			return "image/png";
-		} else if (strcmp(content_type, "gif")==0) {
-			return "image/gif";
-		} else if (strcmp(content_type, "bmp")==0) {
-			return "image/bmp";
-		} else if (strcmp(content_type, "svg")==0) {
-			return "image/svg+xml";
-		} else if (strcmp(content_type, "ico")==0) {
-			return "image/vnd.microsoft.icon";
-		} else if (strcmp(content_type, "mp3")==0) {
-			return "audio/mpeg";
+		if (sliceIsStr(content_type, "html") || sliceIsStr(content_type, "htm")) {
+			return sliceFromStr("text/html; charset=utf-8");
+		} else if (sliceIsStr(content_type, "css")) {
+			return sliceFromStr("text/css; charset=utf-8");
+		} else if (sliceIsStr(content_type, "js")) {
+			return sliceFromStr("text/javascript; charset=utf-8");
+		} else if (sliceIsStr(content_type, "jpeg") || sliceIsStr(content_type, "jpg")) {
+			return sliceFromStr("image/jpeg");
+		} else if (sliceIsStr(content_type, "png")) {
+			return sliceFromStr("image/png");
+		} else if (sliceIsStr(content_type, "gif")) {
+			return sliceFromStr("image/gif");
+		} else if (sliceIsStr(content_type, "bmp")) {
+			return sliceFromStr("image/bmp");
+		} else if (sliceIsStr(content_type, "svg")) {
+			return sliceFromStr("image/svg+xml");
+		} else if (sliceIsStr(content_type, "ico")) {
+			return sliceFromStr("image/vnd.microsoft.icon");
+		} else if (sliceIsStr(content_type, "mp3")) {
+			return sliceFromStr("audio/mpeg");
 		}
 
         return content_type;
 	}
 
-	return "text/plain; charset=utf-8";
+	return sliceFromStr("text/plain; charset=utf-8");
 }
 
 // message generation
@@ -97,8 +98,8 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 	// content headers
     if (exchange->response->status_code != HTTP_NO_CONTENT && exchange->response->status_code != HTTP_NOT_MODIFIED) {
         bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content.length);
-        if (exchange->response->content_type) {
-            bufAppendFormat(header, "Content-Type: %s\r\n", exchange->response->content_type);
+        if (exchange->response->content_type.length > 0) {
+            bufAppendFormat(header, "Content-Type: %.*s\r\n", exchange->response->content_type.length, exchange->response->content_type.start);
         }
     }
 
@@ -118,7 +119,10 @@ void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_cod
     exchange->response->status_code = status_code;
 }
 
-void httpServerSetContent(HttpServerExchange* exchange, char* content_type, Slice content) {
+void httpServerSetContentType(HttpServerExchange* exchange, Slice content_type) {
+    exchange->response->content_type = validateContentType(content_type);
+}
+void httpServerSetContent(HttpServerExchange* exchange, Slice content_type, Slice content) {
     exchange->response->content_type = validateContentType(content_type);
     exchange->response->content = content;
 }
@@ -128,10 +132,29 @@ void httpServerAddHeader(HttpServerExchange* exchange, Slice name, Slice value) 
     header->name = name;
     header->value = value;
 }
+void httpServerAddDateHeader(HttpServerExchange* exchange, Slice name, time_t seconds) {
+    char* buf = allocate(exchange->scope, IMF_DATE_LEN);
+    httpServerAddHeader(exchange, name, sliceFromStr(toImfDate(buf, IMF_DATE_LEN, seconds)));
+}
 
 void httpServerSend(HttpServerExchange* exchange) {
     exchange->status = HTTP_SEND_HEADER;
     connectionSend(exchange->connection, generateResponseHeader(exchange));
+}
+
+void httpServerSendRedirect(HttpServerExchange* exchange, Slice location) {
+    if (sliceIsStr(exchange->request->method, "GET")) {
+        httpServerSetStatus(exchange, HTTP_MOVED_PERMANENTLY);
+    } else {
+        httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
+    }
+    httpServerAddHeader(exchange, sliceFromStr("Location"), location);
+    httpServerSend(exchange);
+}
+
+void httpServerSendNotModified(HttpServerExchange* exchange) {
+    httpServerSetStatus(exchange, HTTP_NOT_MODIFIED);
+    httpServerSend(exchange);
 }
 
 #define ERROR_TEMPLATE \
@@ -163,41 +186,26 @@ void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_cod
     bufAppendFormat(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
     httpServerSetStatus(exchange, status_code);
-    httpServerSetContent(exchange, "html", bufAsSlice(content));
-    httpServerSend(exchange);
-}
-
-void httpServerRedirect(HttpServerExchange* exchange, const char* location) {
-    if (sliceIsStr(exchange->request->method, "GET")) {
-        httpServerSetStatus(exchange, HTTP_MOVED_PERMANENTLY);
-    } else {
-        httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
-    }
-    httpServerAddHeader(exchange, sliceFromStr("Location"), sliceFromStr(location));
+    httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
     httpServerSend(exchange);
 }
 
 // events
-static HttpServerExchange* getExchange(ServerConnection* connection) {
-    if (connection->context != NULL) {
-        return (HttpServerExchange*)connection->context;
-    }
-
-    HttpServerExchange* exchange = allocate(connection->exchange_scope, sizeof(ServerConnection));
-    exchange->connection = connection;
-    exchange->scope = connection->exchange_scope;
-    exchange->status = HTTP_RECEIVE_HEADER;
-    exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
-    exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));
-    exchange->response->version = "HTTP/1.1";
-    exchange->response->headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
-
-    connection->context = exchange;
-    return exchange;
-}
-
 static void onReceive(ServerConnection* connection, Slice data) {
-    HttpServerExchange* exchange = getExchange(connection);
+    HttpServer* http_server = (HttpServer*)connection->context;
+    HttpServerExchange* exchange = http_server->exchange;
+    if (!exchange) {
+        exchange = allocate(connection->exchange_scope, sizeof(ServerConnection));
+        exchange->connection = connection;
+        exchange->scope = connection->exchange_scope;
+        exchange->status = HTTP_RECEIVE_HEADER;
+        exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
+        exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));
+        exchange->response->version = "HTTP/1.1";
+        exchange->response->headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
+
+        http_server->exchange = exchange;
+    }
 
     if (exchange->status == HTTP_RECEIVE_HEADER) {
         Slice header = sliceLeftStr(data, "\r\n\r\n");
@@ -229,7 +237,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
                 while (line.length > 0) {
                     Slice name = sliceToLowerCase(sliceLeftStr(line, ":"));
                     Slice value = sliceTrim(sliceRightStr(line, ":"));
-                    DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
+                    //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
 
                     if (sliceIsStr(name, "host")) {
 						exchange->request->host = value;
@@ -250,12 +258,11 @@ static void onReceive(ServerConnection* connection, Slice data) {
 					}
 				}
 
-                // temp response
-                if (sliceIsStr(exchange->request->target.path, "/")) {
-                    httpServerRedirect(exchange, "/index.html");
+                // respond
+                if (http_server->onRequest) {
+                    http_server->onRequest(exchange);
                 } else {
-                    httpServerSetStatus(exchange, HTTP_OK);
-                    httpServerSetContent(exchange, "html", sliceFromStr("<html><body><h1>Hello world!</h1></body></html>"));
+                    httpServerSetStatus(exchange, HTTP_NO_CONTENT);
                     httpServerSend(exchange);
                 }
             }
@@ -268,29 +275,34 @@ static void onReceive(ServerConnection* connection, Slice data) {
 }
 
 static void onSent(ServerConnection* connection, bool* close) {
-    if (connection->context != NULL) {
-        HttpServerExchange* exchange = (HttpServerExchange*)connection->context;
+    HttpServer* http_server = (HttpServer*)connection->context;
+    HttpServerExchange* exchange = http_server->exchange;
 
-        if (exchange->status == HTTP_SEND_HEADER) {
+    if (exchange) {
+        if (exchange->status == HTTP_SEND_HEADER && exchange->response->content.length > 0) {
             exchange->status = HTTP_SEND_CONTENT;
             connectionSend(connection, exchange->response->content);
 
-        } else if (exchange->status == HTTP_SEND_CONTENT) {
+        } else {
             if (sliceIsStr(exchange->request->connection, "close")) {
                 *close = true;
             } else {
                 connectionSent(connection, close);
-                connection->context = NULL;
+                http_server->exchange = NULL;
             }
         }
     }
 }
 
-Server* httpServer(Allocator* allocator, Polling* polling, const char* port) {
+HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port) {
+    HttpServer* http_server = NULL;
     Server* server = serverNew(allocator, polling, port);
     if (server) {
+        http_server = allocate(allocator, sizeof(HttpServer));
+
         server->onReceive = onReceive;
         server->onSent = onSent;
+        server->context = http_server;
     }
-    return server;
+    return http_server;
 }

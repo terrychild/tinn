@@ -62,6 +62,13 @@ void* arrayPop(Array* array) {
     return NULL;
 }
 
+void* arrayPeek(Array* array) {
+    if (array->count > 0) {
+        return array->start + ((array->count - 1) * array->item_size);
+    }
+    return NULL;
+}
+
 void arraySet(Array* array, U64 index, const void* item) {
     if (index < array->count) {
         U8* address = array->start + (index * array->item_size);

@@ -1,18 +1,36 @@
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "lib/cli.h"
 #include "lib/log.h"
 #include "version.h"
 #include "help.h"
-//#include "test/tests.h"
+#include "static.h"
 #include "lib/mem/allocator.h"
 #include "lib/net/echo.h"
 #include "lib/net/http.h"
 
+
+void tinnWebServer(HttpServerExchange* exchange) {
+    if (staticFileServer(exchange)) {
+        return;
+    }
+
+    httpServerSendError(exchange, HTTP_NOT_FOUND);
+}
+
 int host(int argc, char* argv[]) {
     logOpen("./tinn.log");
     LOG("Tinn Web Server %s (%s)", VERSION, BUILD_DATE);
+
+    // change working directory to content directory
+    char* content_dir = cliValue(argc, argv, "--dir", ".");
+    if (chdir(content_dir) != 0) {
+        ERROR("Invalid content directory (%s)", content_dir);
+        return EXIT_FAILURE;
+    }
+    DEBUG("Serving content from: %s", content_dir);
 
     // resources
     Allocator* allocator = allocatorNew(0);
@@ -20,11 +38,14 @@ int host(int argc, char* argv[]) {
 
     // servers
     if (cliArg(argc, argv, "--echo")) {
-        if (echoServer(allocator, polling, cliValue(argc, argv, "--echo", "7")) == NULL) {
+        if (!echoServer(allocator, polling, cliValue(argc, argv, "--echo", "7"))) {
             return EXIT_FAILURE;
         }
     }
-    if (httpServer(allocator, polling, cliValue(argc, argv, "--port", "80")) == NULL) {
+    HttpServer* http_server = httpServer(allocator, polling, cliValue(argc, argv, "--port", "80"));
+    if (http_server) {
+        http_server->onRequest = tinnWebServer;
+    } else {
         return EXIT_FAILURE;
     }
 

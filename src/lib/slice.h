@@ -15,8 +15,12 @@ Slice slice(const Slice source, U64 start, U64 end);
 
 Slice sliceLeft(const Slice source, const Slice search);
 Slice sliceLeftStr(const Slice source, const char* search);
+Slice sliceLeftBack(const Slice source, const Slice search);
+Slice sliceLeftBackStr(const Slice source, const char* search);
 Slice sliceRight(const Slice source, const Slice search);
 Slice sliceRightStr(const Slice source, const char* search);
+Slice sliceRightBack(const Slice source, const Slice search);
+Slice sliceRightBackStr(const Slice source, const char* search);
 
 Slice sliceTrim(const Slice source);
 
