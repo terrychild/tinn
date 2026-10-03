@@ -118,7 +118,6 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
         pollingRemove(connection->server->polling, connection->socket);
     }
     LOG("Connection from %s (%d) closed", connection->address, connection->socket);
-    allocatorDebug(connection->server->scope);
 }
 static void connectionsCloseAll(Server* server) {
     PoolNode* node = server->connections->first;
@@ -159,7 +158,6 @@ static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unus
         });
 
         LOG("Connection from %s (%d) opened", connection->address, connection->socket);
-        allocatorDebug(server->scope);
     }
 }
 

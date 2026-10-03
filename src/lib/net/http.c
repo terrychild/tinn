@@ -209,15 +209,15 @@ static void onReceive(ServerConnection* connection, Slice data) {
             if (exchange->request->method.length == 0 || !exchange->request->target.valid || exchange->request->version.length == 0) {
                 httpServerSendError(exchange, HTTP_BAD_REQUEST);
             } else {
-                DEBUG("Request line: %.*s %.*s %.*s",
+                DEBUG("Request: %.*s %.*s?%.*s",
                     exchange->request->method.length, exchange->request->method.start,
                     exchange->request->target.path.length, exchange->request->target.path.start,
-                    exchange->request->version.length, exchange->request->version.start
+                    exchange->request->target.query.length, exchange->request->target.query.start
                 );
-                for (U64 i=0; i<exchange->request->target.path_segments->count; i++) {
+                /*for (U64 i=0; i<exchange->request->target.path_segments->count; i++) {
                     Slice* segment = (Slice*)arrayGet(exchange->request->target.path_segments, i);
                     DEBUG("Path segment (%lu): %.*s", segment->length, segment->length, segment->start);
-                }
+                }*/
 
                 // headers
                 Slice line = nextToken(&lines);
@@ -244,8 +244,6 @@ static void onReceive(ServerConnection* connection, Slice data) {
 						exchange->request->connection = sliceFromStr("keep-alive");
 					}
 				}
-
-                DEBUG("Connection: %.*s", exchange->request->connection.length, exchange->request->connection.start);
 
                 // temp response
                 if (sliceIsStr(exchange->request->target.path, "/")) {
@@ -279,7 +277,6 @@ static void onSent(ServerConnection* connection, bool* close) {
                 connectionSent(connection, close);
                 connection->context = NULL;
             }
-            allocatorDebug(connection->server->scope);
         }
     }
 }

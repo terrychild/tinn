@@ -2,6 +2,7 @@
 
 #include "lib/net/url.h"
 #include "lib/mem/array.h"
+#include "lib/mem/buffer.h"
 #include "lib/slice.h"
 
 enum parse_state {
@@ -12,18 +13,18 @@ enum parse_state {
 
 static const char* valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~%!$&'()*+,;=:@";
 
-static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool last) {
+static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool is_last) {
     if (end >= start) {
         Slice segment = slice(source, start, end);
         if (sliceIsStr(segment, ".")) {
-            if (last) {
+            if (is_last) {
                 segment.length = 0;
                 arrayPush(url->path_segments, &segment);
             }
         } else if (sliceIsStr(segment, "..")) {
             if (url->path_segments->count > 0) {
                 arrayPop(url->path_segments);
-                if (last) {
+                if (is_last) {
                     segment.length = 0;
                     arrayPush(url->path_segments, &segment);
                 }
@@ -34,6 +35,14 @@ static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool last
             arrayPush(url->path_segments, &segment);
         }
     }
+}
+static void addPath(Allocator* allocator, URL* url, U64 length) {
+    Buffer* path = bufNew(allocator, length);
+    for (U64 i=0; i<url->path_segments->count; i++) {
+        bufAppendStr(path, "/");
+        bufAppendSlice(path, *(Slice*)arrayGet(url->path_segments, i));
+    }
+    url->path = bufAsSlice(path);
 }
 
 URL urlParseOrigin(Allocator* allocator, Slice source) {
@@ -61,16 +70,16 @@ URL urlParseOrigin(Allocator* allocator, Slice source) {
 				break;
 			case '?':
 				if (state == PARSE_PATH) {
-                    url.path = slice(source, component_start, i);
-                    component_start = i + 1;
                     addPathSegment(&url, source, segment_start, i, true);
-                    segment_start = i + 1;
+                    addPath(allocator, &url, i - component_start);
+                    component_start = i + 1;
 					state = PARSE_QUERY;
 				}
 				break;
             case '#':
                 if (state == PARSE_PATH) {
-                    url.path = slice(source, component_start, i);
+                    addPathSegment(&url, source, segment_start, i, true);
+                    addPath(allocator, &url, i - component_start);
                 } else if (state == PARSE_QUERY) {
                     url.query = slice(source, component_start, i);
                 }
@@ -87,7 +96,7 @@ URL urlParseOrigin(Allocator* allocator, Slice source) {
     // finished parse last segment
     if (state == PARSE_PATH) {
         addPathSegment(&url, source, segment_start, -1, true);
-        url.path = slice(source, component_start, -1);
+        addPath(allocator, &url, source.length - component_start);
     } else if (state == PARSE_QUERY) {
         url.query = slice(source, component_start, -1);
     }
