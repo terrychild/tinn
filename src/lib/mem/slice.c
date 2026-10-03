@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "lib/slice.h"
+#include "lib/mem/slice.h"
 #include "lib/mem/allocator.h"
 
 Slice sliceNew(Allocator* allocator, U64 length) {

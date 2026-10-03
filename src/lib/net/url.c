@@ -3,7 +3,7 @@
 #include "lib/net/url.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
-#include "lib/slice.h"
+#include "lib/mem/slice.h"
 
 enum parse_state {
     PARSE_PATH,

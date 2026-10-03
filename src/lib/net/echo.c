@@ -1,7 +1,6 @@
 #include <stdlib.h>
 
 #include "lib/net/echo.h"
-#include "lib/slice.h"
 #include "lib/bytes.h"
 
 static void echo(ServerConnection* connection, Slice data) {

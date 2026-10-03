@@ -2,7 +2,6 @@ add_library(lib
     cli.c
     log.c
     bytes.c
-    slice.c
 
     mem/align.c
     mem/arena.c
@@ -10,6 +9,7 @@ add_library(lib
     mem/array.c
     mem/pool.c
     mem/buffer.c
+    mem/slice.c
 
     sys/sockets.c
     sys/polling.c

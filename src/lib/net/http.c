@@ -5,7 +5,7 @@
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
-#include "lib/slice.h"
+#include "lib/mem/slice.h"
 #include "lib/log.h"
 
 #include "lib/bytes.h"

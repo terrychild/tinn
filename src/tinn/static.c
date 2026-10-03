@@ -7,8 +7,8 @@
 #include "lib/log.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
+#include "lib/mem/slice.h"
 #include "lib/net/url.h"
-#include "lib/slice.h"
 
 bool staticFileServer(HttpServerExchange* exchange) {
     // build a local path
@@ -79,7 +79,7 @@ bool staticFileServer(HttpServerExchange* exchange) {
             //TODO: set content length header
         } else {
             Slice file_content = sliceNew(exchange->scope, length);
-            fread((char*)file_content.start, 1, length, file);
+            fread((void*)file_content.start, 1, length, file);
             httpServerSetContent(exchange, ext, file_content);
         }
         fclose(file);

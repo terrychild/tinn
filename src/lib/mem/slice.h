@@ -1,5 +1,5 @@
-#ifndef LIB_SLICE_H
-#define LIB_SLICE_H
+#ifndef LIB_MEM_SLICE_H
+#define LIB_MEM_SLICE_H
 
 #include "lib/types.h"
 
