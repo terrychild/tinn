@@ -24,8 +24,12 @@ void expect##T(const char* name, T value, T expected) { \
 }
 
 MAKE_EXPECT(I8, "%d")
+MAKE_EXPECT(I16, "%ld")
+MAKE_EXPECT(I32, "%ld")
 MAKE_EXPECT(I64, "%ld")
 MAKE_EXPECT(U8, "%u")
+MAKE_EXPECT(U16, "%lu")
+MAKE_EXPECT(U32, "%lu")
 MAKE_EXPECT(U64, "%lu")
 
 void expectVoidPtr(const char* name, const void* value, const void* expected) {

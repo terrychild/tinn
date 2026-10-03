@@ -3,6 +3,7 @@
 
 #include "lib/mem/allocator.h"
 
+void testThings();
 void testTypes();
 void testArena();
 void testAllocator(Allocator* allocator);

@@ -2,6 +2,7 @@ add_executable(test
     main.c
     expect.c
 
+    things.c
     types.c
     arena.c
     allocator.c
