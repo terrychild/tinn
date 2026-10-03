@@ -13,6 +13,7 @@
 static const char* status_text[] = {
     [HTTP_OK] = "OK",
     [HTTP_NO_CONTENT] = "No Content",
+    [HTTP_MOVED_PERMANENTLY] = "Moved Permanently",
     [HTTP_NOT_MODIFIED] = "Not Modified",
     [HTTP_PERMANENT_REDIRECT] = "Permanent Redirect",
     [HTTP_BAD_REQUEST] = "Bad Request",
@@ -167,7 +168,11 @@ void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_cod
 }
 
 void httpServerRedirect(HttpServerExchange* exchange, const char* location) {
-    httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
+    if (sliceIsStr(exchange->request->method, "GET")) {
+        httpServerSetStatus(exchange, HTTP_MOVED_PERMANENTLY);
+    } else {
+        httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
+    }
     httpServerAddHeader(exchange, sliceFromStr("Location"), sliceFromStr(location));
     httpServerSend(exchange);
 }
