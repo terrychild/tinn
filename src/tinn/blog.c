@@ -2,7 +2,7 @@
 #include "lib/log.h"
 #include "lib/macros.h"
 #include "lib/mem/allocator.h"
-#include "lib/mem/file.h"
+#include "lib/mem/mfile.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
@@ -11,12 +11,12 @@ Blog* blogNew(Allocator* allocator) {
     Blog* blog = allocate(allocator, sizeof(Blog));
     blog->posts = arrayNew(allocator, sizeof(BlogPost), 32);
 
-    File posts = fileRead("./blog/.posts.dat");
-    if (!posts.start) {
+    MappedFile* posts = allocateFile(allocator, "./blog/.posts.dat");
+    if (!posts->start) {
         ERROR("Unable to read load posts.dat");
         return NULL;
     }
-    Tokeniser lines = sliceTokeniserStr(fileAsSlice(posts), "\n", false);
+    Tokeniser lines = sliceTokeniserStr(mfileAsSlice(posts), "\n", false);
     Slice line = nextToken(&lines);
     while (line.start && line.length > 0) {
         Tokeniser fields = sliceTokeniserStr(line, "\t", true);

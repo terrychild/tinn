@@ -4,6 +4,7 @@
 #include "lib/mem/allocator.h"
 #include "lib/mem/align.h"
 #include "lib/mem/arena.h"
+#include "lib/mem/mfile.h"
 #include "lib/mem/pool.h"
 
 #include "lib/cli.h"
@@ -26,6 +27,26 @@ void deallocateChild(Allocator* allocator, Allocator* child) {
     }
 }
 
+// files
+MappedFile* allocateFile(Allocator* allocator, const char* path) {
+    if (!allocator->files) {
+        allocator->files = poolNew(allocator, sizeof(MappedFile), 8);
+    }
+    MappedFile* file = poolAdd(allocator->files);
+    if (!mfileOpen(file, path)) {
+        poolRemove(allocator->files, file);
+        return NULL;
+    }
+    return file;
+}
+void deallocateFile(Allocator* allocator, MappedFile* file) {
+    if (allocator->files) {
+        if (poolRemove(allocator->files, file)) {
+            mfileClose(file);
+        }
+    }
+}
+
 // normal allocation
 void* allocate(Allocator* allocator, U64 size) {
     return arenaAlloc(allocator->arena, size);
@@ -41,11 +62,21 @@ Allocator* allocatorNew(U64 size) {
 void allocatorInit(Allocator* allocator, Arena* arena) {
     allocator->arena = arena;
     allocator->children = NULL;
+    allocator->files = NULL;
 }
 void allocatorReset(Allocator* allocator) {
     // release children
     if (allocator->children) {
         PoolNode* node = allocator->children->first;
+        while (node != NULL) {
+            allocatorRelease((Allocator*)poolData(node));
+            node = node->next;
+        }
+    }
+
+    // release files
+    if (allocator->files) {
+        PoolNode* node = allocator->files->first;
         while (node != NULL) {
             allocatorRelease((Allocator*)poolData(node));
             node = node->next;

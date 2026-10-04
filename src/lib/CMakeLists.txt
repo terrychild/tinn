@@ -5,7 +5,7 @@ add_library(lib
 
     mem/align.c
     mem/arena.c
-    mem/file.c
+    mem/mfile.c
     mem/allocator.c
     mem/array.c
     mem/pool.c

@@ -216,19 +216,19 @@ static void onReceive(ServerConnection* connection, Slice data) {
             Slice request_line = nextToken(&lines);
             Tokeniser words = sliceTokeniserStr(request_line, " ", false);
             exchange->request->method = nextToken(&words);
-            exchange->request->target = urlParseOrigin(connection->exchange_scope, nextToken(&words));
+            exchange->request->target = urlFromOrigin(connection->exchange_scope, nextToken(&words));
             exchange->request->version = nextToken(&words);
 
-            if (exchange->request->method.length == 0 || !exchange->request->target.valid || exchange->request->version.length == 0) {
+            if (exchange->request->method.length == 0 || !exchange->request->target || exchange->request->version.length == 0) {
                 httpServerSendError(exchange, HTTP_BAD_REQUEST);
             } else {
                 DEBUG("Request: %.*s %.*s?%.*s",
                     exchange->request->method.length, exchange->request->method.start,
-                    exchange->request->target.path.length, exchange->request->target.path.start,
-                    exchange->request->target.query.length, exchange->request->target.query.start
+                    exchange->request->target->path.length, exchange->request->target->path.start,
+                    exchange->request->target->query.length, exchange->request->target->query.start
                 );
-                /*for (U64 i=0; i<exchange->request->target.path_segments->count; i++) {
-                    Slice* segment = (Slice*)arrayGet(exchange->request->target.path_segments, i);
+                /*for (U64 i=0; i<exchange->request->target->path_segments->count; i++) {
+                    Slice* segment = (Slice*)arrayGet(exchange->request->target->path_segments, i);
                     DEBUG("Path segment (%lu): %.*s", segment->length, segment->length, segment->start);
                 }*/
 

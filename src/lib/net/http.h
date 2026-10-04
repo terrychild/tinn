@@ -38,7 +38,7 @@ typedef struct {
 
 typedef struct {
     Slice method;
-    URL target;
+    URL* target;
     Slice version;
     Slice host;
     Slice connection;

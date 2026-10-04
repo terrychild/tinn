@@ -11,9 +11,8 @@ typedef struct {
     Array* path_segments;
     Slice query;
     //Slice fragment;
-	bool valid;
 } URL;
 
-URL urlParseOrigin(Allocator* allocator, Slice origin);
+URL* urlFromOrigin(Allocator* allocator, Slice origin);
 
 #endif

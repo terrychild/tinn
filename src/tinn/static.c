@@ -12,16 +12,16 @@
 
 bool staticContent(HttpServerExchange* exchange) {
     // build a local path
-    URL target = exchange->request->target;
-    char local_path[1 + target.path.length + 11 + 1]; // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
+    URL* target = exchange->request->target;
+    char local_path[1 + target->path.length + 11 + 1]; // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
     local_path[0] = '.';
-    strncpy(local_path + 1, (const char*)target.path.start, target.path.length);
-    local_path[1 + target.path.length] = '\0';
+    strncpy(local_path + 1, (const char*)target->path.start, target->path.length);
+    local_path[1 + target->path.length] = '\0';
 
-    Slice last_segment = *(Slice*)arrayPeek(target.path_segments);
+    Slice last_segment = *(Slice*)arrayPeek(target->path_segments);
 
     if (last_segment.length == 0) {
-        strcpy(local_path + 1 + target.path.length, "index.html");
+        strcpy(local_path + 1 + target->path.length, "index.html");
         last_segment = sliceFromStr("index.html");
     }
 
@@ -89,12 +89,12 @@ bool staticContent(HttpServerExchange* exchange) {
 
     } else if (S_ISDIR(attrib.st_mode)) {
         // check for index
-        strcpy(local_path + 1 + target.path.length, "/index.html");
+        strcpy(local_path + 1 + target->path.length, "/index.html");
         if (stat(local_path, &attrib) == 0) {
             if (S_ISREG(attrib.st_mode)) {
-                Slice new_path = sliceNew(exchange->scope, target.path.length + 1);
-                memcpy((char*)new_path.start, target.path.start, target.path.length);
-                ((char*)new_path.start)[target.path.length] = '/';
+                Slice new_path = sliceNew(exchange->scope, target->path.length + 1);
+                memcpy((char*)new_path.start, target->path.start, target->path.length);
+                ((char*)new_path.start)[target->path.length] = '/';
 
                 DEBUG("Found local directory, redirecting to \"%.*s\"", new_path.length, new_path.start);
 
