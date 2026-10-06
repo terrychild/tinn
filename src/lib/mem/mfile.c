@@ -39,14 +39,20 @@ bool mfileOpen(MappedFile* file, const char* path) {
 }
 
 void mfileClose(MappedFile* file) {
-    if (munmap(file->start, file->size)) {
-        ERROR("Unable to free memory");
+    if (file) {
+        if (munmap(file->start, file->size)) {
+            ERROR("Unable to free memory");
+        }
     }
 }
 
 Slice mfileAsSlice(MappedFile* file) {
-    return (Slice) {
-        .length = file->length,
-        .start = file->start
-    };
+    if (file) {
+        return (Slice) {
+            .length = file->length,
+            .start = file->start
+        };
+    } else {
+        return sliceEmpty();
+    }
 }

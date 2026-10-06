@@ -83,19 +83,15 @@ void bufConfirmWrite(Buffer* buf, U64 n) {
     buf->length += n;
 }
 
-Slice bufSlice(Buffer* buf, U64 start, U64 length) {
+Slice bufSlice(Buffer* buf, U64 start, U64 end) {
     if (start > buf->length) {
         start = buf->length;
     }
-    if (length == 0) {
-        length = buf->length - start;
-    } else {
-        if (start + length > buf->length) {
-            length = buf->length - start;
-        }
+    if (end > buf->length) {
+        end = buf->length;
     }
     return (Slice) {
-        .length = length,
+        .length = end - start,
         .start = buf->start + start
     };
 }

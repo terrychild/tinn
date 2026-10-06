@@ -28,7 +28,7 @@ void bufAppendFormat(Buffer* buf, const char* format, ...);
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size);
 void bufConfirmWrite(Buffer* buf, U64 n);
 
-Slice bufSlice(Buffer* buf, U64 start, U64 length);
+Slice bufSlice(Buffer* buf, U64 start, U64 end);
 Slice bufAsSlice(Buffer* buf);
 char* bufAsStr(Buffer* buf);
 
