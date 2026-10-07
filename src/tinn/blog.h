@@ -14,9 +14,9 @@ typedef struct {
 
 typedef struct {
     Array* posts;
-    Slice header1;
-    Slice header2;
-    Slice footer;
+    MappedFile* header1;
+    MappedFile* header2;
+    MappedFile* footer;
 } Blog;
 
 Blog* blogNew(Allocator* allocator);

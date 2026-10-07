@@ -22,6 +22,7 @@ void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);
 void bufAppendSlice(Buffer* buf, const Slice slice);
+void bufAppendMFile(Buffer* buf, MappedFile* file);
 void bufAppendStr(Buffer* buf, const char* str);
 void bufAppendFormat(Buffer* buf, const char* format, ...);
 

@@ -7,6 +7,7 @@
 #include "lib/mem/buffer.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
+#include "lib/mem/mfile.h"
 
 Buffer* bufNew(Allocator* allocator, U64 size) {
     Buffer* buf = allocate(allocator, sizeof(Buffer));
@@ -52,6 +53,11 @@ void bufAppend(Buffer* buf, const U8* data, U64 n) {
 }
 void bufAppendSlice(Buffer* buf, const Slice slice) {
     bufAppend(buf, slice.start, slice.length);
+}
+void bufAppendMFile(Buffer* buf, MappedFile* file) {
+    if (file) {
+        bufAppend(buf, file->start, file->length);
+    }
 }
 void bufAppendStr(Buffer* buf, const char* str) {
     bufAppend(buf, (U8*)str, strlen(str));

@@ -127,7 +127,7 @@ static Slice right(const Slice source, const Slice search, bool backwards) {
         findFirst(source, search, &found, &pos);
     }
     if (found) {
-        return slice(source, pos, -1);
+        return slice(source, pos + 1, -1);
     } else {
         return sliceEmpty();
     }

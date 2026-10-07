@@ -24,6 +24,7 @@ bool mfileOpen(MappedFile* file, const char* path) {
         return false;
     }
 
+    file->path = path;
     file->length = stats.st_size;
     file->size = alignToPage(file->length);
     file->start = mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, fd, 0);
@@ -44,6 +45,15 @@ void mfileClose(MappedFile* file) {
             ERROR("Unable to free memory");
         }
     }
+}
+
+time_t mfileModDate(MappedFile* file) {
+    struct stat attrib;
+	if (stat(file->path, &attrib) != 0) {
+		ERROR("fstat failed on file \"%s\"", file->path);
+        return 0;
+	}
+    return attrib.st_mtime;
 }
 
 Slice mfileAsSlice(MappedFile* file) {

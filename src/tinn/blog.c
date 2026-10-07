@@ -37,19 +37,16 @@ Blog* blogNew(Allocator* allocator) {
         line = nextToken(&lines);
     }
 
-    MappedFile* header1 = allocateFile(allocator, "./blog/.header1.html");
-    MappedFile* header2 = allocateFile(allocator, "./blog/.header2.html");
-    MappedFile* footer = allocateFile(allocator, "./blog/.footer.html");
-    if (!header1 || !header2 || !footer) {
+    blog->header1 = allocateFile(allocator, "./blog/.header1.html");
+    blog->header2 = allocateFile(allocator, "./blog/.header2.html");
+    blog->footer = allocateFile(allocator, "./blog/.footer.html");
+    if (!blog->header1 || !blog->header2 || !blog->footer) {
         ERROR("Unable to load fragment");
-        deallocateFile(allocator, header1);
-        deallocateFile(allocator, header2);
-        deallocateFile(allocator, footer);
+        deallocateFile(allocator, blog->header1);
+        deallocateFile(allocator, blog->header2);
+        deallocateFile(allocator, blog->footer);
         return NULL;
     }
-    blog->header1 = mfileAsSlice(header1);
-    blog->header2 = mfileAsSlice(header2);
-    blog->footer = mfileAsSlice(footer);
 
     return blog;
 }
@@ -68,13 +65,34 @@ static void composeArticle(Buffer* buf, BlogPost* post) {
 	bufAppendStr(buf, "<article>");
 	bufAppendFormat(buf, "<h1><a href=\"%.*s\">%.*s</a></h1>", post->url.length, post->url.start, post->title.length, post->title.start);
 	bufAppendFormat(buf, "<h2>%.*s</h2>", post->date.length, post->date.start);
-	bufAppendSlice(buf, mfileAsSlice(post->content));
+	bufAppendMFile(buf, post->content);
 	bufAppendStr(buf, "</article>\n");
 }
 
-bool blogContent(Blog* blog, HttpServerExchange* exchange) {
-    Buffer* content = bufNew(exchange->scope, KB(4));
+static time_t maxTime(time_t a, time_t b) {
+	return a>=b ? a : b;
+}
+static time_t modDate(Blog* blog, bool posts) {
+    time_t mod_date = mfileModDate(blog->header1);
+    mod_date = maxTime(mod_date, mfileModDate(blog->header2));
+    mod_date = maxTime(mod_date, mfileModDate(blog->footer));
 
+    if (posts) {
+        for (U64 i=0; i<blog->posts->count; i++) {
+            mod_date = maxTime(mod_date, mfileModDate(((BlogPost*)arrayGet(blog->posts, i))->content));
+        }
+    }
+    return mod_date;
+}
+
+bool blogContent(Blog* blog, HttpServerExchange* exchange) {
+    // TODO: check for changes
+	/*if (get_mod_date(POSTS_PATH) > blog->mod_date) {
+		reread_posts(blog);
+	}*/
+
+    // start content
+    Buffer* content = bufNew(exchange->scope, KB(4));
     URL* target = exchange->request->target;
 
     // home page
@@ -83,20 +101,28 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             return true;
         }
 
+        // check modified date
+        const time_t mod_date = modDate(blog, true);
+        if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+            DEBUG("Use cached version of home page");
+            httpServerSendNotModified(exchange);
+            return true;
+        }
+
         // generate content
-		bufAppendSlice(content, blog->header1);
-        bufAppendSlice(content, blog->header2);
+		bufAppendMFile(content, blog->header1);
+        bufAppendMFile(content, blog->header2);
         for (U64 i=0; i<blog->posts->count; i++) {
             if (i > 0) {
 				bufAppendStr(content, "<hr>\n");
 			}
             composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
         }
-		bufAppendSlice(content, blog->footer);
+		bufAppendMFile(content, blog->footer);
 
         // send
         httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-		//httpServerAddDateHeader(exchange, "Last-Modified", mod_date);
+		httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
 		httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
         httpServerSend(exchange);
         return true;
@@ -108,9 +134,16 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             return true;
         }
 
+        // check modified date
+        const time_t mod_date = modDate(blog, true);
+        if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+            httpServerSendNotModified(exchange);
+            return true;
+        }
+
         // generate content
-		bufAppendSlice(content, blog->header1);
-        bufAppendSlice(content, blog->header2);
+		bufAppendMFile(content, blog->header1);
+        bufAppendMFile(content, blog->header2);
         U64 i = blog->posts->count;
         if (i>0) {
             do {
@@ -127,11 +160,11 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
 			}
             composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
         }
-		bufAppendSlice(content, blog->footer);
+		bufAppendMFile(content, blog->footer);
 
         // send
         httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-		//httpServerAddDateHeader(exchange, "Last-Modified", mod_date);
+		httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
 		httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
         httpServerSend(exchange);
         return true;
@@ -144,10 +177,17 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                 return true;
             }
 
+            // check modified date
+            const time_t mod_date = modDate(blog, false);
+            if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+                httpServerSendNotModified(exchange);
+                return true;
+            }
+
             // generate content
-            bufAppendSlice(content, blog->header1);
+            bufAppendMFile(content, blog->header1);
             bufAppendStr(content, " - Blog");
-            bufAppendSlice(content, blog->header2);
+            bufAppendMFile(content, blog->header2);
             bufAppendStr(content, "<article><h1>Blog Archive</h1>\n");
 		    bufAppendStr(content, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
 
@@ -163,11 +203,11 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             }
 
             bufAppendStr(content, "</article>");
-		    bufAppendSlice(content, blog->footer);
+		    bufAppendMFile(content, blog->footer);
 
             // send
             httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-            //httpServerAddDateHeader(exchange, "Last-Modified", mod_date);
+            httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
             httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
             httpServerSend(exchange);
             return true;
@@ -178,12 +218,19 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             for (U64 i=0; i<blog->posts->count; i++) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 if (sliceIs(*(Slice*)arrayGet(target->path_segments, 1), post->dir)) {
+                    // check modified date
+                    const time_t mod_date = maxTime(modDate(blog, false), mfileModDate(post->content));
+                    if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+                        httpServerSendNotModified(exchange);
+                        return true;
+                    }
+
                     // generate content
-                    bufAppendSlice(content, blog->header1);
+                    bufAppendMFile(content, blog->header1);
                     bufAppendFormat(content, " - %.*s", post->title.length, post->title.start);
-                    bufAppendSlice(content, blog->header2);
+                    bufAppendMFile(content, blog->header2);
                     bufAppendFormat(content, "<article><h1>%.*s</h1><h2>%.*s</h2>\n", post->title.length, post->title.start, post->date.length, post->date.start);
-                    bufAppendSlice(content, mfileAsSlice(post->content));
+                    bufAppendMFile(content, post->content);
                     bufAppendStr(content, "<nav>");
                     if (i < blog->posts->count - 1) {
                         BlogPost* other_post = (BlogPost*)arrayGet(blog->posts, i + 1);
@@ -196,11 +243,11 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                         bufAppendFormat(content, "<a href=\"%.*s\">next</a>", other_post->url.length, other_post->url.start);
                     }
                     bufAppendStr(content, "</nav></article>");
-		            bufAppendSlice(content, blog->footer);
+		            bufAppendMFile(content, blog->footer);
 
                     // send
                     httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-                    //httpServerAddDateHeader(exchange, "Last-Modified", mod_date);
+                    httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
                     httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
                     httpServerSend(exchange);
                     return true;
