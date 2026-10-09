@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "lib/net/server.h"
 #include "lib/macros.h"
@@ -8,8 +9,8 @@
 #include "lib/mem/buffer.h"
 #include "lib/log.h"
 
-static const U8 CLEAN_POOL = 1;
-static const U8 REMOVE_SOCKET = 2;
+static const U8 CLEAN_POOL    = 0b00000001;
+static const U8 REMOVE_SOCKET = 0b00000010;
 static void connectionClose(ServerConnection* connection, U8 flags);
 
 // connection functions
@@ -27,7 +28,7 @@ void connectionEndExchange(ServerConnection* connection) {
     }
 }
 
-static ssize_t sendMessage(ServerConnection* connection, bool* close) {
+static ssize_t sendMessage(ServerConnection* connection, bool* remove) {
     ssize_t sent = send(connection->socket, connection->exchange->response.start, connection->exchange->response.length, MSG_DONTWAIT);
     if (sent >= 0) {
         DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->response.length);
@@ -37,7 +38,7 @@ static ssize_t sendMessage(ServerConnection* connection, bool* close) {
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
-                connection->server->onSent(connection, close);
+                connection->server->onSent(connection, remove);
             }
         }
     } else {
@@ -51,28 +52,28 @@ void connectionSend(ServerConnection* connection, Slice response) {
         connectionStartExchange(connection);
     }
     connection->exchange->response = response;
-    bool and_close = false;
-    if (sendMessage(connection, &and_close) < 0 || and_close) {
+    bool and_remove = false;
+    if (sendMessage(connection, &and_remove) < 0 || and_remove) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
 }
-void connectionSent(ServerConnection* connection, bool* close) {
+void connectionSent(ServerConnection* connection, __attribute__((unused)) bool* remove) {
     connectionEndExchange(connection);
     pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
 
 // connection events
-static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
+static void onConnectionEvent(struct pollfd* pfd, void* context, bool* remove) {
     ServerConnection* connection = context;
 
     if (pfd->revents & POLLHUP) {
         LOG("Connection from %s (%d) hung up", connection->address, pfd->fd);
         connectionClose(connection, CLEAN_POOL);
-        *close = true;
+        *remove = true;
     } else if (pfd->revents & (POLLERR | POLLNVAL)) {
         ERROR("Socket error from %s (%d): %d", connection->address, pfd->fd, pfd->revents);
         connectionClose(connection, CLEAN_POOL);
-        *close = true;
+        *remove = true;
     } else {
         if (!connection->exchange) {
             connectionStartExchange(connection);
@@ -89,18 +90,16 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* close) {
             } else {
                 if (recvied < 0) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
-                } else {
-                    LOG("Connection from %s (%d) closed", connection->address, pfd->fd);
                 }
                 connectionClose(connection, CLEAN_POOL);
-                *close = true;
+                *remove = true;
             }
 
         } else if (pfd->revents & POLLOUT) {
             bool and_close = false;
             if (sendMessage(connection, &and_close) < 0 || and_close) {
                 connectionClose(connection, CLEAN_POOL);
-                *close = true;
+                *remove = true;
             }
         }
     }
@@ -117,6 +116,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
     if (flags & REMOVE_SOCKET) {
         pollingRemove(connection->server->polling, connection->socket);
     }
+    close(connection->socket);
     LOG("Connection from %s (%d) closed", connection->address, connection->socket);
 }
 static void connectionsCloseAll(Server* server) {
@@ -129,7 +129,7 @@ static void connectionsCloseAll(Server* server) {
 }
 
 // server events
-static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* close) {
+static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* remove) {
     Server* server = context;
 
     if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {

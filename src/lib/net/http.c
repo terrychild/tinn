@@ -292,10 +292,10 @@ static void onSent(ServerConnection* connection, bool* remove) {
 
         } else {
             if (sliceIsStr(exchange->request->connection, "close")) {
-                *close = true;
+                *remove = true;
             } else {
-                connectionSent(connection, close);
-                http_server->exchange = NULL;
+                connectionSent(connection, remove);
+                http_connection->exchange = NULL;
             }
         }
     }

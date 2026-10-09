@@ -7,16 +7,9 @@
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
 
-Blog* blogNew(Allocator* allocator) {
-    Blog* blog = allocate(allocator, sizeof(Blog));
-    blog->posts = arrayNew(allocator, sizeof(BlogPost), 32);
-
-    MappedFile* posts = allocateFile(allocator, "./blog/.posts.dat");
-    if (!posts) {
-        ERROR("Unable to load posts.dat");
-        return NULL;
-    }
-    Tokeniser lines = sliceTokeniserStr(mfileAsSlice(posts), "\n", false);
+static void readPosts(Blog* blog) {
+    blog->mod_date = blog->posts_file->mod_date;
+    Tokeniser lines = sliceTokeniserStr(mfileAsSlice(blog->posts_file), "\n", false);
     Slice line = nextToken(&lines);
     while (line.start && line.length > 0) {
         Tokeniser fields = sliceTokeniserStr(line, "\t", true);
@@ -26,22 +19,34 @@ Blog* blogNew(Allocator* allocator) {
         post->title = nextToken(&fields);
         post->date = nextToken(&fields);
 
-        Buffer* temp_path = bufNew(allocator, 32);
+        Buffer* temp_path = bufNew(blog->allocator, 32);
         bufAppendStr(temp_path, "./blog/");
         bufAppendSlice(temp_path, post->dir);
         post->url = bufSlice(temp_path, 1, -1);
 
         bufAppendStr(temp_path, "/.post.html");
-        post->content = allocateFile(allocator, bufAsStr(temp_path));
+        post->content = allocateFile(blog->allocator, blog->polling, bufAsStr(temp_path));
 
         line = nextToken(&lines);
     }
+}
 
-    blog->header1 = allocateFile(allocator, "./blog/.header1.html");
-    blog->header2 = allocateFile(allocator, "./blog/.header2.html");
-    blog->footer = allocateFile(allocator, "./blog/.footer.html");
+Blog* blogNew(Allocator* allocator, Polling* polling) {
+    Blog* blog = allocate(allocator, sizeof(Blog));
+    blog->allocator = allocator;
+    blog->polling = polling;
+    blog->posts = arrayNew(allocator, sizeof(BlogPost), 32);
+
+    blog->posts_file = allocateFile(allocator, polling, "./blog/.posts.dat");
+    if (!blog->posts_file) {
+        return NULL;
+    }
+    readPosts(blog);
+
+    blog->header1 = allocateFile(allocator, polling, "./blog/.header1.html");
+    blog->header2 = allocateFile(allocator, polling, "./blog/.header2.html");
+    blog->footer = allocateFile(allocator, polling, "./blog/.footer.html");
     if (!blog->header1 || !blog->header2 || !blog->footer) {
-        ERROR("Unable to load fragment");
         deallocateFile(allocator, blog->header1);
         deallocateFile(allocator, blog->header2);
         deallocateFile(allocator, blog->footer);
@@ -73,23 +78,30 @@ static time_t maxTime(time_t a, time_t b) {
 	return a>=b ? a : b;
 }
 static time_t modDate(Blog* blog, bool posts) {
-    time_t mod_date = mfileModDate(blog->header1);
-    mod_date = maxTime(mod_date, mfileModDate(blog->header2));
-    mod_date = maxTime(mod_date, mfileModDate(blog->footer));
+    time_t mod_date = blog->mod_date;
+
+    mod_date = maxTime(mod_date, blog->header1->mod_date);
+    mod_date = maxTime(mod_date, blog->header2->mod_date);
+    mod_date = maxTime(mod_date, blog->footer->mod_date);
 
     if (posts) {
         for (U64 i=0; i<blog->posts->count; i++) {
-            mod_date = maxTime(mod_date, mfileModDate(((BlogPost*)arrayGet(blog->posts, i))->content));
+            mod_date = maxTime(mod_date, ((BlogPost*)arrayGet(blog->posts, i))->content->mod_date);
         }
     }
+
     return mod_date;
 }
 
 bool blogContent(Blog* blog, HttpServerExchange* exchange) {
-    // TODO: check for changes
-	/*if (get_mod_date(POSTS_PATH) > blog->mod_date) {
-		reread_posts(blog);
-	}*/
+    // check for changes
+    if (blog->mod_date < blog->posts_file->mod_date) {
+        for (U64 i=0; i<blog->posts->count; i++) {
+            deallocateFile(blog->allocator, ((BlogPost*)arrayGet(blog->posts, i))->content);
+        }
+        arrayReset(blog->posts);
+        readPosts(blog);
+    }
 
     // start content
     Buffer* content = bufNew(exchange->scope, KB(4));
@@ -154,12 +166,6 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                 composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
             } while (i>0);
         }
-        for (U64 i=0; i<blog->posts->count; i++) {
-            if (i > 0) {
-				bufAppendStr(content, "<hr>\n");
-			}
-            composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
-        }
 		bufAppendMFile(content, blog->footer);
 
         // send
@@ -219,7 +225,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 if (sliceIs(*(Slice*)arrayGet(target->path_segments, 1), post->dir)) {
                     // check modified date
-                    const time_t mod_date = maxTime(modDate(blog, false), mfileModDate(post->content));
+                    const time_t mod_date = maxTime(modDate(blog, false), post->content->mod_date);
                     if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
                         httpServerSendNotModified(exchange);
                         return true;

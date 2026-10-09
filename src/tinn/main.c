@@ -40,7 +40,7 @@ int host(int argc, char* argv[]) {
     // resources
     Allocator* allocator = allocatorNew(0);
     Polling* polling = pollingNew(allocator, 32);
-    Blog* blog = blogNew(allocator);
+    Blog* blog = blogNew(allocator, polling);
     if (!blog) {
         return EXIT_FAILURE;
     }

@@ -28,12 +28,12 @@ void deallocateChild(Allocator* allocator, Allocator* child) {
 }
 
 // files
-MappedFile* allocateFile(Allocator* allocator, const char* path) {
+MappedFile* allocateFile(Allocator* allocator, Polling* polling, const char* path) {
     if (!allocator->files) {
         allocator->files = poolNew(allocator, sizeof(MappedFile), 8);
     }
     MappedFile* file = poolAdd(allocator->files);
-    if (!mfileOpen(file, path)) {
+    if (!mfileOpen(file, polling, path)) {
         poolRemove(allocator->files, file);
         return NULL;
     }
