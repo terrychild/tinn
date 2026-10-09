@@ -22,6 +22,7 @@ void tinnWebServer(HttpServerExchange* exchange, void* context) {
         return;
     }
 
+    LOG("Web: %.*s not found for %s", exchange->request->target->path.length, exchange->request->target->path.start, exchange->connection->address);
     httpServerSendError(exchange, HTTP_NOT_FOUND);
 }
 

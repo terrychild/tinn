@@ -113,10 +113,12 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             return true;
         }
 
+        LOG("Blog: Serving / to %s", exchange->connection->address);
+
         // check modified date
         const time_t mod_date = modDate(blog, true);
         if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
-            DEBUG("Use cached version of home page");
+            DEBUG("Blog: Use cached version");
             httpServerSendNotModified(exchange);
             return true;
         }
@@ -146,9 +148,12 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             return true;
         }
 
+        LOG("Blog: Serving /log to %s", exchange->connection->address);
+
         // check modified date
         const time_t mod_date = modDate(blog, true);
         if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+            DEBUG("Blog: Use cached version");
             httpServerSendNotModified(exchange);
             return true;
         }
@@ -183,9 +188,12 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                 return true;
             }
 
+            LOG("Blog: Serving /blog to %s", exchange->connection->address);
+
             // check modified date
             const time_t mod_date = modDate(blog, false);
             if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+                DEBUG("Blog: Use cached version");
                 httpServerSendNotModified(exchange);
                 return true;
             }
@@ -224,9 +232,12 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             for (U64 i=0; i<blog->posts->count; i++) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 if (sliceIs(*(Slice*)arrayGet(target->path_segments, 1), post->dir)) {
+                    LOG("Blog: Serving /blog/%.*s to %s", post->dir.length, post->dir.start, exchange->connection->address);
+
                     // check modified date
                     const time_t mod_date = maxTime(modDate(blog, false), post->content->mod_date);
                     if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+                        DEBUG("Blog: Use cached version");
                         httpServerSendNotModified(exchange);
                         return true;
                     }

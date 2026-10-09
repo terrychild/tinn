@@ -27,14 +27,13 @@ bool staticContent(HttpServerExchange* exchange) {
 
     // ignore dot files
     if (last_segment.length > 0 && last_segment.start[0] == '.') {
-        DEBUG("Ignoring dot file \"%s\"", local_path);
+        DEBUG("Static: Ignoring dot file %s", local_path + 1);
         return false;
     }
 
     // get file information
 	struct stat attrib;
 	if (stat(local_path, &attrib) != 0) {
-		DEBUG("Could not find \"%s\"", local_path);
 		return false;
 	}
 
@@ -48,9 +47,12 @@ bool staticContent(HttpServerExchange* exchange) {
 
     // is it a file or directory?
     if (S_ISREG(attrib.st_mode)) {
+        LOG("Static: Serving %.*s to %s", target->path.length, target->path.start, exchange->connection->address);
+        DEBUG("Static: Local file path is %s", local_path + 1);
+
         // check modified date
         if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= attrib.st_mtime) {
-            DEBUG("Local file not modified, use cached version of \"%s\"", local_path);
+            DEBUG("Static: Use cached version");
             httpServerSendNotModified(exchange);
             return true;
         }
@@ -60,10 +62,9 @@ bool staticContent(HttpServerExchange* exchange) {
         FILE *file = fopen(local_path, "rb");
 
         if (file == NULL) {
-            ERROR("Unable to open file \"%s\"", local_path);
+            ERROR("Static: Unable to open file %s", local_path + 1);
             return false;
         }
-        DEBUG("Serving local file \"%s\"", local_path);
 
         fseek(file, 0, SEEK_END);
         length = ftell(file);
@@ -96,17 +97,17 @@ bool staticContent(HttpServerExchange* exchange) {
                 memcpy((char*)new_path.start, target->path.start, target->path.length);
                 ((char*)new_path.start)[target->path.length] = '/';
 
-                DEBUG("Found local directory, redirecting to \"%.*s\"", new_path.length, new_path.start);
+                DEBUG("Static: Found local directory, redirecting to %.*s", new_path.length, new_path.start);
 
                 httpServerSendRedirect(exchange, new_path);
                 return true;
             }
         }
-        DEBUG("Found local directory but no index at \"%s\"", local_path);
+        DEBUG("Static: Found local directory but no index at %s", local_path + 1);
         return false;
 
     } else {
-		ERROR("Unknown file mode (%d) for \"%s\"", attrib.st_mode, local_path);
+		ERROR("Unknown file mode (%d) for %s", attrib.st_mode, local_path + 1);
 		return false;
 	}
 }
