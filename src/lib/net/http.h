@@ -65,10 +65,14 @@ typedef struct {
 typedef void (*HttpServerRequestFunc)(HttpServerExchange* exchange, void* context);
 
 typedef struct {
-    HttpServerExchange* exchange;
     HttpServerRequestFunc onRequest;
     void* context;
 } HttpServer;
+
+typedef struct {
+    HttpServer* server;
+    HttpServerExchange* exchange;
+} HttpServerConnection;
 
 HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port);
 

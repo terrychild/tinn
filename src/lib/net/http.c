@@ -191,9 +191,16 @@ void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_cod
 }
 
 // events
-static void onReceive(ServerConnection* connection, Slice data) {
+static void onConnect(ServerConnection* connection) {
     HttpServer* http_server = (HttpServer*)connection->context;
-    HttpServerExchange* exchange = http_server->exchange;
+    HttpServerConnection* http_connection = allocate(connection->scope, sizeof(HttpServerConnection));
+    http_connection->server = http_server;
+    connection->context = http_connection;
+}
+
+static void onReceive(ServerConnection* connection, Slice data) {
+    HttpServerConnection* http_connection = (HttpServerConnection*)connection->context;
+    HttpServerExchange* exchange = http_connection->exchange;
     if (!exchange) {
         exchange = allocate(connection->exchange_scope, sizeof(ServerConnection));
         exchange->connection = connection;
@@ -204,7 +211,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
         exchange->response->version = "HTTP/1.1";
         exchange->response->headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
 
-        http_server->exchange = exchange;
+        http_connection->exchange = exchange;
     }
 
     if (exchange->status == HTTP_RECEIVE_HEADER) {
@@ -259,8 +266,8 @@ static void onReceive(ServerConnection* connection, Slice data) {
 				}
 
                 // respond
-                if (http_server->onRequest) {
-                    http_server->onRequest(exchange, http_server->context);
+                if (http_connection->server->onRequest) {
+                    http_connection->server->onRequest(exchange, http_connection->server->context);
                 } else {
                     httpServerSetStatus(exchange, HTTP_NO_CONTENT);
                     httpServerSend(exchange);
@@ -274,9 +281,9 @@ static void onReceive(ServerConnection* connection, Slice data) {
     }
 }
 
-static void onSent(ServerConnection* connection, bool* close) {
-    HttpServer* http_server = (HttpServer*)connection->context;
-    HttpServerExchange* exchange = http_server->exchange;
+static void onSent(ServerConnection* connection, bool* remove) {
+    HttpServerConnection* http_connection = (HttpServerConnection*)connection->context;
+    HttpServerExchange* exchange = http_connection->exchange;
 
     if (exchange) {
         if (exchange->status == HTTP_SEND_HEADER && exchange->response->content.length > 0) {
@@ -300,6 +307,7 @@ HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port)
     if (server) {
         http_server = allocate(allocator, sizeof(HttpServer));
 
+        server->onConnect = onConnect;
         server->onReceive = onReceive;
         server->onSent = onSent;
         server->context = http_server;
