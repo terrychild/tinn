@@ -7,21 +7,21 @@
 #include "lib/log.h"
 #include "lib/mem/allocator.h"
 #include "lib/mem/array.h"
+#include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
 #include "lib/net/url.h"
 
 bool staticContent(HttpServerExchange* exchange) {
     // build a local path
     URL* target = exchange->request->target;
-    char local_path[1 + target->path.length + 11 + 1]; // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
-    local_path[0] = '.';
-    strncpy(local_path + 1, (const char*)target->path.start, target->path.length);
-    local_path[1 + target->path.length] = '\0';
+    Buffer* local_path = bufNew(exchange->scope, 1 + target->path.length + 11 + 1); // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
+    bufAppendStr(local_path, ".");
+    bufAppendSlice(local_path, target->path);
 
     Slice last_segment = *(Slice*)arrayPeek(target->path_segments);
 
     if (last_segment.length == 0) {
-        strcpy(local_path + 1 + target->path.length, "index.html");
+        bufAppendStr(local_path, "index.html");
         last_segment = sliceFromStr("index.html");
     }
 
@@ -33,7 +33,8 @@ bool staticContent(HttpServerExchange* exchange) {
 
     // get file information
 	struct stat attrib;
-	if (stat(local_path, &attrib) != 0) {
+    char* local_path_str = bufAsStr(local_path);
+	if (stat(local_path_str, &attrib) != 0) {
 		return false;
 	}
 
@@ -48,7 +49,7 @@ bool staticContent(HttpServerExchange* exchange) {
     // is it a file or directory?
     if (S_ISREG(attrib.st_mode)) {
         LOG("Static: Serving %.*s to %s", target->path.length, target->path.start, exchange->connection->address);
-        DEBUG("Static: Local file path is %s", local_path + 1);
+        DEBUG("Static: Local file path is %s", local_path_str + 1);
 
         // check modified date
         if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= attrib.st_mtime) {
@@ -59,10 +60,10 @@ bool staticContent(HttpServerExchange* exchange) {
 
         // open file and get content length
         long length;
-        FILE *file = fopen(local_path, "rb");
+        FILE *file = fopen(local_path_str, "rb");
 
         if (file == NULL) {
-            ERROR("Static: Unable to open file %s", local_path + 1);
+            ERROR("Static: Unable to open file %s", local_path_str + 1);
             return false;
         }
 
@@ -79,9 +80,9 @@ bool staticContent(HttpServerExchange* exchange) {
             httpServerSetContentType(exchange, ext);
             //TODO: set content length header
         } else {
-            Slice file_content = sliceNew(exchange->scope, length);
-            fread((void*)file_content.start, 1, length, file);
-            httpServerSetContent(exchange, ext, file_content);
+            U8* file_content = allocate(exchange->scope, length);
+            fread(file_content, 1, length, file);
+            httpServerSetContent(exchange, ext, sliceNew(file_content, length));
         }
         fclose(file);
         httpServerSend(exchange);
@@ -90,12 +91,10 @@ bool staticContent(HttpServerExchange* exchange) {
 
     } else if (S_ISDIR(attrib.st_mode)) {
         // check for index
-        strcpy(local_path + 1 + target->path.length, "/index.html");
-        if (stat(local_path, &attrib) == 0) {
+        bufAppendStr(local_path, "/index.html");
+        if (stat(local_path_str, &attrib) == 0) {
             if (S_ISREG(attrib.st_mode)) {
-                Slice new_path = sliceNew(exchange->scope, target->path.length + 1);
-                memcpy((char*)new_path.start, target->path.start, target->path.length);
-                ((char*)new_path.start)[target->path.length] = '/';
+                Slice new_path = bufSlice(local_path, 1, target->path.length + 2);
 
                 DEBUG("Static: Found local directory, redirecting to %.*s", new_path.length, new_path.start);
 
@@ -103,11 +102,11 @@ bool staticContent(HttpServerExchange* exchange) {
                 return true;
             }
         }
-        DEBUG("Static: Found local directory but no index at %s", local_path + 1);
+        DEBUG("Static: Found local directory but no index at %s", local_path_str + 1);
         return false;
 
     } else {
-		ERROR("Unknown file mode (%d) for %s", attrib.st_mode, local_path + 1);
+		ERROR("Unknown file mode (%d) for %s", attrib.st_mode, local_path_str + 1);
 		return false;
 	}
 }

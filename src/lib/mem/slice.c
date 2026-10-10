@@ -3,10 +3,10 @@
 #include "lib/mem/slice.h"
 #include "lib/mem/allocator.h"
 
-Slice sliceNew(Allocator* allocator, U64 length) {
+Slice sliceNew(const U8* start, U64 length) {
     return (Slice) {
         .length = length,
-        .start = allocate(allocator, length)
+        .start = start
     };
 }
 Slice sliceFromStr(const char* str) {
@@ -157,21 +157,27 @@ Slice sliceTrim(const Slice source) {
     return slice(source, start, end);
 }
 
-Slice sliceToLowerCase(Slice source) {
+Slice sliceToLowerCase(Allocator* allocator, Slice source) {
+    U8* target = allocate(allocator, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'A' && source.start[i] <= 'Z') {
-            ((U8*)source.start)[i] += 32;
+            target[i] = source.start[i] + 32;
+        } else {
+            target[i] = source.start[i];
         }
     }
-    return source;
+    return sliceNew(target, source.length);
 }
-Slice sliceToUpperCase(Slice source) {
+Slice sliceToUpperCase(Allocator* allocator, Slice source) {
+    U8* target = allocate(allocator, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'a' && source.start[i] <= 'z') {
-            ((U8*)source.start)[i] -= 32;
+            target[i] = source.start[i] - 32;
+        } else {
+            target[i] = source.start[i];
         }
     }
-    return source;
+    return sliceNew(target, source.length);
 }
 
 Tokeniser sliceTokeniser(const Slice source, const Slice delim, bool greedy) {

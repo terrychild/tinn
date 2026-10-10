@@ -242,7 +242,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
                 // headers
                 Slice line = nextToken(&lines);
                 while (line.start) {
-                    Slice name = sliceToLowerCase(sliceLeftStr(line, ":"));
+                    Slice name = sliceToLowerCase(exchange->scope, sliceLeftStr(line, ":"));
                     Slice value = sliceTrim(sliceRightStr(line, ":"));
                     //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
 

@@ -3,7 +3,7 @@
 
 #include "lib/types.h"
 
-Slice sliceNew(Allocator* allocator, U64 length);
+Slice sliceNew(const U8* start, U64 length);
 Slice sliceFromStr(const char* str);
 Slice sliceEmpty();
 
@@ -25,8 +25,8 @@ Slice sliceRightBackStr(const Slice source, const char* search);
 
 Slice sliceTrim(const Slice source);
 
-Slice sliceToLowerCase(Slice source);
-Slice sliceToUpperCase(Slice source);
+Slice sliceToLowerCase(Allocator* allocator, Slice source);
+Slice sliceToUpperCase(Allocator* allocator, Slice source);
 
 typedef struct {
     Slice slice;
