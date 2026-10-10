@@ -77,8 +77,7 @@ bool staticContent(HttpServerExchange* exchange) {
 
         Slice ext = sliceRightBackStr(last_segment, ".");
         if (sliceIsStr(exchange->request->method, "HEAD")) {
-            httpServerSetContentType(exchange, ext);
-            //TODO: set content length header
+            httpServerSetContentHeaders(exchange, ext, length);
         } else {
             U8* file_content = allocate(exchange->scope, length);
             fread(file_content, 1, length, file);

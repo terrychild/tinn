@@ -80,7 +80,7 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 
     // default status code
     if (exchange->response->status_code == 0) {
-        exchange->response->status_code = exchange->response->content.length == 0 ? HTTP_NO_CONTENT : HTTP_OK;
+        exchange->response->status_code = exchange->response->content_length == 0 ? HTTP_NO_CONTENT : HTTP_OK;
     }
 
     // status line
@@ -97,7 +97,7 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 
 	// content headers
     if (exchange->response->status_code != HTTP_NO_CONTENT && exchange->response->status_code != HTTP_NOT_MODIFIED) {
-        bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content.length);
+        bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content_length);
         if (exchange->response->content_type.length > 0) {
             bufAppendFormat(header, "Content-Type: %.*s\r\n", exchange->response->content_type.length, exchange->response->content_type.start);
         }
@@ -119,11 +119,13 @@ void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_cod
     exchange->response->status_code = status_code;
 }
 
-void httpServerSetContentType(HttpServerExchange* exchange, Slice content_type) {
+void httpServerSetContentHeaders(HttpServerExchange* exchange, Slice content_type, U64 content_length) {
     exchange->response->content_type = validateContentType(content_type);
+    exchange->response->content_length = content_length;
 }
 void httpServerSetContent(HttpServerExchange* exchange, Slice content_type, Slice content) {
     exchange->response->content_type = validateContentType(content_type);
+    exchange->response->content_length = content.length;
     exchange->response->content = content;
 }
 
@@ -286,7 +288,7 @@ static void onSent(ServerConnection* connection, bool* remove) {
     HttpServerExchange* exchange = http_connection->exchange;
 
     if (exchange) {
-        if (exchange->status == HTTP_SEND_HEADER && exchange->response->content.length > 0) {
+        if (exchange->status == HTTP_SEND_HEADER && exchange->response->content_length > 0 && !sliceIsStr(exchange->request->method, "HEAD")) {
             exchange->status = HTTP_SEND_CONTENT;
             connectionSend(connection, exchange->response->content);
 
