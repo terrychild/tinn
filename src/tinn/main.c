@@ -13,6 +13,8 @@
 #include "static.h"
 #include "blog.h"
 
+#include "tls.h"
+
 void tinnWebServer(HttpServerExchange* exchange, void* context) {
     Blog* blog = (Blog*)context;
     if (blogContent(blog, exchange)) {
@@ -59,6 +61,8 @@ int host(int argc, char* argv[]) {
     } else {
         return EXIT_FAILURE;
     }
+
+    tlsTestServer(allocator, polling, "8443");
 
     // loop while there are things to poll
     LOG("Waiting for connections");
