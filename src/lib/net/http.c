@@ -283,7 +283,7 @@ static void onReceive(ServerConnection* connection, Slice data) {
     }
 }
 
-static void onSent(ServerConnection* connection, bool* remove) {
+static void onSent(ServerConnection* connection, bool* and_close) {
     HttpServerConnection* http_connection = (HttpServerConnection*)connection->context;
     HttpServerExchange* exchange = http_connection->exchange;
 
@@ -294,9 +294,9 @@ static void onSent(ServerConnection* connection, bool* remove) {
 
         } else {
             if (sliceIsStr(exchange->request->connection, "close")) {
-                *remove = true;
+                *and_close = true;
             } else {
-                connectionSent(connection, remove);
+                connectionSent(connection, and_close);
                 http_connection->exchange = NULL;
             }
         }

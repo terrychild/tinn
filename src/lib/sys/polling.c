@@ -60,13 +60,10 @@ void pollingPoll(Polling* polling) {
         for (U64 i = 0; i < polling->pollfds->count; i++) {
             struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
             if (pfd->revents) {
-                bool and_remove = false;
-
                 PollingCallback* callback = (PollingCallback*)arrayGet(polling->callbacks, i);
+                callback->func(pfd, callback->context);
 
-                callback->func(pfd, callback->context, &and_remove);
-
-                if (and_remove) {
+                if (pfd->events == 0) {
                     arraySet(polling->pollfds, i, arrayPop(polling->pollfds));
                     arraySet(polling->callbacks, i, arrayPop(polling->callbacks));
                     i--;
@@ -76,7 +73,7 @@ void pollingPoll(Polling* polling) {
     }
 }
 
-static void monitorFile(struct pollfd* pfd, void* context, __attribute__((unused)) bool* remove){
+static void monitorFile(struct pollfd* pfd, void* context){
     Polling* polling = context;
     // TODO check for POLL errors?
     if (pfd->revents & POLLIN) {

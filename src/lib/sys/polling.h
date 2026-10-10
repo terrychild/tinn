@@ -5,7 +5,7 @@
 
 #include "lib/types.h"
 
-typedef void (*PollingCallbackFunc)(struct pollfd* pfd, void* context, bool* remove);
+typedef void (*PollingCallbackFunc)(struct pollfd* pfd, void* context);
 typedef void (*PollingFileCallbackFunc)(void* context);
 
 typedef struct {

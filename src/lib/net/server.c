@@ -28,7 +28,7 @@ void connectionEndExchange(ServerConnection* connection) {
     }
 }
 
-static ssize_t sendMessage(ServerConnection* connection, bool* remove) {
+static ssize_t sendMessage(ServerConnection* connection, bool* and_close) {
     ssize_t sent = send(connection->socket, connection->exchange->response.start, connection->exchange->response.length, MSG_DONTWAIT);
     if (sent >= 0) {
         DEBUG("Sent: %ld/%ld bytes", sent, connection->exchange->response.length);
@@ -38,7 +38,7 @@ static ssize_t sendMessage(ServerConnection* connection, bool* remove) {
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);
         } else {
             if (connection->server->onSent) {
-                connection->server->onSent(connection, remove);
+                connection->server->onSent(connection, and_close);
             }
         }
     } else {
@@ -52,28 +52,28 @@ void connectionSend(ServerConnection* connection, Slice response, bool close_aft
         connectionStartExchange(connection);
     }
     connection->exchange->response = response;
-    bool and_remove = close_after;
-    if (sendMessage(connection, &and_remove) < 0 || and_remove) {
+    bool and_close = close_after;
+    if (sendMessage(connection, &and_close) < 0 || and_close) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }
 }
-void connectionSent(ServerConnection* connection, __attribute__((unused)) bool* remove) {
+void connectionSent(ServerConnection* connection, __attribute__((unused)) bool* and_close) {
     connectionEndExchange(connection);
     pollingEvents(connection->server->polling, connection->socket, POLLIN);
 }
 
 // connection events
-static void onConnectionEvent(struct pollfd* pfd, void* context, bool* remove) {
+static void onConnectionEvent(struct pollfd* pfd, void* context) {
     ServerConnection* connection = context;
 
     if (pfd->revents & POLLHUP) {
         LOG("Connection from %s (%d) hung up", connection->address, pfd->fd);
         connectionClose(connection, CLEAN_POOL);
-        *remove = true;
+        pfd->events = 0;
     } else if (pfd->revents & (POLLERR | POLLNVAL)) {
         ERROR("Socket error from %s (%d): %d", connection->address, pfd->fd, pfd->revents);
         connectionClose(connection, CLEAN_POOL);
-        *remove = true;
+        pfd->events = 0;
     } else {
         if (!connection->exchange) {
             connectionStartExchange(connection);
@@ -92,14 +92,14 @@ static void onConnectionEvent(struct pollfd* pfd, void* context, bool* remove) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
                 }
                 connectionClose(connection, CLEAN_POOL);
-                *remove = true;
+                pfd->events = 0;
             }
 
         } else if (pfd->revents & POLLOUT) {
             bool and_close = false;
             if (sendMessage(connection, &and_close) < 0 || and_close) {
                 connectionClose(connection, CLEAN_POOL);
-                *remove = true;
+                pfd->events = 0;
             }
         }
     }
@@ -129,7 +129,7 @@ static void connectionsCloseAll(Server* server) {
 }
 
 // server events
-static void onServerEvent(struct pollfd* pfd, void* context, __attribute__((unused)) bool* remove) {
+static void onServerEvent(struct pollfd* pfd, void* context) {
     Server* server = context;
 
     if (pfd->revents & (POLLERR | POLLHUP | POLLNVAL)) {
