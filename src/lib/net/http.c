@@ -141,7 +141,7 @@ void httpServerAddDateHeader(HttpServerExchange* exchange, Slice name, time_t se
 
 void httpServerSend(HttpServerExchange* exchange) {
     exchange->status = HTTP_SEND_HEADER;
-    connectionSend(exchange->connection, generateResponseHeader(exchange));
+    connectionSend(exchange->connection, generateResponseHeader(exchange), false);
 }
 
 void httpServerSendRedirect(HttpServerExchange* exchange, Slice location) {
@@ -290,7 +290,7 @@ static void onSent(ServerConnection* connection, bool* remove) {
     if (exchange) {
         if (exchange->status == HTTP_SEND_HEADER && exchange->response->content_length > 0 && !sliceIsStr(exchange->request->method, "HEAD")) {
             exchange->status = HTTP_SEND_CONTENT;
-            connectionSend(connection, exchange->response->content);
+            connectionSend(connection, exchange->response->content, false);
 
         } else {
             if (sliceIsStr(exchange->request->connection, "close")) {

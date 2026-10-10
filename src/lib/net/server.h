@@ -52,7 +52,7 @@ ServerExchange* connectionStartExchange(ServerConnection* connection);
 void connectionEndExchange(ServerConnection* connection);
 
 void connectionReceive(ServerConnection* connection);
-void connectionSend(ServerConnection* connection, Slice message);
+void connectionSend(ServerConnection* connection, Slice message, bool close_after);
 void connectionSent(ServerConnection* connection, bool* remove);
 
 #endif

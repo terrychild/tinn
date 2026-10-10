@@ -47,12 +47,12 @@ static ssize_t sendMessage(ServerConnection* connection, bool* remove) {
     return sent;
 }
 
-void connectionSend(ServerConnection* connection, Slice response) {
+void connectionSend(ServerConnection* connection, Slice response, bool close_after) {
     if (!connection->exchange) {
         connectionStartExchange(connection);
     }
     connection->exchange->response = response;
-    bool and_remove = false;
+    bool and_remove = close_after;
     if (sendMessage(connection, &and_remove) < 0 || and_remove) {
         connectionClose(connection, CLEAN_POOL | REMOVE_SOCKET);
     }

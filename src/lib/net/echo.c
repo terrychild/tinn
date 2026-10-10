@@ -5,7 +5,7 @@
 
 static void echo(ServerConnection* connection, Slice data) {
     hexDump(data);
-    connectionSend(connection, data);
+    connectionSend(connection, data, false);
 }
 
 Server* echoServer(Allocator* allocator, Polling* polling, const char* port) {
