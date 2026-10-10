@@ -1,6 +1,38 @@
 #include "lib/types.h"
 #include "lib/cli.h"
 
+U16 fromBig16(const U8 bytes[2]) {
+    U16 n = 0;
+    for (int i=0; i<2; i++) {
+        n |= (U16)bytes[i] << 8*(1-i);
+    }
+    return n;
+}
+
+U32 fromBig24(const U8 bytes[3]) {
+    U32 n = 0;
+    for (int i=0; i<3; i++) {
+        n |= (U32)bytes[i] << 8*(2-i);
+    }
+    return n;
+}
+
+U32 fromBig32(const U8 bytes[4]) {
+    U32 n = 0;
+    for (int i=0; i<4; i++) {
+        n |= (U32)bytes[i] << 8*(3-i);
+    }
+    return n;
+}
+
+U64 fromBig64(const U8 bytes[8]) {
+    U64 n = 0;
+    for (int i=0; i<8; i++) {
+        n |= (U64)bytes[i] << 8*(7-i);
+    }
+    return n;
+}
+
 void hexDump(Slice slice) {
     bool skipped = false;
     for (U64 i=0; i < slice.length; i+=16) {
