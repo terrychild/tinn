@@ -109,7 +109,8 @@ typedef enum:U16 {
 } SignatureAlgorithm;
 
 typedef enum:U16 {
-    SECP256R1 = 0x0017
+    SECP256R1 = 0x0017,
+    X25519 = 0x001D
 } NamedGroup;
 
 // alerts
@@ -220,7 +221,7 @@ static void decodeSupportedGroups(Settings* settings, Reader reader) {
     for (U16 i=0; i<length; i+=2) {
         NamedGroup group = readU16(&reader);
         switch (group) {
-            case SECP256R1:
+            case X25519:
                 settings->group = group;
                 return;
         }
