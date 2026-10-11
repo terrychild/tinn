@@ -22,6 +22,13 @@ typedef enum:U8 {
     APPLICATION_DATA = 23
 } ContentType;
 
+typedef struct {
+    U8 type;
+    U8 legacy_version[2];
+    U8 length[2];
+    U8 fragment[];
+} Record;
+
 typedef enum:U8 {
     WARNING = 1,
     FATAL = 2
@@ -107,10 +114,16 @@ typedef enum:U16 {
 
 // alerts
 static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description) {
-    Alert* alert = allocate(connection->exchange_scope, sizeof(Alert));
+    Record* message = allocate(connection->exchange_scope, sizeof(Record) + sizeof(Alert));
+    message->type = ALERT;
+    toBig16(message->legacy_version, 0x0303);
+    toBig16(message->length, sizeof(Alert));
+
+    Alert* alert = (Alert*)message->fragment;
     alert->level = level;
     alert->description = description;
-    connectionSend(connection, sliceNew((U8*)alert, sizeof(Alert)), level == FATAL);
+
+    connectionSend(connection, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)), level == FATAL);
 }
 
 // handshake

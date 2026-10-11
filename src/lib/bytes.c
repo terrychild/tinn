@@ -33,6 +33,31 @@ U64 fromBig64(const U8 bytes[8]) {
     return n;
 }
 
+void toBig16(U8 dest[2], U16 n) {
+    for (int i=1; i>=0; i--) {
+        dest[i] = n & 0xFF;
+        n >>= 8;
+    }
+}
+void toBig24(U8 dest[2], U32 n) {
+    for (int i=2; i>=0; i--) {
+        dest[i] = n & 0xFF;
+        n >>= 8;
+    }
+}
+void toBig32(U8 dest[2], U32 n) {
+    for (int i=3; i>=0; i--) {
+        dest[i] = n & 0xFF;
+        n >>= 8;
+    }
+}
+void toBig64(U8 dest[2], U64 n) {
+    for (int i=7; i>=0; i--) {
+        dest[i] = n & 0xFF;
+        n >>= 8;
+    }
+}
+
 void hexDump(Slice slice) {
     bool skipped = false;
     for (U64 i=0; i < slice.length; i+=16) {
