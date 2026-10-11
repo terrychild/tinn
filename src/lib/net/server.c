@@ -122,7 +122,7 @@ static void connectionClose(ServerConnection* connection, U8 flags) {
 static void connectionsCloseAll(Server* server) {
     PoolNode* node = server->connections->first;
     while (node != NULL) {
-        ServerConnection* connection = (ServerConnection*)poolData(node);
+        ServerConnection* connection = (ServerConnection*)node->data;
         connectionClose(connection, REMOVE_SOCKET);
         node = node->next;
     }

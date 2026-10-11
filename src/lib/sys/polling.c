@@ -88,7 +88,7 @@ static void monitorFile(struct pollfd* pfd, void* context){
                 if (event->mask & IN_MODIFY) {
                     PoolNode* node = polling->files->first;
                     while (node != NULL) {
-                        PollingFileCallback* callback = (PollingFileCallback*)poolData(node);
+                        PollingFileCallback* callback = (PollingFileCallback*)node->data;
                         if (callback->wd == event->wd) {
                             callback->func(callback->context);
                             break;
@@ -129,7 +129,7 @@ int pollingMonitorFile(Polling* polling, const char* path, PollingFileCallback c
 void pollingUnmonitorFile(Polling* polling, int wd) {
     PoolNode* node = polling->files->first;
     while (node != NULL) {
-        PollingFileCallback* callback = (PollingFileCallback*)poolData(node);
+        PollingFileCallback* callback = (PollingFileCallback*)node->data;
         if (callback->wd == wd) {
             poolRemove(polling->files, callback);
             return;

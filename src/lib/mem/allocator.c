@@ -69,7 +69,7 @@ void allocatorReset(Allocator* allocator) {
     if (allocator->children) {
         PoolNode* node = allocator->children->first;
         while (node != NULL) {
-            allocatorRelease((Allocator*)poolData(node));
+            allocatorRelease((Allocator*)node->data);
             node = node->next;
         }
     }
@@ -78,7 +78,7 @@ void allocatorReset(Allocator* allocator) {
     if (allocator->files) {
         PoolNode* node = allocator->files->first;
         while (node != NULL) {
-            allocatorRelease((Allocator*)poolData(node));
+            allocatorRelease((Allocator*)node->data);
             node = node->next;
         }
     }
@@ -115,7 +115,7 @@ static void debug(Allocator* allocator, U8 level) {
     if (allocator->children) {
         PoolNode* node = allocator->children->first;
         while (node != NULL) {
-            debug((Allocator*)poolData(node), level+2);
+            debug((Allocator*)node->data, level+2);
             node = node->next;
         }
     }

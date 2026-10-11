@@ -5,6 +5,7 @@
 
 typedef struct PoolNode {
     struct PoolNode* next;
+    U8 data[];
 } PoolNode;
 
 struct Pool {
@@ -23,8 +24,6 @@ void poolReset(Pool* pool);
 void* poolAdd(Pool* pool);
 void* poolPush(Pool* pool, const void* item);
 void* poolRemove(Pool* pool, const void* item);
-
-void* poolData(PoolNode* node);
 
 void poolDebug(Pool* pool);
 

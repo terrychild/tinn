@@ -57,7 +57,7 @@ static void* add(Pool* pool) {
     pool->first = node;
     pool->count++;
 
-    return poolData(node);
+    return node->data;
 }
 void* poolAdd(Pool* pool) {
     void* address = add(pool);
@@ -74,7 +74,7 @@ void* poolRemove(Pool* pool, const void* item) {
     PoolNode* node = pool->first;
     PoolNode* prev = NULL;
     while (node != NULL) {
-        if (poolData(node) == item) {
+        if (node->data == item) {
             if (prev) {
                 prev->next = node->next;
             } else {
@@ -89,10 +89,6 @@ void* poolRemove(Pool* pool, const void* item) {
         node = node->next;
     }
     return NULL;
-}
-
-void* poolData(PoolNode* node) {
-    return ((U8*)node) + sizeof(PoolNode*);
 }
 
 void poolDebug(Pool* pool) {
