@@ -122,6 +122,7 @@ typedef struct {
     SignatureAlgorithm signature_algorithum;
     SignatureAlgorithm certificate_algorithum;
     NamedGroup group;
+    Slice key;
     Slice random;
 } Settings;
 
@@ -200,14 +201,6 @@ static void decodeSignatureAlgorithms(Settings* settings, bool cert, Reader read
         DEBUG("unknown signature algorithum: %04X", algorithum);
     }
 }
-/*A TLS-compliant application MUST support digital signatures with
-    rsa_pkcs1_sha256 (for certificates),
-    rsa_pss_rsae_sha256 (for CertificateVerify and certificates), and
-    ecdsa_secp256r1_sha256.
-A TLS-compliant application MUST support key exchange with
-    secp256r1 (NIST P-256) and
-    SHOULD support key exchange with X25519
-*/
 
 static void decodeSupportedGroups(Settings* settings, Reader reader) {
     U16 length = readU16(&reader);
@@ -221,14 +214,28 @@ static void decodeSupportedGroups(Settings* settings, Reader reader) {
         DEBUG("unknown group: %04X", group);
     }
 }
+
 static void decodeKeyShare(Settings* settings, Reader reader) {
-    DEBUG("TLS key share length: %d", readU16(&reader));
+    if (readU16(&reader) != readerRemaining(&reader)) {
+        ERROR("TLS Key Share - Invalid length");
+        settings->alert.level = FATAL;
+        settings->alert.description = DECODE_ERROR;
+        return;
+    }
+
+    do {
+        if (readU16(&reader) == settings->group) {
+            settings->key = readSlice(&reader, readU16(&reader));
+            return;
+        }
+    } while (!readerEOF(&reader));
 }
 
 static void decodeClientHello(ServerConnection* connection, Reader reader) {
     DEBUG("TLS Handshake - Client Hello");
 
     Settings settings = {0};
+    Reader key_share = {0};
 
     // legacy version
     Version legacy_version = readU16(&reader);
@@ -320,7 +327,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
                 break;
 
             case KEY_SHARE:
-                decodeKeyShare(&settings, extension_reader);
+                key_share = extension_reader;
                 break;
 
             default:
@@ -333,6 +340,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
         }
     }
 
+    // validate extensions
     if (settings.version != TLS_1_3) {
         ERROR("Missing supported versions extension");
         sendAlert(connection, FATAL, PROTOCOL_VERSION);
@@ -351,6 +359,21 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
         sendAlert(connection, FATAL, MISSING_EXTENSION);
         return;
     }
+    if (key_share.slice.length == 0) {
+        ERROR("Missing key share");
+        sendAlert(connection, FATAL, MISSING_EXTENSION);
+        // TODO: this should send a HelloRetryRequest insteadd
+        return;
+    }
+    decodeKeyShare(&settings, key_share);
+    if (settings.key.length == 0) {
+        ERROR("Unable to find a matching key");
+        sendAlert(connection, FATAL, MISSING_EXTENSION);
+        // TODO: this should send a HelloRetryRequest insteadd
+        return;
+    }
+    DEBUG("Key");
+    hexDump(settings.key);
 }
 
 static void decodeHandshake(ServerConnection* connection, Reader reader) {
