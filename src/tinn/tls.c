@@ -101,6 +101,10 @@ typedef enum:U16 {
     RSA_PSS_RSAE_SHA256 = 0x0804
 } SignatureAlgorithm;
 
+typedef enum:U16 {
+    SECP256R1 = 0x0017
+} NamedGroup;
+
 // alerts
 static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description) {
     Alert* alert = allocate(connection->exchange_scope, sizeof(Alert));
@@ -117,6 +121,7 @@ typedef struct {
     CipherSuite cipher_suite;
     SignatureAlgorithm signature_algorithum;
     SignatureAlgorithm certificate_algorithum;
+    NamedGroup group;
     Slice random;
 } Settings;
 
@@ -178,7 +183,7 @@ static void decodeCipherSuites(Settings* settings, Reader reader) {
 }
 
 static void decodeSignatureAlgorithms(Settings* settings, bool cert, Reader reader) {
-    SignatureAlgorithm length = readU16(&reader);
+    U16 length = readU16(&reader);
     for (U16 i=0; i<length; i+=2) {
         SignatureAlgorithm algorithum = readU16(&reader);
         switch (algorithum) {
@@ -205,7 +210,16 @@ A TLS-compliant application MUST support key exchange with
 */
 
 static void decodeSupportedGroups(Settings* settings, Reader reader) {
-    DEBUG("TLS supported groups length: %d", readU16(&reader));
+    U16 length = readU16(&reader);
+    for (U16 i=0; i<length; i+=2) {
+        NamedGroup group = readU16(&reader);
+        switch (group) {
+            case SECP256R1:
+                settings->group = group;
+                return;
+        }
+        DEBUG("unknown group: %04X", group);
+    }
 }
 static void decodeKeyShare(Settings* settings, Reader reader) {
     DEBUG("TLS key share length: %d", readU16(&reader));
@@ -297,6 +311,12 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
 
             case SUPPORTED_GROUPS:
                 decodeSupportedGroups(&settings, extension_reader);
+                if (settings.group == 0) {
+                    ERROR("Unable to find a matching named group");
+                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
+                    return;
+                }
+                DEBUG("selected group: %04X", settings.group);
                 break;
 
             case KEY_SHARE:
@@ -325,6 +345,11 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     }
     if (settings.certificate_algorithum == 0) {
         settings.certificate_algorithum = settings.signature_algorithum;
+    }
+    if (settings.group == 0) {
+        ERROR("Missing supported groups");
+        sendAlert(connection, FATAL, MISSING_EXTENSION);
+        return;
     }
 }
 
