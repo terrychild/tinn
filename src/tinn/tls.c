@@ -140,75 +140,8 @@ typedef enum:U16 {
     TLS_ET_KEY_SHARE = 51
 } ExtensionType;
 
-// TLS function declerations
-static void readRecord(ServerConnection* connection, Slice data);
-static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description);
-static void readHandshake(ServerConnection* connection, Reader reader);
-static void readHandshakeClientHello(ServerConnection* connection, Reader reader);
-static void readExtensionServerName(ServerConnection* connection, Reader reader);
-static void readExtensionSupportedVersions(ServerConnection* connection, Reader reader);
-static void readExtensionCookie(ServerConnection* connection, Reader reader);
-static void readExtensionSupportedGroups(ServerConnection* connection, Reader reader);
-static void readExtensionSignatureAlgorithms(ServerConnection* connection, Reader reader);
-static void readExtensionKeyShare(ServerConnection* connection, Reader reader);
 
-// the server
-
-Server* tlsTestServer(Allocator* allocator, Polling* polling, const char* port) {
-    Server* server = serverNew(allocator, polling, port);
-    if (server) {
-        server->onReceive = readRecord;
-    }
-    return server;
-}
-
-// the functions
-
-static void readRecord(ServerConnection* connection, Slice data) {
-    if (data.length < 5) {
-        WARN("TLS message is shorter than a complete header, waiting...");
-        return;
-    }
-
-    Reader reader = newReader(data);
-    ContentType type = readU8(&reader);
-    switch (type) {
-        case TLS_CT_ALERT:
-        case TLS_CT_APPLICATION_DATA:
-        case TLS_CT_CHANGE_CIPHER_SPEC:
-        case TLS_CT_HANDSHAKE:
-            break;
-        default:
-            DEBUG("Unknown TLS content type: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
-            return;
-    }
-
-    DEBUG("Record legacy version: %04X", readU16(&reader));
-
-    U16 length = readU16(&reader);
-    if (length > (2 << 14)) {
-        DEBUG("TLS fragment length exceeds 2^14 bytes.");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_RECORD_OVERFLOW);
-        return;
-    }
-    if (length > data.length - 5) {
-        WARN("TLS message is shorter than fragment length, waiting...");
-        return;
-    }
-
-    Reader record_reader = readReader(&reader, length);
-    switch (type) {
-        case TLS_CT_HANDSHAKE:
-            readHandshake(connection, record_reader);
-            break;
-        default:
-            ERROR("TLS content type not implemented: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
-            return;
-    }
-}
-
+// alerts
 static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description) {
     Alert* alert = allocate(connection->exchange_scope, sizeof(Alert));
     alert->level = level;
@@ -216,34 +149,52 @@ static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescr
     connectionSend(connection, sliceNew((U8*)alert, sizeof(Alert)), level == TLS_AL_FATAL);
 }
 
-static void readHandshake(ServerConnection* connection, Reader reader) {
-    HandshakeType type = readU8(&reader);
-    U32 length = readU24(&reader);
-    Reader handshake_reader = readReader(&reader, length);
+// handshake
+static void readExtensionServerName(ServerConnection* connection, Reader reader) {
+    if (readU16(&reader) != reader.slice.length-2) {
+        ERROR("TLS Server Name - More than one specified");
+        sendAlert(connection, TLS_AL_FATAL, TLS_AD_ILLEGAL_PARAMETER);
+        return;
+    }
 
-    switch (type) {
-        case TLS_HT_CLIENT_HELLO:
-            readHandshakeClientHello(connection, handshake_reader);
-            break;
-        case TLS_HT_SERVER_HELLO:
-        case TLS_HT_NEW_SESSION_TICKET:
-        case TLS_HT_END_OF_EARLY_DATA:
-        case TLS_HT_ENCRYPTED_EXTENSIONS:
-        case TLS_HT_CERTIFICATE:
-        case TLS_HT_CERTIFICATE_REQUEST:
-        case TLS_HT_CERTIFICATE_VERIFY:
-        case TLS_HT_FINISHED:
-        case TLS_HT_KEY_UPDATE:
-        case TLS_HT_MESSAGE_HASH:
-            ERROR("TLS handshake type not implemented: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
-            break;
-        default:
-            DEBUG("Unknown TLS handshake type: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
-            return;
+    if (readU8(&reader) != 0) {
+        ERROR("TLS Server Name - Invalid type");
+        sendAlert(connection, TLS_AL_FATAL, TLS_AD_ILLEGAL_PARAMETER);
+        return;
+    }
+
+    U16 length = readU16(&reader);
+    if (length != reader.slice.length-5) {
+        ERROR("TLS Server Name - Invalid length");
+        sendAlert(connection, TLS_AL_FATAL, TLS_AD_DECODE_ERROR);
+        return;
+    }
+
+    Slice name = readSlice(&reader, length);
+    DEBUG("TLS Server Name: %.*s", length, name.start);
+}
+
+static void readExtensionSupportedVersions(ServerConnection* connection, Reader reader) {
+    U8 length = readU8(&reader);
+    for (U8 i=0; i<length; i+=2) {
+        DEBUG("TLS version: %04X", readU16(&reader));
     }
 }
+
+static void readExtensionCookie(ServerConnection* connection, Reader reader) {
+    DEBUG("TLS cookie length: %d", readU16(&reader));
+}
+
+static void readExtensionSupportedGroups(ServerConnection* connection, Reader reader) {
+    DEBUG("TLS supported groups length: %d", readU16(&reader));
+}
+static void readExtensionSignatureAlgorithms(ServerConnection* connection, Reader reader) {
+    DEBUG("TLS signature algorithms length: %d", readU16(&reader));
+}
+static void readExtensionKeyShare(ServerConnection* connection, Reader reader) {
+    DEBUG("TLS key share length: %d", readU16(&reader));
+}
+
 static void readHandshakeClientHello(ServerConnection* connection, Reader reader) {
     DEBUG("TLS Handshake - Client Hello");
 
@@ -317,47 +268,86 @@ static void readHandshakeClientHello(ServerConnection* connection, Reader reader
     }
 }
 
-static void readExtensionServerName(ServerConnection* connection, Reader reader) {
-    if (readU16(&reader) != reader.slice.length-2) {
-        ERROR("TLS Server Name - More than one specified");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_ILLEGAL_PARAMETER);
+static void readHandshake(ServerConnection* connection, Reader reader) {
+    HandshakeType type = readU8(&reader);
+    U32 length = readU24(&reader);
+    Reader handshake_reader = readReader(&reader, length);
+
+    switch (type) {
+        case TLS_HT_CLIENT_HELLO:
+            readHandshakeClientHello(connection, handshake_reader);
+            break;
+        case TLS_HT_SERVER_HELLO:
+        case TLS_HT_NEW_SESSION_TICKET:
+        case TLS_HT_END_OF_EARLY_DATA:
+        case TLS_HT_ENCRYPTED_EXTENSIONS:
+        case TLS_HT_CERTIFICATE:
+        case TLS_HT_CERTIFICATE_REQUEST:
+        case TLS_HT_CERTIFICATE_VERIFY:
+        case TLS_HT_FINISHED:
+        case TLS_HT_KEY_UPDATE:
+        case TLS_HT_MESSAGE_HASH:
+            ERROR("TLS handshake type not implemented: %d", type);
+            sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
+            break;
+        default:
+            DEBUG("Unknown TLS handshake type: %d", type);
+            sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
+            return;
+    }
+}
+
+// record processing
+static void readRecord(ServerConnection* connection, Slice data) {
+    if (data.length < 5) {
+        WARN("TLS message is shorter than a complete header, waiting...");
         return;
     }
 
-    if (readU8(&reader) != 0) {
-        ERROR("TLS Server Name - Invalid type");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_ILLEGAL_PARAMETER);
-        return;
+    Reader reader = newReader(data);
+    ContentType type = readU8(&reader);
+    switch (type) {
+        case TLS_CT_ALERT:
+        case TLS_CT_APPLICATION_DATA:
+        case TLS_CT_CHANGE_CIPHER_SPEC:
+        case TLS_CT_HANDSHAKE:
+            break;
+        default:
+            DEBUG("Unknown TLS content type: %d", type);
+            sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
+            return;
     }
+
+    DEBUG("Record legacy version: %04X", readU16(&reader));
 
     U16 length = readU16(&reader);
-    if (length != reader.slice.length-5) {
-        ERROR("TLS Server Name - Invalid length");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_DECODE_ERROR);
+    if (length > (2 << 14)) {
+        DEBUG("TLS fragment length exceeds 2^14 bytes.");
+        sendAlert(connection, TLS_AL_FATAL, TLS_AD_RECORD_OVERFLOW);
+        return;
+    }
+    if (length > data.length - 5) {
+        WARN("TLS message is shorter than fragment length, waiting...");
         return;
     }
 
-    Slice name = readSlice(&reader, length);
-    DEBUG("TLS Server Name: %.*s", length, name.start);
-}
-
-static void readExtensionSupportedVersions(ServerConnection* connection, Reader reader) {
-    U8 length = readU8(&reader);
-    for (U8 i=0; i<length; i+=2) {
-        DEBUG("TLS version: %04X", readU16(&reader));
+    Reader record_reader = readReader(&reader, length);
+    switch (type) {
+        case TLS_CT_HANDSHAKE:
+            readHandshake(connection, record_reader);
+            break;
+        default:
+            ERROR("TLS content type not implemented: %d", type);
+            sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
+            return;
     }
 }
 
-static void readExtensionCookie(ServerConnection* connection, Reader reader) {
-    DEBUG("TLS cookie length: %d", readU16(&reader));
-}
-
-static void readExtensionSupportedGroups(ServerConnection* connection, Reader reader) {
-    DEBUG("TLS supported groups length: %d", readU16(&reader));
-}
-static void readExtensionSignatureAlgorithms(ServerConnection* connection, Reader reader) {
-    DEBUG("TLS signature algorithms length: %d", readU16(&reader));
-}
-static void readExtensionKeyShare(ServerConnection* connection, Reader reader) {
-    DEBUG("TLS key share length: %d", readU16(&reader));
+// the server
+Server* tlsTestServer(Allocator* allocator, Polling* polling, const char* port) {
+    Server* server = serverNew(allocator, polling, port);
+    if (server) {
+        server->onReceive = readRecord;
+    }
+    return server;
 }
