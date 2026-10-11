@@ -15,47 +15,47 @@ typedef enum:U16 {
 } Version;
 
 typedef enum:U8 {
-	TLS_CT_INVALID = 0,
-    TLS_CT_CHANGE_CIPHER_SPEC = 20,
-    TLS_CT_ALERT = 21,
-    TLS_CT_HANDSHAKE = 22,
-    TLS_CT_APPLICATION_DATA = 23
+	INVALID = 0,
+    CHANGE_CIPHER_SPEC = 20,
+    ALERT = 21,
+    HANDSHAKE = 22,
+    APPLICATION_DATA = 23
 } ContentType;
 
 typedef enum:U8 {
-    TLS_AL_WARNING = 1,
-    TLS_AL_FATAL = 2
+    WARNING = 1,
+    FATAL = 2
 } AlertLevel;
 
 typedef enum:U8 {
-    TLS_AD_CLOSE_NOTIFY = 0,
-    TLS_AD_UNEXPECTED_MESSAGE = 10,
-    TLS_AD_BAD_RECORD_MAC = 20,
-    TLS_AD_RECORD_OVERFLOW = 22,
-    TLS_AD_HANDSHAKE_FAILURE = 40,
-    TLS_AD_BAD_CERTIFICATE = 42,
-    TLS_AD_UNSUPPORTED_CERTIFICATE = 43,
-    TLS_AD_CERTIFICATE_REVOKED = 44,
-    TLS_AD_CERTIFICATE_EXPIRED = 45,
-    TLS_AD_CERTIFICATE_UNKNOWN = 46,
-    TLS_AD_ILLEGAL_PARAMETER = 47,
-    TLS_AD_UNKNOWN_CA = 48,
-    TLS_AD_ACCESS_DENIED = 49,
-    TLS_AD_DECODE_ERROR = 50,
-    TLS_AD_DECRYPT_ERROR = 51,
-    TLS_AD_PROTOCOL_VERSION = 70,
-    TLS_AD_INSUFFICIENT_SECURITY = 71,
-    TLS_AD_INTERNAL_ERROR = 80,
-    TLS_AD_INAPPROPRIATE_FALLBACK = 86,
-    TLS_AD_USER_CANCELED = 90,
-    TLS_AD_MISSING_EXTENSION = 109,
-    TLS_AD_UNSUPPORTED_EXTENSION = 110,
-    TLS_AD_UNRECOGNIZED_NAME = 112,
-    TLS_AD_BAD_CERTIFICATE_STATUS_RESPONSE = 113,
-    TLS_AD_UNKNOWN_PSK_IDENTITY = 115,
-    TLS_AD_CERTIFICATE_REQUIRED = 116,
-    TLS_AD_GENERAL_ERROR = 117,
-    TLS_AD_NO_APPLICATION_PROTOCOL = 120,
+    CLOSE_NOTIFY = 0,
+    UNEXPECTED_MESSAGE = 10,
+    BAD_RECORD_MAC = 20,
+    RECORD_OVERFLOW = 22,
+    HANDSHAKE_FAILURE = 40,
+    BAD_CERTIFICATE = 42,
+    UNSUPPORTED_CERTIFICATE = 43,
+    CERTIFICATE_REVOKED = 44,
+    CERTIFICATE_EXPIRED = 45,
+    CERTIFICATE_UNKNOWN = 46,
+    ILLEGAL_PARAMETER = 47,
+    UNKNOWN_CA = 48,
+    ACCESS_DENIED = 49,
+    DECODE_ERROR = 50,
+    DECRYPT_ERROR = 51,
+    PROTOCOL_VERSION = 70,
+    INSUFFICIENT_SECURITY = 71,
+    INTERNAL_ERROR = 80,
+    INAPPROPRIATE_FALLBACK = 86,
+    USER_CANCELED = 90,
+    MISSING_EXTENSION = 109,
+    UNSUPPORTED_EXTENSION = 110,
+    UNRECOGNIZED_NAME = 112,
+    BAD_CERTIFICATE_STATUS_RESPONSE = 113,
+    UNKNOWN_PSK_IDENTITY = 115,
+    CERTIFICATE_REQUIRED = 116,
+    GENERAL_ERROR = 117,
+    NO_APPLICATION_PROTOCOL = 120,
 } AlertDescription;
 
 typedef struct {
@@ -64,41 +64,41 @@ typedef struct {
 } Alert;
 
 typedef enum:U8 {
-    TLS_HT_CLIENT_HELLO = 1,
-    TLS_HT_SERVER_HELLO = 2,
-    TLS_HT_NEW_SESSION_TICKET = 4,
-    TLS_HT_END_OF_EARLY_DATA = 5,
-    TLS_HT_ENCRYPTED_EXTENSIONS = 8,
-    TLS_HT_CERTIFICATE = 11,
-    TLS_HT_CERTIFICATE_REQUEST = 13,
-    TLS_HT_CERTIFICATE_VERIFY = 15,
-    TLS_HT_FINISHED = 20,
-    TLS_HT_KEY_UPDATE = 24,
-    TLS_HT_MESSAGE_HASH = 254
+    CLIENT_HELLO = 1,
+    SERVER_HELLO = 2,
+    NEW_SESSION_TICKET = 4,
+    END_OF_EARLY_DATA = 5,
+    ENCRYPTED_EXTENSIONS = 8,
+    CERTIFICATE = 11,
+    CERTIFICATE_REQUEST = 13,
+    CERTIFICATE_VERIFY = 15,
+    FINISHED = 20,
+    KEY_UPDATE = 24,
+    MESSAGE_HASH = 254
 } HandshakeType;
 
 typedef enum:U16 {
-    TLS_CS_AES_128_GCM_SHA256 = 0x1301,
-    TLS_CS_AES_256_GCM_SHA384 = 0x1302,
-    TLS_CS_CHACHA20_POLY1305_SHA256 = 0x1303,
-    TLS_CS_AES_128_CCM_SHA256 = 0x1304,
-    TLS_CS_AES_128_CCM_8_SHA256 = 0x1305,
+    AES_128_GCM_SHA256 = 0x1301,
+    AES_256_GCM_SHA384 = 0x1302,
+    CHACHA20_POLY1305_SHA256 = 0x1303,
+    AES_128_CCM_SHA256 = 0x1304,
+    AES_128_CCM_8_SHA256 = 0x1305,
 } CipherSuite;
 
 typedef enum:U16 {
-    TLS_ET_SERVER_NAME = 0,
-    TLS_ET_SUPPORTED_GROUPS = 10,
-    TLS_ET_SIGNATURE_ALGORITHMS = 13,
-    TLS_ET_SUPPORTED_VERSIONS = 43,
-    TLS_ET_COOKIE = 44,
-    TLS_ET_SIGNATURE_ALGORITHMS_CERT = 50,
-    TLS_ET_KEY_SHARE = 51
+    SERVER_NAME = 0,
+    SUPPORTED_GROUPS = 10,
+    SIGNATURE_ALGORITHMS = 13,
+    SUPPORTED_VERSIONS = 43,
+    COOKIE = 44,
+    SIGNATURE_ALGORITHMS_CERT = 50,
+    KEY_SHARE = 51
 } ExtensionType;
 
 typedef enum:U16 {
-    TLS_SA_RSA_PKCS1_SHA256 = 0x0401,
-    TLS_SA_ECDSA_SECP256R1_SHA256 = 0x0403,
-    TLS_SA_RSA_PSS_RSAE_SHA256 = 0x0804
+    RSA_PKCS1_SHA256 = 0x0401,
+    ECDSA_SECP256R1_SHA256 = 0x0403,
+    RSA_PSS_RSAE_SHA256 = 0x0804
 } SignatureAlgorithm;
 
 // alerts
@@ -106,7 +106,7 @@ static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescr
     Alert* alert = allocate(connection->exchange_scope, sizeof(Alert));
     alert->level = level;
     alert->description = description;
-    connectionSend(connection, sliceNew((U8*)alert, sizeof(Alert)), level == TLS_AL_FATAL);
+    connectionSend(connection, sliceNew((U8*)alert, sizeof(Alert)), level == FATAL);
 }
 
 // handshake
@@ -130,30 +130,30 @@ static void decodeSupportedVersions(Settings* settings, Reader reader) {
             return;
         }
     }
-    settings->alert.level = TLS_AL_FATAL;
-    settings->alert.description = TLS_AD_PROTOCOL_VERSION;
+    settings->alert.level = FATAL;
+    settings->alert.description = PROTOCOL_VERSION;
 }
 
 static void decodeServerName(Settings* settings, Reader reader) {
     if (readU16(&reader) != readerRemaining(&reader)) {
         ERROR("TLS Server Name - More than one specified");
-        settings->alert.level = TLS_AL_FATAL;
-        settings->alert.description = TLS_AD_ILLEGAL_PARAMETER;
+        settings->alert.level = FATAL;
+        settings->alert.description = ILLEGAL_PARAMETER;
         return;
     }
 
     if (readU8(&reader) != 0) {
         ERROR("TLS Server Name - Invalid type");
-        settings->alert.level = TLS_AL_FATAL;
-        settings->alert.description = TLS_AD_ILLEGAL_PARAMETER;
+        settings->alert.level = FATAL;
+        settings->alert.description = ILLEGAL_PARAMETER;
         return;
     }
 
     U16 length = readU16(&reader);
     if (length != readerRemaining(&reader)) {
         ERROR("TLS Server Name - Invalid length");
-        settings->alert.level = TLS_AL_FATAL;
-        settings->alert.description = TLS_AD_DECODE_ERROR;
+        settings->alert.level = FATAL;
+        settings->alert.description = DECODE_ERROR;
         return;
     }
 
@@ -169,7 +169,7 @@ static void decodeCipherSuites(Settings* settings, Reader reader) {
     while (!readerEOF(&reader)) {
         CipherSuite suite = readU16(&reader);
         switch (suite) {
-            case TLS_CS_AES_128_GCM_SHA256:
+            case AES_128_GCM_SHA256:
                 settings->cipher_suite = suite;
                 return;
         }
@@ -182,9 +182,9 @@ static void decodeSignatureAlgorithms(Settings* settings, bool cert, Reader read
     for (U16 i=0; i<length; i+=2) {
         SignatureAlgorithm algorithum = readU16(&reader);
         switch (algorithum) {
-            case TLS_SA_RSA_PKCS1_SHA256:
-            case TLS_SA_ECDSA_SECP256R1_SHA256:
-            case TLS_SA_RSA_PSS_RSAE_SHA256:
+            case RSA_PKCS1_SHA256:
+            case ECDSA_SECP256R1_SHA256:
+            case RSA_PSS_RSAE_SHA256:
                 if (cert) {
                     settings->certificate_algorithum = algorithum;
                 } else {
@@ -220,7 +220,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     Version legacy_version = readU16(&reader);
     DEBUG("legacy version: %04X", legacy_version);
     if (legacy_version != TLS_1_2) {
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_PROTOCOL_VERSION);
+        sendAlert(connection, FATAL, PROTOCOL_VERSION);
         return;
     }
 
@@ -239,7 +239,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     decodeCipherSuites(&settings, readReader(&reader, readU16(&reader)));
     if (settings.cipher_suite == 0) {
         ERROR("Unable to find a matching cipher suite");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_HANDSHAKE_FAILURE);
+        sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
         return;
     }
     DEBUG("selected cipher suite: %04X", settings.cipher_suite);
@@ -247,7 +247,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     // legacy compression methods
     if (readU8(&reader) != 1 || readU8(&reader) != 0) {
         ERROR("Invalid compression method");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_ILLEGAL_PARAMETER);
+        sendAlert(connection, FATAL, ILLEGAL_PARAMETER);
         return;
     }
 
@@ -255,7 +255,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     U16 extensions_length = readU16(&reader);
     if (readerRemaining(&reader) != extensions_length) {
         ERROR("Invalid client hello length");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_DECODE_ERROR);
+        sendAlert(connection, FATAL, DECODE_ERROR);
         return;
     }
 
@@ -263,43 +263,43 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
         U16 extension_type = readU16(&reader);
         Reader extension_reader = readReader(&reader, readU16(&reader));
         switch (extension_type) {
-            case TLS_ET_SERVER_NAME:
+            case SERVER_NAME:
                 decodeServerName(&settings, extension_reader);
                 break;
 
-            case TLS_ET_SUPPORTED_VERSIONS:
+            case SUPPORTED_VERSIONS:
                 decodeSupportedVersions(&settings, extension_reader);
                 break;
 
-            case TLS_ET_COOKIE:
+            case COOKIE:
                 decodeCookie(&settings, extension_reader);
                 break;
 
-            case TLS_ET_SIGNATURE_ALGORITHMS:
+            case SIGNATURE_ALGORITHMS:
                 decodeSignatureAlgorithms(&settings, false, extension_reader);
                 if (settings.signature_algorithum == 0) {
                     ERROR("Unable to find a matching signature algorithum");
-                    sendAlert(connection, TLS_AL_FATAL, TLS_AD_HANDSHAKE_FAILURE);
+                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
                     return;
                 }
                 DEBUG("selected signature algorithum: %04X", settings.signature_algorithum);
                 break;
 
-            case TLS_ET_SIGNATURE_ALGORITHMS_CERT:
+            case SIGNATURE_ALGORITHMS_CERT:
                 decodeSignatureAlgorithms(&settings, true, extension_reader);
                 if (settings.certificate_algorithum == 0) {
                     ERROR("Unable to find a matching certificate algorithum");
-                    sendAlert(connection, TLS_AL_FATAL, TLS_AD_HANDSHAKE_FAILURE);
+                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
                     return;
                 }
                 DEBUG("selected certificate algorithum: %04X", settings.certificate_algorithum);
                 break;
 
-            case TLS_ET_SUPPORTED_GROUPS:
+            case SUPPORTED_GROUPS:
                 decodeSupportedGroups(&settings, extension_reader);
                 break;
 
-            case TLS_ET_KEY_SHARE:
+            case KEY_SHARE:
                 decodeKeyShare(&settings, extension_reader);
                 break;
 
@@ -315,12 +315,12 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
 
     if (settings.version != TLS_1_3) {
         ERROR("Missing supported versions extension");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_PROTOCOL_VERSION);
+        sendAlert(connection, FATAL, PROTOCOL_VERSION);
         return;
     }
     if (settings.signature_algorithum == 0) {
         ERROR("Missing signature algorithum");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_MISSING_EXTENSION);
+        sendAlert(connection, FATAL, MISSING_EXTENSION);
         return;
     }
     if (settings.certificate_algorithum == 0) {
@@ -334,31 +334,31 @@ static void decodeHandshake(ServerConnection* connection, Reader reader) {
         U32 length = readU24(&reader);
         if (length > readerRemaining(&reader)) {
             ERROR("Invlaid handshake message length");
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_DECODE_ERROR);
+            sendAlert(connection, FATAL, DECODE_ERROR);
             return;
         }
         Reader handshake_reader = readReader(&reader, length);
 
         switch (type) {
-            case TLS_HT_CLIENT_HELLO:
+            case CLIENT_HELLO:
                 decodeClientHello(connection, handshake_reader);
                 break;
-            case TLS_HT_SERVER_HELLO:
-            case TLS_HT_NEW_SESSION_TICKET:
-            case TLS_HT_END_OF_EARLY_DATA:
-            case TLS_HT_ENCRYPTED_EXTENSIONS:
-            case TLS_HT_CERTIFICATE:
-            case TLS_HT_CERTIFICATE_REQUEST:
-            case TLS_HT_CERTIFICATE_VERIFY:
-            case TLS_HT_FINISHED:
-            case TLS_HT_KEY_UPDATE:
-            case TLS_HT_MESSAGE_HASH:
+            case SERVER_HELLO:
+            case NEW_SESSION_TICKET:
+            case END_OF_EARLY_DATA:
+            case ENCRYPTED_EXTENSIONS:
+            case CERTIFICATE:
+            case CERTIFICATE_REQUEST:
+            case CERTIFICATE_VERIFY:
+            case FINISHED:
+            case KEY_UPDATE:
+            case MESSAGE_HASH:
                 ERROR("TLS handshake type not implemented: %d", type);
-                sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
+                sendAlert(connection, FATAL, INTERNAL_ERROR);
                 break;
             default:
                 DEBUG("Unknown TLS handshake type: %d", type);
-                sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
+                sendAlert(connection, FATAL, UNEXPECTED_MESSAGE);
                 return;
         }
     } while (!readerEOF(&reader));
@@ -374,14 +374,14 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
     Reader reader = sliceReader(data);
     ContentType type = readU8(&reader);
     switch (type) {
-        case TLS_CT_ALERT:
-        case TLS_CT_APPLICATION_DATA:
-        case TLS_CT_CHANGE_CIPHER_SPEC:
-        case TLS_CT_HANDSHAKE:
+        case ALERT:
+        case APPLICATION_DATA:
+        case CHANGE_CIPHER_SPEC:
+        case HANDSHAKE:
             break;
         default:
             DEBUG("Unknown TLS content type: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_UNEXPECTED_MESSAGE);
+            sendAlert(connection, FATAL, UNEXPECTED_MESSAGE);
             return;
     }
 
@@ -390,7 +390,7 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
     U16 length = readU16(&reader);
     if (length > (2 << 14)) {
         DEBUG("TLS fragment length exceeds 2^14 bytes.");
-        sendAlert(connection, TLS_AL_FATAL, TLS_AD_RECORD_OVERFLOW);
+        sendAlert(connection, FATAL, RECORD_OVERFLOW);
         return;
     }
     if (length > readerRemaining(&reader)) {
@@ -400,12 +400,12 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
 
     Reader record_reader = readReader(&reader, length);
     switch (type) {
-        case TLS_CT_HANDSHAKE:
+        case HANDSHAKE:
             decodeHandshake(connection, record_reader);
             break;
         default:
             ERROR("TLS content type not implemented: %d", type);
-            sendAlert(connection, TLS_AL_FATAL, TLS_AD_INTERNAL_ERROR);
+            sendAlert(connection, FATAL, INTERNAL_ERROR);
             return;
     }
 }
