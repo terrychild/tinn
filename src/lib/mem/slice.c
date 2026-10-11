@@ -2,6 +2,7 @@
 
 #include "lib/mem/slice.h"
 #include "lib/mem/allocator.h"
+#include "lib/bytes.h"
 
 Slice sliceNew(const U8* start, U64 length) {
     return (Slice) {
@@ -213,4 +214,56 @@ Slice nextToken(Tokeniser* tokeniser) {
         tokeniser->slice = sliceEmpty();
         return rv;
     }
+}
+
+Reader sliceReader(const Slice source) {
+    return (Reader) {
+        .slice = source
+    };
+}
+U64 readerRemaining(Reader* reader) {
+    return reader->slice.length;
+}
+bool readerEOF(Reader* reader) {
+    return reader->slice.length == 0;
+}
+
+void readSkip(Reader* reader, U64 length) {
+    reader->slice = slice(reader->slice, length, -1);
+}
+Slice readSlice(Reader* reader, U64 length) {
+    Slice rv = slice(reader->slice, 0, length);
+    reader->slice = slice(reader->slice, length, -1);
+    return rv;
+}
+Reader readReader(Reader* reader, U64 length) {
+    return sliceReader(readSlice(reader, length));
+}
+U8 readU8(Reader* reader) {
+    Slice slice = readSlice(reader, 1);
+    if (slice.length != 1) {
+        return (U8)0;
+    }
+    return slice.start[0];
+}
+U16 readU16(Reader* reader) {
+    Slice slice = readSlice(reader, 2);
+    if (slice.length != 2) {
+        return (U16)0;
+    }
+    return fromBig16(slice.start);
+}
+U32 readU24(Reader* reader) {
+    Slice slice = readSlice(reader, 3);
+    if (slice.length != 3) {
+        return (U32)0;
+    }
+    return fromBig24(slice.start);
+}
+U32 readU32(Reader* reader) {
+    Slice slice = readSlice(reader, 4);
+    if (slice.length != 4) {
+        return (U32)0;
+    }
+    return fromBig32(slice.start);
 }

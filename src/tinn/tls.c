@@ -6,65 +6,6 @@
 #include "lib/bytes.h"
 #include "lib/log.h"
 
-// reader help
-typedef struct {
-    Slice slice;
-    U64 read;
-} Reader;
-Reader newReader(Slice source) {
-    return (Reader) {
-        .slice = source,
-        .read = 0
-    };
-}
-
-U64 readerRemaining(Reader* reader) {
-    return reader->slice.length - reader->read;
-}
-bool readerEOF(Reader* reader) {
-    return reader->read >= reader->slice.length;
-}
-void skip(Reader* reader, U64 length) {
-    reader->read += length;
-}
-
-Slice readSlice(Reader* reader, U64 length) {
-    Slice rv = slice(reader->slice, reader->read, reader->read + length);
-    reader->read += length;
-    return rv;
-}
-static Reader readReader(Reader* reader, U64 length) {
-    return newReader(readSlice(reader, length));
-}
-U8 readU8(Reader* reader) {
-    Slice slice = readSlice(reader, 1);
-    if (slice.length != 1) {
-        return (U8)0;
-    }
-    return slice.start[0];
-}
-U16 readU16(Reader* reader) {
-    Slice slice = readSlice(reader, 2);
-    if (slice.length != 2) {
-        return (U16)0;
-    }
-    return fromBig16(slice.start);
-}
-U32 readU24(Reader* reader) {
-    Slice slice = readSlice(reader, 3);
-    if (slice.length != 3) {
-        return (U32)0;
-    }
-    return fromBig24(slice.start);
-}
-U32 readU32(Reader* reader) {
-    Slice slice = readSlice(reader, 4);
-    if (slice.length != 4) {
-        return (U32)0;
-    }
-    return fromBig32(slice.start);
-}
-
 // TLS types and enums
 
 typedef enum:U8 {
@@ -206,15 +147,15 @@ static void readHandshakeClientHello(ServerConnection* connection, Reader reader
         return;
     }
 
-    // legacy random data
-    //hexDump(readSlice(&reader, 32));
-    skip(&reader, 32);
+    // random data
+    DEBUG("Random");
+    hexDump(readSlice(&reader, 32));
 
     // legacy session id
     U8 legacy_session_length = readU8(&reader);
     //DEBUG("legacy session length: %d", legacy_session_length);
     //hexDump(readSlice(&reader, legacy_session_length));
-    skip(&reader, legacy_session_length);
+    readSkip(&reader, legacy_session_length);
 
     // cipher suites
     U16 cipher_suites_length = readU16(&reader);
@@ -304,7 +245,7 @@ static void readRecord(ServerConnection* connection, Slice data) {
         return;
     }
 
-    Reader reader = newReader(data);
+    Reader reader = sliceReader(data);
     ContentType type = readU8(&reader);
     switch (type) {
         case TLS_CT_ALERT:
