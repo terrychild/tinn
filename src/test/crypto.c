@@ -51,7 +51,12 @@ struct eea_terms eea(int r0, int r1) {
 int inverse(int a, int mod) {
 	struct eea_terms result = eea(mod, a);
 
-	return result.t<0 ? result.t+mod : result.t;
+    if (result.r != 1) {
+        printf("GCD is not 1 so the inverse does not exsis\n");
+        return -1;
+    }
+
+	return result.t<0 ? result.t % mod + mod : result.t;
 }
 
 EllipticCurvePoint ecAdd(EllipticCurve e, EllipticCurvePoint p1, EllipticCurvePoint p2) {
