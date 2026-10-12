@@ -38,6 +38,9 @@ int main(int argc, char* argv[]) {
     if (all || strcmp(argv[1], "buffer") == 0) {
         testBuffer(allocator);
     }
+    if (all || strcmp(argv[1], "crypto") == 0) {
+        testCrypto(allocator);
+    }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
     expect("Final allocator check", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
