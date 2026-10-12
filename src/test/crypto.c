@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "test/expect.h"
 
 #include "lib/types.h"
@@ -11,6 +13,7 @@ typedef struct {
 typedef struct {
     int x;
     int y;
+    bool is_infinity;
 } EllipticCurvePoint;
 
 int gcd(int a, int b) {
@@ -51,18 +54,43 @@ int inverse(int a, int mod) {
 	return result.t<0 ? result.t+mod : result.t;
 }
 
-EllipticCurvePoint ecDouble(EllipticCurve e, EllipticCurvePoint p1) {
-    U64 s = mod(((3 * p1.x * p1.x) + e.a) * inverse(2 * p1.y, e.p), e.p);
-    EllipticCurvePoint p2;
-    p2.x = mod((s * s) - p1.x - p1.x, e.p);
-    p2.y = mod((s * (p1.x - p2.x)) - p1.y, e.p);
-    return p2;
+EllipticCurvePoint ecAdd(EllipticCurve e, EllipticCurvePoint p1, EllipticCurvePoint p2) {
+    if (p1.is_infinity) {
+        return p2;
+    }
+    if (p2.is_infinity) {
+        return p1;
+    }
+
+    if (p1.x == p2.x && mod(p1.y + p2.y, e.p) == 0) {
+        return (EllipticCurvePoint) {0, 0, true};
+    }
+
+    int s;
+    if (p1.x == p2.x && p1.y == p2.y) {
+        s = mod(((3 * p1.x * p1.x) + e.a) * inverse(mod(2 * p1.y, e.p), e.p), e.p);
+    } else {
+        s = mod((p2.y - p1.y) * inverse(mod(p2.x - p1.x, e.p), e.p), e.p);
+    }
+    int x = mod((s * s) - p1.x - p2.x, e.p);
+    int y = mod((s * (p1.x - x)) - p1.y, e.p);
+    return (EllipticCurvePoint) {x, y, false};
 }
 
 void testCrypto(Allocator* allocator) {
     EllipticCurve ec = { .a = 2, .b = 2, .p = 17 };
-    EllipticCurvePoint p1 = { .x = 5, .y = 1};
-    EllipticCurvePoint p2 = ecDouble(ec, p1);
-    expect("Elliptic Curve double [x]", p2.x, 6);
-    expect("Elliptic Curve double [y]", p2.y, 3);
+    EllipticCurvePoint p1 = {5, 1, false};
+    EllipticCurvePoint pn = ecAdd(ec, p1, p1);
+    expect("Elliptic Curve double [x]", pn.x, 6);
+    expect("Elliptic Curve double [y]", pn.y, 3);
+    EllipticCurvePoint pl = pn;
+    for (int i=3; i<=21; i++) {
+        pn = ecAdd(ec, p1, pl);
+        if (pn.is_infinity) {
+            printf("Elliptic Curve %dP: infinity\n", i);
+        } else {
+            printf("Elliptic Curve %dP: (%d, %d)\n", i, pn.x, pn.y);
+        }
+        pl = pn;
+    }
 }
