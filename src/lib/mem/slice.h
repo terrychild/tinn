@@ -49,9 +49,9 @@ bool readerEOF(Reader* reader);
 void readSkip(Reader* reader, U64 length);
 Slice readSlice(Reader* reader, U64 length);
 Reader readReader(Reader* reader, U64 length);
-U8 readU8(Reader* reader);
-U16 readU16(Reader* reader);
-U32 readU24(Reader* reader);
-U32 readU32(Reader* reader);
+U8 readBE8(Reader* reader);
+U16 readBE16(Reader* reader);
+U32 readBE24(Reader* reader);
+U32 readBE32(Reader* reader);
 
 #endif

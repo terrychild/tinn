@@ -239,31 +239,31 @@ Slice readSlice(Reader* reader, U64 length) {
 Reader readReader(Reader* reader, U64 length) {
     return sliceReader(readSlice(reader, length));
 }
-U8 readU8(Reader* reader) {
+U8 readBE8(Reader* reader) {
     Slice slice = readSlice(reader, 1);
     if (slice.length != 1) {
         return (U8)0;
     }
     return slice.start[0];
 }
-U16 readU16(Reader* reader) {
+U16 readBE16(Reader* reader) {
     Slice slice = readSlice(reader, 2);
     if (slice.length != 2) {
         return (U16)0;
     }
-    return fromBig16(slice.start);
+    return fromBE16(slice.start);
 }
-U32 readU24(Reader* reader) {
+U32 readBE24(Reader* reader) {
     Slice slice = readSlice(reader, 3);
     if (slice.length != 3) {
         return (U32)0;
     }
-    return fromBig24(slice.start);
+    return fromBE24(slice.start);
 }
-U32 readU32(Reader* reader) {
+U32 readBE32(Reader* reader) {
     Slice slice = readSlice(reader, 4);
     if (slice.length != 4) {
         return (U32)0;
     }
-    return fromBig32(slice.start);
+    return fromBE32(slice.start);
 }

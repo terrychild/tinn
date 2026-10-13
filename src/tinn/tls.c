@@ -117,8 +117,8 @@ typedef enum:U16 {
 static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description) {
     Record* message = allocate(connection->exchange_scope, sizeof(Record) + sizeof(Alert));
     message->type = ALERT;
-    toBig16(message->legacy_version, 0x0303);
-    toBig16(message->length, sizeof(Alert));
+    toBE16(message->legacy_version, 0x0303);
+    toBE16(message->length, sizeof(Alert));
 
     Alert* alert = (Alert*)message->fragment;
     alert->level = level;
@@ -141,9 +141,9 @@ typedef struct {
 } Settings;
 
 static void decodeSupportedVersions(Settings* settings, Reader reader) {
-    U8 length = readU8(&reader);
+    U8 length = readBE8(&reader);
     for (U8 i=0; i<length; i+=2) {
-        Version version = readU16(&reader);
+        Version version = readBE16(&reader);
         if (version == TLS_1_3) {
             settings->version = version;
             DEBUG("TLS version: %04X", version);
@@ -155,21 +155,21 @@ static void decodeSupportedVersions(Settings* settings, Reader reader) {
 }
 
 static void decodeServerName(Settings* settings, Reader reader) {
-    if (readU16(&reader) != readerRemaining(&reader)) {
+    if (readBE16(&reader) != readerRemaining(&reader)) {
         ERROR("TLS Server Name - More than one specified");
         settings->alert.level = FATAL;
         settings->alert.description = ILLEGAL_PARAMETER;
         return;
     }
 
-    if (readU8(&reader) != 0) {
+    if (readBE8(&reader) != 0) {
         ERROR("TLS Server Name - Invalid type");
         settings->alert.level = FATAL;
         settings->alert.description = ILLEGAL_PARAMETER;
         return;
     }
 
-    U16 length = readU16(&reader);
+    U16 length = readBE16(&reader);
     if (length != readerRemaining(&reader)) {
         ERROR("TLS Server Name - Invalid length");
         settings->alert.level = FATAL;
@@ -182,12 +182,12 @@ static void decodeServerName(Settings* settings, Reader reader) {
 }
 
 static void decodeCookie(Settings* settings, Reader reader) {
-    DEBUG("TLS cookie length: %d", readU16(&reader));
+    DEBUG("TLS cookie length: %d", readBE16(&reader));
 }
 
 static void decodeCipherSuites(Settings* settings, Reader reader) {
     while (!readerEOF(&reader)) {
-        CipherSuite suite = readU16(&reader);
+        CipherSuite suite = readBE16(&reader);
         switch (suite) {
             case AES_128_GCM_SHA256:
                 settings->cipher_suite = suite;
@@ -198,9 +198,9 @@ static void decodeCipherSuites(Settings* settings, Reader reader) {
 }
 
 static void decodeSignatureAlgorithms(Settings* settings, bool cert, Reader reader) {
-    U16 length = readU16(&reader);
+    U16 length = readBE16(&reader);
     for (U16 i=0; i<length; i+=2) {
-        SignatureAlgorithm algorithum = readU16(&reader);
+        SignatureAlgorithm algorithum = readBE16(&reader);
         switch (algorithum) {
             case RSA_PKCS1_SHA256:
             case ECDSA_SECP256R1_SHA256:
@@ -217,9 +217,9 @@ static void decodeSignatureAlgorithms(Settings* settings, bool cert, Reader read
 }
 
 static void decodeSupportedGroups(Settings* settings, Reader reader) {
-    U16 length = readU16(&reader);
+    U16 length = readBE16(&reader);
     for (U16 i=0; i<length; i+=2) {
-        NamedGroup group = readU16(&reader);
+        NamedGroup group = readBE16(&reader);
         switch (group) {
             case X25519:
                 settings->group = group;
@@ -230,7 +230,7 @@ static void decodeSupportedGroups(Settings* settings, Reader reader) {
 }
 
 static void decodeKeyShare(Settings* settings, Reader reader) {
-    if (readU16(&reader) != readerRemaining(&reader)) {
+    if (readBE16(&reader) != readerRemaining(&reader)) {
         ERROR("TLS Key Share - Invalid length");
         settings->alert.level = FATAL;
         settings->alert.description = DECODE_ERROR;
@@ -238,8 +238,8 @@ static void decodeKeyShare(Settings* settings, Reader reader) {
     }
 
     do {
-        if (readU16(&reader) == settings->group) {
-            settings->key = readSlice(&reader, readU16(&reader));
+        if (readBE16(&reader) == settings->group) {
+            settings->key = readSlice(&reader, readBE16(&reader));
             return;
         }
     } while (!readerEOF(&reader));
@@ -252,7 +252,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     Reader key_share = {0};
 
     // legacy version
-    Version legacy_version = readU16(&reader);
+    Version legacy_version = readBE16(&reader);
     DEBUG("legacy version: %04X", legacy_version);
     if (legacy_version != TLS_1_2) {
         sendAlert(connection, FATAL, PROTOCOL_VERSION);
@@ -265,13 +265,13 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     hexDump(settings.random);
 
     // legacy session id
-    U8 legacy_session_length = readU8(&reader);
+    U8 legacy_session_length = readBE8(&reader);
     //DEBUG("legacy session length: %d", legacy_session_length);
     //hexDump(readSlice(reader, legacy_session_length));
     readSkip(&reader, legacy_session_length);
 
     // cipher suites
-    decodeCipherSuites(&settings, readReader(&reader, readU16(&reader)));
+    decodeCipherSuites(&settings, readReader(&reader, readBE16(&reader)));
     if (settings.cipher_suite == 0) {
         ERROR("Unable to find a matching cipher suite");
         sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
@@ -280,14 +280,14 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     DEBUG("selected cipher suite: %04X", settings.cipher_suite);
 
     // legacy compression methods
-    if (readU8(&reader) != 1 || readU8(&reader) != 0) {
+    if (readBE8(&reader) != 1 || readBE8(&reader) != 0) {
         ERROR("Invalid compression method");
         sendAlert(connection, FATAL, ILLEGAL_PARAMETER);
         return;
     }
 
     // extensions
-    U16 extensions_length = readU16(&reader);
+    U16 extensions_length = readBE16(&reader);
     if (readerRemaining(&reader) != extensions_length) {
         ERROR("Invalid client hello length");
         sendAlert(connection, FATAL, DECODE_ERROR);
@@ -295,8 +295,8 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     }
 
     while (!readerEOF(&reader)) {
-        U16 extension_type = readU16(&reader);
-        Reader extension_reader = readReader(&reader, readU16(&reader));
+        U16 extension_type = readBE16(&reader);
+        Reader extension_reader = readReader(&reader, readBE16(&reader));
         switch (extension_type) {
             case SERVER_NAME:
                 decodeServerName(&settings, extension_reader);
@@ -392,8 +392,8 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
 
 static void decodeHandshake(ServerConnection* connection, Reader reader) {
     do {
-        HandshakeType type = readU8(&reader);
-        U32 length = readU24(&reader);
+        HandshakeType type = readBE8(&reader);
+        U32 length = readBE24(&reader);
         if (length > readerRemaining(&reader)) {
             ERROR("Invlaid handshake message length");
             sendAlert(connection, FATAL, DECODE_ERROR);
@@ -434,7 +434,7 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
     }
 
     Reader reader = sliceReader(data);
-    ContentType type = readU8(&reader);
+    ContentType type = readBE8(&reader);
     switch (type) {
         case ALERT:
         case APPLICATION_DATA:
@@ -447,9 +447,9 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
             return;
     }
 
-    DEBUG("Record legacy version: %04X", readU16(&reader));
+    DEBUG("Record legacy version: %04X", readBE16(&reader));
 
-    U16 length = readU16(&reader);
+    U16 length = readBE16(&reader);
     if (length > (2 << 14)) {
         DEBUG("TLS fragment length exceeds 2^14 bytes.");
         sendAlert(connection, FATAL, RECORD_OVERFLOW);

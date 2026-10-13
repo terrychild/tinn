@@ -1,7 +1,7 @@
 #include "lib/types.h"
 #include "lib/cli.h"
 
-U16 fromBig16(const U8 bytes[2]) {
+U16 fromBE16(const U8 bytes[2]) {
     U16 n = 0;
     for (int i=0; i<2; i++) {
         n |= (U16)bytes[i] << 8*(1-i);
@@ -9,7 +9,7 @@ U16 fromBig16(const U8 bytes[2]) {
     return n;
 }
 
-U32 fromBig24(const U8 bytes[3]) {
+U32 fromBE24(const U8 bytes[3]) {
     U32 n = 0;
     for (int i=0; i<3; i++) {
         n |= (U32)bytes[i] << 8*(2-i);
@@ -17,7 +17,7 @@ U32 fromBig24(const U8 bytes[3]) {
     return n;
 }
 
-U32 fromBig32(const U8 bytes[4]) {
+U32 fromBE32(const U8 bytes[4]) {
     U32 n = 0;
     for (int i=0; i<4; i++) {
         n |= (U32)bytes[i] << 8*(3-i);
@@ -25,7 +25,7 @@ U32 fromBig32(const U8 bytes[4]) {
     return n;
 }
 
-U64 fromBig64(const U8 bytes[8]) {
+U64 fromBE64(const U8 bytes[8]) {
     U64 n = 0;
     for (int i=0; i<8; i++) {
         n |= (U64)bytes[i] << 8*(7-i);
@@ -33,25 +33,25 @@ U64 fromBig64(const U8 bytes[8]) {
     return n;
 }
 
-void toBig16(U8 dest[2], U16 n) {
+void toBE16(U8 dest[2], U16 n) {
     for (int i=1; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
 }
-void toBig24(U8 dest[2], U32 n) {
+void toBE24(U8 dest[2], U32 n) {
     for (int i=2; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
 }
-void toBig32(U8 dest[2], U32 n) {
+void toBE32(U8 dest[2], U32 n) {
     for (int i=3; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
 }
-void toBig64(U8 dest[2], U64 n) {
+void toBE64(U8 dest[2], U64 n) {
     for (int i=7; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
