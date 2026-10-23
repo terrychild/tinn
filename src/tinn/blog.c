@@ -57,7 +57,7 @@ Blog* blogNew(Allocator* allocator, Polling* polling) {
 }
 
 static bool isGetOrHead(HttpServerExchange* exchange) {
-	if (!sliceIsStr(exchange->request->method, "GET") && !sliceIsStr(exchange->request->method, "HEAD")) {
+    if (!sliceIsStr(exchange->request->method, "GET") && !sliceIsStr(exchange->request->method, "HEAD")) {
         DEBUG("Method not allowed");
         httpServerAddHeader(exchange, sliceFromStr("Allow"), sliceFromStr("GET, HEAD"));
         httpServerSendError(exchange, HTTP_METHOD_NOT_ALLOWED);
@@ -67,15 +67,15 @@ static bool isGetOrHead(HttpServerExchange* exchange) {
 }
 
 static void composeArticle(Buffer* buf, BlogPost* post) {
-	bufAppendStr(buf, "<article>");
-	bufAppendFormat(buf, "<h1><a href=\"%.*s\">%.*s</a></h1>", post->url.length, post->url.start, post->title.length, post->title.start);
-	bufAppendFormat(buf, "<h2>%.*s</h2>", post->date.length, post->date.start);
-	bufAppendMFile(buf, post->content);
-	bufAppendStr(buf, "</article>\n");
+    bufAppendStr(buf, "<article>");
+    bufAppendFormat(buf, "<h1><a href=\"%.*s\">%.*s</a></h1>", post->url.length, post->url.start, post->title.length, post->title.start);
+    bufAppendFormat(buf, "<h2>%.*s</h2>", post->date.length, post->date.start);
+    bufAppendMFile(buf, post->content);
+    bufAppendStr(buf, "</article>\n");
 }
 
 static time_t maxTime(time_t a, time_t b) {
-	return a>=b ? a : b;
+    return a>=b ? a : b;
 }
 static time_t modDate(Blog* blog, bool posts) {
     time_t mod_date = blog->mod_date;
@@ -124,20 +124,20 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
         }
 
         // generate content
-		bufAppendMFile(content, blog->header1);
+        bufAppendMFile(content, blog->header1);
         bufAppendMFile(content, blog->header2);
         for (U64 i=0; i<blog->posts->count; i++) {
             if (i > 0) {
-				bufAppendStr(content, "<hr>\n");
-			}
+                bufAppendStr(content, "<hr>\n");
+            }
             composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
         }
-		bufAppendMFile(content, blog->footer);
+        bufAppendMFile(content, blog->footer);
 
         // send
         httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-		httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-		httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
+        httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
+        httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
         httpServerSend(exchange);
         return true;
     }
@@ -159,24 +159,21 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
         }
 
         // generate content
-		bufAppendMFile(content, blog->header1);
+        bufAppendMFile(content, blog->header1);
         bufAppendMFile(content, blog->header2);
-        U64 i = blog->posts->count;
-        if (i>0) {
-            do {
-                i--;
-                if (i < blog->posts->count - 1) {
-                    bufAppendStr(content, "<hr>\n");
-                }
-                composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
-            } while (i>0);
+        for (U64 i = blog->posts->count; i-- > 0; ) {
+            if (i < blog->posts->count - 1) {
+                bufAppendStr(content, "<hr>\n");
+            }
+            composeArticle(content, (BlogPost*)arrayGet(blog->posts, i));
         }
-		bufAppendMFile(content, blog->footer);
+
+        bufAppendMFile(content, blog->footer);
 
         // send
         httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-		httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-		httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
+        httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
+        httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
         httpServerSend(exchange);
         return true;
     }
@@ -203,7 +200,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             bufAppendStr(content, " - Blog");
             bufAppendMFile(content, blog->header2);
             bufAppendStr(content, "<article><h1>Blog Archive</h1>\n");
-		    bufAppendStr(content, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
+            bufAppendStr(content, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
 
             Slice last_date = sliceEmpty();
             for (U64 i=0; i<blog->posts->count; i++) {
@@ -217,7 +214,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             }
 
             bufAppendStr(content, "</article>");
-		    bufAppendMFile(content, blog->footer);
+            bufAppendMFile(content, blog->footer);
 
             // send
             httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
@@ -260,7 +257,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                         bufAppendFormat(content, "<a href=\"%.*s\">next</a>", other_post->url.length, other_post->url.start);
                     }
                     bufAppendStr(content, "</nav></article>");
-		            bufAppendMFile(content, blog->footer);
+                    bufAppendMFile(content, blog->footer);
 
                     // send
                     httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
