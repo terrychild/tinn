@@ -34,7 +34,7 @@ static void sysMemRelease(void* memory, U64 size) {
 Arena* arenaNew(U64 size) {
     Arena temp_arena;
     arenaInit(&temp_arena, size);
-    Arena* arena = arenaAlloc(&temp_arena, sizeof(Arena));
+    Arena* arena = arenaAllocate(&temp_arena, sizeof(Arena)).start;
     memcpy(arena, &temp_arena, sizeof(Arena));
     return arena;
 }
@@ -55,7 +55,7 @@ void arenaRelease(Arena* arena) {
     sysMemRelease(arena->start, arena->size);
 }
 
-static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
+ArenaAllocation arenaAllocate(Arena* arena, U64 size) {
     size = alignToWord(size);
 
     if (arena->allocated + size > arena->committed) {
@@ -68,18 +68,13 @@ static void* arenaAllocate(Arena* arena, U64 size, bool zero) {
         }
     }
 
-    void* new_data = arena->start + arena->allocated;
+    ArenaAllocation allocation = {
+        .size = size,
+        .start = arena->start + arena->allocated
+    };
     arena->allocated += size;
 
-    if (zero) {
-        memset(new_data, 0, size);
-    }
+    memset(allocation.start, 0, size);
 
-    return new_data;
-}
-void* arenaAlloc(Arena* arena, U64 size) {
-    return arenaAllocate(arena, size, true);
-}
-void* arenaAllocRaw(Arena* arena, U64 size) {
-    return arenaAllocate(arena, size, false);
+    return allocation;
 }

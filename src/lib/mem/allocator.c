@@ -49,13 +49,27 @@ void deallocateFile(Allocator* allocator, MappedFile* file) {
 
 // normal allocation
 void* allocate(Allocator* allocator, U64 size) {
-    return arenaAlloc(allocator->arena, size);
+    ArenaAllocation arena_allocation = arenaAllocate(allocator->arena, sizeof(Allocation) + size);
+    allocator->last_allocation = (Allocation*)arena_allocation.start;
+    allocator->last_allocation->size = arena_allocation.size - sizeof(Allocation);
+    return allocator->last_allocation->data;
+}
+void* reallocate(Allocator* allocator, void* original, U64 size) {
+    Allocation* orginal_allocation = (Allocation*)((U8*)original - sizeof(Allocation));
+    if (orginal_allocation == allocator->last_allocation) {
+        ArenaAllocation arena_allocation = arenaAllocate(allocator->arena, size - orginal_allocation->size);
+        allocator->last_allocation->size += arena_allocation.size;
+    } else {
+        void* new_data = allocate(allocator, size);
+        memcpy(new_data, orginal_allocation->data, orginal_allocation->size);
+    }
+    return allocator->last_allocation->data;
 }
 
 // Allocator
 Allocator* allocatorNew(U64 size) {
     Arena* arena = arenaNew(size);
-    Allocator* allocator = arenaAlloc(arena, sizeof(Allocator));
+    Allocator* allocator = arenaAllocate(arena, sizeof(Allocator)).start;
     allocatorInit(allocator, arena);
     return allocator;
 }

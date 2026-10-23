@@ -11,17 +11,16 @@
 
 Buffer* bufNew(Allocator* allocator, U64 size) {
     Buffer* buf = allocate(allocator, sizeof(Buffer));
-    bufInit(buf, allocator->arena, size);
+    bufInit(buf, allocator, size);
     return buf;
 }
-void bufInit(Buffer* buf, Arena* arena, U64 size) {
+void bufInit(Buffer* buf, Allocator* allocator, U64 size) {
     assert(size > 0);
 
-    buf->arena = arena;
+    buf->allocator = allocator;
     buf->size = size;
     buf->length = 0;
-    buf->start = arenaAlloc(buf->arena, size);
-    buf->arena_allocated = buf->arena->allocated;
+    buf->start = allocate(buf->allocator, size);
 }
 void bufReset(Buffer* buf) {
     buf->length = 0;
@@ -33,15 +32,8 @@ static void ensure(Buffer* buf, U64 n) {
         new_size *= 2;
     }
     if (new_size > buf->size) {
-        if (buf->arena_allocated == buf->arena->allocated) {
-            arenaAlloc(buf->arena, new_size - buf->size);
-        } else {
-            U8* new_start = arenaAlloc(buf->arena, new_size);
-            memcpy(new_start, buf->start, buf->length);
-            buf->start = new_start;
-        }
         buf->size = new_size;
-        buf->arena_allocated = buf->arena->allocated;
+        buf->start = reallocate(buf->allocator, buf->start, new_size);
     }
 }
 

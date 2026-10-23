@@ -4,8 +4,7 @@
 #include "lib/types.h"
 
 struct Array {
-    Arena* arena;
-    U64 arena_allocated;
+    Allocator* allocator;
     U64 item_size;
     U64 capacity;
     U64 count;
@@ -13,7 +12,7 @@ struct Array {
 };
 
 Array* arrayNew(Allocator* allocator, U64 item_size, U64 capacity);
-void arrayInit(Array* array, Arena* arena, U64 item_size, U64 capacity);
+void arrayInit(Array* array, Allocator* allocator, U64 item_size, U64 capacity);
 void arrayReset(Array* array);
 
 void* arrayAdd(Array* array);

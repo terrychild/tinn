@@ -4,10 +4,16 @@
 #include "lib/types.h"
 #include "lib/sys/polling.h"
 
+typedef struct {
+    U64 size;
+    U8 data[];
+} Allocation;
+
 struct Allocator {
     Arena* arena;
     Pool* children;
     Pool* files;
+    Allocation* last_allocation;
 };
 
 Allocator* allocatorNew(U64 size);
@@ -22,6 +28,7 @@ MappedFile* allocateFile(Allocator* allocator, Polling* polling, const char* pat
 void deallocateFile(Allocator* allocator, MappedFile* child);
 
 void* allocate(Allocator* allocator, U64 size);
+void* reallocate(Allocator* allocator, void* original, U64 size);
 
 void allocatorDebug(Allocator* allocator);
 

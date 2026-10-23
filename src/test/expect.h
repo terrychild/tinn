@@ -30,6 +30,12 @@ void expectCharPtr(const char* name, char* value, char* expected);
         default: expectVoidPtr  \
     )(name, value, expected)
 
+void expectDiffVoidPtr(const char* name, void* value, void* expected);
+
+#define expectDiff(name, value, expected) _Generic((value), \
+        default: expectDiffVoidPtr  \
+    )(name, value, expected)
+
 void expectNull(const char* name, void* value);
 
 #endif

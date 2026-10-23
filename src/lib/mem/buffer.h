@@ -4,8 +4,7 @@
 #include "lib/types.h"
 
 struct Buffer {
-    Arena* arena;
-    U64 arena_allocated;
+    Allocator* allocator;
     U64 size;
     U64 length;
     U8* start;
@@ -17,7 +16,7 @@ typedef struct {
 } BufferSpace;
 
 Buffer* bufNew(Allocator* allocator, U64 size);
-void bufInit(Buffer* buf, Arena* arena, U64 size);
+void bufInit(Buffer* buf, Allocator* allocator, U64 size);
 void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);

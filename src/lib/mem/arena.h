@@ -10,12 +10,16 @@ struct Arena {
     U8* start;
 };
 
+typedef struct {
+    U64 size;
+    void* start;
+} ArenaAllocation;
+
 Arena* arenaNew(U64 size);
 void arenaInit(Arena* arean, U64 size);
 void arenaReset(Arena* arena);
 void arenaRelease(Arena* arena);
 
-void* arenaAlloc(Arena* arena, U64 size);
-void* arenaAllocRaw(Arena* arena, U64 size);
+ArenaAllocation arenaAllocate(Arena* arena, U64 size);
 
 #endif

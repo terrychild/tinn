@@ -14,7 +14,7 @@ void testArena() {
     expect("page size", arena.size, KB(4));
     expect("committed", arena.committed, 0);
     expect("allocated", arena.allocated, 0);
-    U8* data = arenaAlloc(&arena, 12);
+    U8* data = arenaAllocate(&arena, 12).start;
     expect("committed after alloc", arena.committed, KB(4));
     expect("allocated after alloc", arena.allocated, 16);
     expect("zero data", data[11], 0);
@@ -28,7 +28,7 @@ void testArena() {
     expect("size", arena_ptr->size, KB(4));
     expect("committed", arena_ptr->committed, KB(4));
     expect("allocated", arena_ptr->allocated, sizeof(Arena));
-    data = arenaAlloc(arena_ptr, 1);
+    data = arenaAllocate(arena_ptr, 1).start;
     expect("data ptr", data, arena_ptr->start + sizeof(Arena));
     expect("committed after alloc", arena_ptr->committed, KB(4));
     expect("allocated after alloc", arena_ptr->allocated, sizeof(Arena) + 8);
