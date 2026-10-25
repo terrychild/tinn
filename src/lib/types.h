@@ -13,6 +13,8 @@ typedef uint16_t U16;
 typedef uint32_t U32;
 typedef uint64_t U64;
 
+typedef struct BigInt BigInt;
+
 typedef struct Arena Arena;
 typedef struct MappedFile MappedFile;
 typedef struct Allocator Allocator;

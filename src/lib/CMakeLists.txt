@@ -2,6 +2,7 @@ add_library(lib
     cli.c
     log.c
     bytes.c
+    bigint.c
 
     mem/align.c
     mem/arena.c

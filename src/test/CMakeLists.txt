@@ -9,6 +9,7 @@ add_executable(test
     array.c
     pool.c
     buffer.c
+    bigint.c
     crypto.c
 )
 
