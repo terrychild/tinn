@@ -110,21 +110,31 @@ EllipticCurvePoint ecAdd(Allocator* allocator, EllipticCurve e, EllipticCurvePoi
     return (EllipticCurvePoint) {x, y, false};
 }
 
+EllipticCurvePoint ecMul(Allocator* allocator, EllipticCurve e, EllipticCurvePoint p1, BigInt* n) {
+    EllipticCurvePoint pn = {biClone(allocator, p1.x), biClone(allocator, p1.y), p1.is_infinity};
+    for (U64 bit = n->length - 1; bit-- > 0; ) {
+        //printf("%lu: %d\n", bit, biBit(n, bit));
+        pn = ecAdd(allocator, e, pn, pn);
+        if (biBit(n, bit)) {
+            pn = ecAdd(allocator, e, pn, p1);
+        }
+    }
+    return pn;
+}
+
 void testCrypto(Allocator* allocator) {
     EllipticCurve ec = { .a = biFromInt(allocator, 2), .b = biFromInt(allocator, 2), .p = biFromInt(allocator, 17) };
     EllipticCurvePoint p1 = {biFromInt(allocator, 5), biFromInt(allocator, 1), false};
     EllipticCurvePoint pn = ecAdd(allocator, ec, p1, p1);
     expect("Elliptic Curve double [x]", pn.x->limbs[0], 6);
     expect("Elliptic Curve double [y]", pn.y->limbs[0], 3);
-    EllipticCurvePoint pl = pn;
     for (int i=3; i<=21; i++) {
-        pn = ecAdd(allocator, ec, p1, pl);
+        pn = ecMul(allocator, ec, p1, biFromInt(allocator, i));
         if (pn.is_infinity) {
             printf("Elliptic Curve %dP: infinity\n", i);
         } else {
             printf("Elliptic Curve %dP: (%lu, %lu)\n", i, pn.x->limbs[0], pn.y->limbs[0]);
         }
-        pl = pn;
     }
 
     allocatorDebug(allocator);

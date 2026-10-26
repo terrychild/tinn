@@ -27,6 +27,8 @@ int biCmp(BigInt* a, BigInt* b);
 int biCmpAbs(BigInt* a, BigInt* b);
 int biCmpInt(BigInt* a, I64 b);
 
+bool biBit(BigInt* bi, U64 bit);
+
 BigInt* biShiftLeft(BigInt* dest, BigInt* source, U64 count);
 BigInt* biShiftRight(BigInt* dest, BigInt* source, U64 count);
 

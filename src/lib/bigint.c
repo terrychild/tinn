@@ -202,6 +202,15 @@ int biCmpInt(BigInt* a, I64 b) {
     }
 }
 
+bool biBit(BigInt* bi, U64 bit) {
+    if (bit > bi->length) {
+        return false;
+    }
+    U64 limb = bit / 64;
+    U64 mask = 1 << (bit - (limb * 64));
+    return bi->limbs[limb] & mask;
+}
+
 // === bit shift stuff ===
 
 BigInt* biShiftLeft(BigInt* dest, BigInt* source, U64 count) {
