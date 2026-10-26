@@ -146,7 +146,7 @@ Slice biToBESlice(BigInt* bi) {
 
 // === comparison stuff ===
 
-static bool isZero(BigInt* bi) {
+bool biIsZero(BigInt* bi) {
     return bi->length == 0;
 }
 
@@ -176,14 +176,36 @@ int biCmp(BigInt* a, BigInt* b) {
         return biCmpAbs(a, b);
     } else if (a->negative) {
         return -1;
+    } else {
+        return 1;
     }
-    return 1;
+}
+
+int biCmpInt(BigInt* a, I64 b) {
+    if (a->negative == (b < 0)) {
+        if (a->length > 64) {
+            return a->negative ? -1 : 1;
+        } else {
+            U64 b_abs = b<0 ? (U64)0-b : (U64)b;
+            if (a->limbs[0] < b_abs) {
+                return a->negative ? 1 : -1;
+            } else if (a->limbs[0] > b_abs) {
+                return a->negative ? -1 : 1;
+            } else {
+                return 0;
+            }
+        }
+    } else if (a->negative) {
+        return -1;
+    } else {
+        return 1;
+    }
 }
 
 // === bit shift stuff ===
 
 BigInt* biShiftLeft(BigInt* dest, BigInt* source, U64 count) {
-    if (isZero(source)) {
+    if (biIsZero(source)) {
         biSetInt(dest, 0);
         return dest;
     }
@@ -216,8 +238,7 @@ BigInt* biShiftLeft(BigInt* dest, BigInt* source, U64 count) {
     dest->length = source->length + count;
     dest->negative = source->negative;
 
-    if (source->mod) {
-        dest->mod = source->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
 
@@ -263,8 +284,7 @@ BigInt* biShiftRight(BigInt* dest, BigInt* source, U64 count) {
     dest->length = source->length - count;
     dest->negative = source->negative;
 
-    if (source->mod) {
-        dest->mod = source->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
 
@@ -343,11 +363,10 @@ BigInt* biAdd(BigInt* dest, BigInt* a, BigInt* b) {
             dest->negative = b->negative;
         }
     }
-    if (a->mod) {
-        dest->mod = a->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
-    if (isZero(dest)) {
+    if (biIsZero(dest)) {
         dest->negative = false;
     }
     return dest;
@@ -366,11 +385,10 @@ BigInt* biSub(BigInt* dest, BigInt* a, BigInt* b) {
             dest->negative = !b->negative;
         }
     }
-    if (a->mod) {
-        dest->mod = a->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
-    if (isZero(dest)) {
+    if (biIsZero(dest)) {
         dest->negative = false;
     }
     return dest;
@@ -379,6 +397,11 @@ BigInt* biSub(BigInt* dest, BigInt* a, BigInt* b) {
 BigInt* biMul(BigInt* dest, BigInt* a, BigInt* b) {
     if (biCmpAbs(a, b) < 0) {
         return biMul(dest, b, a);
+    }
+    if (biIsZero(b)) {
+        clear(dest, 1);
+        dest->length = 0;
+        dest->negative = false;
     }
 
     U64 size = bitsToSize(a->length + b->length + 1);
@@ -408,8 +431,7 @@ BigInt* biMul(BigInt* dest, BigInt* a, BigInt* b) {
 
     allocatorRelease(temp_allocator);
 
-    if (a->mod) {
-        dest->mod = a->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
 
@@ -417,7 +439,7 @@ BigInt* biMul(BigInt* dest, BigInt* a, BigInt* b) {
 }
 
 BigInt* biDiv(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
-    if (isZero(b)) {
+    if (biIsZero(b)) {
         PANIC("Divide by zero!");
     }
 
@@ -456,8 +478,7 @@ BigInt* biDiv(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 
     allocatorRelease(temp_allocator);
 
-    if (a->mod) {
-        dest->mod = a->mod;
+    if (dest->mod) {
         biMod(dest, dest, dest->mod);
     }
 
@@ -465,7 +486,7 @@ BigInt* biDiv(BigInt* dest, BigInt* a, BigInt* b, BigInt* r) {
 }
 
 BigInt* biMod(BigInt* r, BigInt* a, BigInt* b) {
-    if (isZero(b)) {
+    if (biIsZero(b)) {
         PANIC("Divide by zero!");
     }
 
@@ -496,6 +517,11 @@ BigInt* biMod(BigInt* r, BigInt* a, BigInt* b) {
         }
         biShiftRight(temp_b, temp_b, shift);
         biShiftRight(mask, mask, shift);
+    }
+
+    if (r->negative) {
+        sub(r, b, r);
+        r->negative = false;
     }
 
     allocatorRelease(temp_allocator);

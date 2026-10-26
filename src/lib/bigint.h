@@ -22,8 +22,10 @@ void biSetMod(BigInt* bi, BigInt* mod);
 
 Slice biToBESlice(BigInt* bi);
 
+bool biIsZero(BigInt* bi);
 int biCmp(BigInt* a, BigInt* b);
 int biCmpAbs(BigInt* a, BigInt* b);
+int biCmpInt(BigInt* a, I64 b);
 
 BigInt* biShiftLeft(BigInt* dest, BigInt* source, U64 count);
 BigInt* biShiftRight(BigInt* dest, BigInt* source, U64 count);
