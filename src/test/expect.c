@@ -1,6 +1,8 @@
 #include <string.h>
 
 #include "lib/types.h"
+#include "lib/bigint.h"
+#include "lib/bytes.h"
 #include "lib/cli.h"
 
 U64 expect_passed = 0;
@@ -72,6 +74,22 @@ void expectCharPtr(const char* name, const char* value, const char* expected) {
         PRINT(CC_CYAN, "%s", expected);
         PRINT(CC_BRIGHT_WHITE, " got: ");
         PRINT(CC_MAGENTA, "%s\n", value);
+        expect_failed++;
+    }
+}
+
+void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
+    if (biCmp(value, expected)==0) {
+        PRINT(CC_GREEN, "Passed");
+        PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
+        hexDump(biToBESlice(expected));
+        expect_passed++;
+    } else {
+        PRINT(CC_BRIGHT_RED, "Failed");
+        PRINT(CC_BRIGHT_WHITE, ": %s, expected:\n", name);
+        hexDump(biToBESlice(expected));
+        PRINT(CC_BRIGHT_WHITE, "got:\n");
+        hexDump(biToBESlice(value));
         expect_failed++;
     }
 }

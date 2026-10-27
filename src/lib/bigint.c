@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <stdbit.h>
 #include <assert.h>
 
@@ -106,6 +107,54 @@ BigInt* biSetInt(BigInt* bi, I64 i) {
 }
 BigInt* biFromInt(Allocator* allocator, I64 i) {
     return biSetInt(biNew(allocator), i);
+}
+
+static U8 readHexChar(char nibble) {
+	if (nibble < '0') {
+		ERROR("Invalid hex char '%c'.\n", nibble);
+		return 0;
+	}
+	U8 value;
+	if (nibble >= 'a') {
+		value = nibble - 'a' + 10;
+	} else if (nibble >= 'A') {
+		value = nibble - 'A' + 10;
+	} else {
+		value = nibble - '0';
+	}
+	if (value > 15) {
+		ERROR("Invalid hex char '%c'.\n", nibble);
+		return 0;
+	}
+	return value;
+}
+BigInt* biSetHex(BigInt* bi, char* hex) {
+    U64 nibbles = strlen(hex);
+    U64 len = (nibbles+15)/16;
+
+    resize(bi, len, true);
+
+    U64 limb = 0;
+    U64 bits = 0;
+    U64 value = 0;
+    for (U64 i = nibbles; i-- > 0; ) {
+        value += ((U64)readHexChar(hex[i])) << bits;
+        bits += 4;
+
+        if (bits == 64) {
+            bi->limbs[limb++] = value;
+            bits = 0;
+            value = 0;
+        }
+    }
+    bi->limbs[limb] = value;
+    updateLen(bi);
+    bi->negative = false;
+
+    return bi;
+}
+BigInt* biFromHex(Allocator* allocator, char* hex) {
+    return biSetHex(biNew(allocator), hex);
 }
 
 void biSetMod(BigInt* bi, BigInt* mod) {

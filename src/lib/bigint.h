@@ -18,6 +18,8 @@ BigInt* biClone(Allocator* allocator, BigInt* source);
 
 BigInt* biSetInt(BigInt* bi, I64 i);
 BigInt* biFromInt(Allocator* allocator, I64 i);
+BigInt* biSetHex(BigInt* bi, char* hex);
+BigInt* biFromHex(Allocator* allocator, char* hex);
 void biSetMod(BigInt* bi, BigInt* mod);
 
 Slice biToBESlice(BigInt* bi);

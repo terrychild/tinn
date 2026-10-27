@@ -16,6 +16,7 @@ void expectU16(const char* name, U16 value, U16 expected);
 void expectU32(const char* name, U32 value, U32 expected);
 void expectU64(const char* name, U64 value, U64 expected);
 void expectCharPtr(const char* name, char* value, char* expected);
+void expectBigInt(const char* name, BigInt* value, BigInt* expected);
 
 #define expect(name, value, expected) _Generic((value), \
         I8: expectI8, \
@@ -27,6 +28,7 @@ void expectCharPtr(const char* name, char* value, char* expected);
         U32: expectU32, \
         U64: expectU64, \
         char*: expectCharPtr, \
+        BigInt*: expectBigInt, \
         default: expectVoidPtr  \
     )(name, value, expected)
 

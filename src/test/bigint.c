@@ -88,13 +88,17 @@ void testBigInt(Allocator* allocator) {
         hexDump(biToBESlice(bi));
     }
 
-    PRINT(CC_BLUE, "set to 0x6A\n");
+    PRINT(CC_BLUE, "set to 0x6A (int)\n");
     biSetInt(bi, 0x6A);
     hexDump(biToBESlice(bi));
 
     for (int i=0; i<8; i++) {
         PRINT(CC_BLUE, "bit %d: %d\n", i, biBit(bi, i));
     }
+
+    PRINT(CC_BLUE, "set to ffffffff00000001000000000000000000000000ffffffffffffffffffffffff (hex)\n");
+    biSetHex(bi, "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff");
+    hexDump(biToBESlice(bi));
 
     allocatorDebug(allocator);
     allocatorReset(allocator);
