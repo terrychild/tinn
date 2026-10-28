@@ -256,7 +256,7 @@ bool biBit(BigInt* bi, U64 bit) {
         return false;
     }
     U64 limb = bit / 64;
-    U64 mask = 1 << (bit - (limb * 64));
+    U64 mask = (U64)1 << (bit - (limb * 64));
     return bi->limbs[limb] & mask;
 }
 
