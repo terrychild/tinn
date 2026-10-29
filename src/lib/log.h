@@ -20,6 +20,7 @@ void logAppend(LogLevel level, bool inc_errno, const char* format, ...);
 #define WARN(...) logAppend(LL_WARN, false, __VA_ARGS__)
 #define ERROR(...) logAppend(LL_ERROR, true, __VA_ARGS__)
 #define PANIC(...) logAppend(LL_PANIC, true, __VA_ARGS__); exit(EXIT_FAILURE)
+#define PANIC_IF(condition, ...) if(condition) { logAppend(LL_PANIC, true, __VA_ARGS__); exit(EXIT_FAILURE); }
 
 void logOpen(const char* path);
 void logClose();

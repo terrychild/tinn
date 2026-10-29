@@ -9,8 +9,7 @@ add_executable(test
     array.c
     pool.c
     buffer.c
-    bigint.c
-    crypto.c
+    maths.c
 )
 
 target_include_directories(test PRIVATE "${CMAKE_SOURCE_DIR}/src")

@@ -1,7 +1,8 @@
 #include <string.h>
 
 #include "lib/types.h"
-#include "lib/bigint.h"
+#include "lib/mem/slice.h"
+//#include "lib/bigint.h"
 #include "lib/bytes.h"
 #include "lib/cli.h"
 
@@ -33,6 +34,22 @@ MAKE_EXPECT(U8, "%u")
 MAKE_EXPECT(U16, "%lu")
 MAKE_EXPECT(U32, "%lu")
 MAKE_EXPECT(U64, "%lu")
+
+void expectBool(const char* name, bool value, bool expected) {
+    if (value == expected) {
+        PRINT(CC_GREEN, "Passed");
+        PRINT(CC_BRIGHT_WHITE, ": %s: ", name);
+        PRINT(CC_CYAN, "%s\n", expected ? "true" : "false");
+        expect_passed++;
+    } else {
+        PRINT(CC_BRIGHT_RED, "Failed");
+        PRINT(CC_BRIGHT_WHITE, ": %s, expected: ", name);
+        PRINT(CC_CYAN, "%s", expected ? "true" : "false");
+        PRINT(CC_BRIGHT_WHITE, " got: ");
+        PRINT(CC_MAGENTA, "%s\n", value ? "true" : "false");
+        expect_failed++;
+    }
+}
 
 void expectVoidPtr(const char* name, const void* value, const void* expected) {
     if (value == expected) {
@@ -78,7 +95,23 @@ void expectCharPtr(const char* name, const char* value, const char* expected) {
     }
 }
 
-void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
+void expectSlice(const char* name, Slice value, Slice expected) {
+    if (sliceCmp(value, expected)==0) {
+        PRINT(CC_GREEN, "Passed");
+        PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
+        hexDump(expected);
+        expect_passed++;
+    } else {
+        PRINT(CC_BRIGHT_RED, "Failed");
+        PRINT(CC_BRIGHT_WHITE, ": %s, expected:\n", name);
+        hexDump(expected);
+        PRINT(CC_BRIGHT_WHITE, "got:\n");
+        hexDump(value);
+        expect_failed++;
+    }
+}
+
+/*void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
     if (biCmp(value, expected)==0) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
@@ -92,7 +125,7 @@ void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
         hexDump(biToBESlice(value));
         expect_failed++;
     }
-}
+}*/
 
 void expectNull(const char* name, void* value) {
     if (value==NULL) {

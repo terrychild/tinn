@@ -1,4 +1,5 @@
 #include "lib/types.h"
+#include "lib/log.h"
 #include "lib/cli.h"
 
 U16 fromBE16(const U8 bytes[2]) {
@@ -39,23 +40,43 @@ void toBE16(U8 dest[2], U16 n) {
         n >>= 8;
     }
 }
-void toBE24(U8 dest[2], U32 n) {
+void toBE24(U8 dest[3], U32 n) {
     for (int i=2; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
 }
-void toBE32(U8 dest[2], U32 n) {
+void toBE32(U8 dest[4], U32 n) {
     for (int i=3; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
 }
-void toBE64(U8 dest[2], U64 n) {
+void toBE64(U8 dest[8], U64 n) {
     for (int i=7; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
     }
+}
+
+U8 readHexChar(char nibble) {
+	if (nibble < '0') {
+		ERROR("Invalid hex char '%c'.\n", nibble);
+		return 0;
+	}
+	U8 value;
+	if (nibble >= 'a') {
+		value = nibble - 'a' + 10;
+	} else if (nibble >= 'A') {
+		value = nibble - 'A' + 10;
+	} else {
+		value = nibble - '0';
+	}
+	if (value > 15) {
+		ERROR("Invalid hex char '%c'.\n", nibble);
+		return 0;
+	}
+	return value;
 }
 
 void hexDump(Slice slice) {

@@ -7,6 +7,7 @@ extern U64 expect_passed;
 extern U64 expect_failed;
 
 void expectVoidPtr(const char* name, void* value, void* expected);
+void expectBool(const char* name, bool value, bool expected);
 void expectI8(const char* name, U8 value, U8 expected);
 void expectI16(const char* name, I16 value, I16 expected);
 void expectI32(const char* name, I32 value, I32 expected);
@@ -16,9 +17,12 @@ void expectU16(const char* name, U16 value, U16 expected);
 void expectU32(const char* name, U32 value, U32 expected);
 void expectU64(const char* name, U64 value, U64 expected);
 void expectCharPtr(const char* name, char* value, char* expected);
-void expectBigInt(const char* name, BigInt* value, BigInt* expected);
+void expectSlice(const char* name, Slice value, Slice expected);
+//void expectBigInt(const char* name, BigInt* value, BigInt* expected);
+//BigInt*: expectBigInt,
 
 #define expect(name, value, expected) _Generic((value), \
+        bool: expectBool, \
         I8: expectI8, \
         I16: expectI16, \
         I32: expectI32, \
@@ -28,7 +32,7 @@ void expectBigInt(const char* name, BigInt* value, BigInt* expected);
         U32: expectU32, \
         U64: expectU64, \
         char*: expectCharPtr, \
-        BigInt*: expectBigInt, \
+        Slice: expectSlice, \
         default: expectVoidPtr  \
     )(name, value, expected)
 
