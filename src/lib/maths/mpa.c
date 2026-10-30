@@ -18,7 +18,7 @@ U64 mpaSetInt(U64 dest[], U64 limbs, U64 i) {
     return mpaBitLength(dest, limbs);
 }
 
-U64 mpaSetHex(U64 dest[], U64 limbs, char* hex) {
+U64 mpaSetHex(U64 dest[], U64 limbs, const char* hex) {
     U64 nibbles = strlen(hex);
     U64 len = (nibbles+15)/16;
     PANIC_IF(len > limbs, "Hex string exceeds number range");
@@ -46,7 +46,7 @@ U64 mpaSetHex(U64 dest[], U64 limbs, char* hex) {
 
 // === output stuff ===
 
-Slice mpaToBESlice(Allocator* allocator, U64 source[], U64 limbs) {
+Slice mpaToBESlice(Allocator* allocator, const U64 source[], U64 limbs) {
     U64 bit_len = mpaBitLength(source, limbs);
     if (bit_len == 0) {
         return sliceNew(allocate(allocator, 1), 1);
@@ -79,7 +79,7 @@ Slice mpaToBESlice(Allocator* allocator, U64 source[], U64 limbs) {
 
 // === comparison stuff ===
 
-U64 mpaBitLength(U64 source[], U64 limbs) {
+U64 mpaBitLength(const U64 source[], U64 limbs) {
     for (U64 limb = limbs; limb-- > 0; ) {
         if (source[limb]) {
             return (limb * 64) + 64 - stdc_leading_zeros(source[limb]);
@@ -88,7 +88,7 @@ U64 mpaBitLength(U64 source[], U64 limbs) {
     return 0;
 }
 
-bool mpaBit(U64 source[], U64 limbs, U64 bit) {
+bool mpaBit(const U64 source[], U64 limbs, U64 bit) {
     U64 len = mpaBitLength(source, limbs);
     if (bit > len) {
         return false;
@@ -98,11 +98,11 @@ bool mpaBit(U64 source[], U64 limbs, U64 bit) {
     return source[limb] & mask;
 }
 
-bool mpaIsZero(U64 source[], U64 limbs) {
+bool mpaIsZero(const U64 source[], U64 limbs) {
     return mpaBitLength(source, limbs) == 0;
 }
 
-int mpaCmp(U64 a[], U64 b[], U64 limbs) {
+int mpaCmp(const U64 a[], const U64 b[], U64 limbs) {
     U64 a_len = mpaBitLength(a, limbs);
     U64 b_len = mpaBitLength(b, limbs);
     if (a_len < b_len) {
@@ -121,7 +121,7 @@ int mpaCmp(U64 a[], U64 b[], U64 limbs) {
     }
 }
 
-int mpaCmpInt(U64 a[], U64 b, U64 limbs) {
+int mpaCmpInt(const U64 a[], U64 b, U64 limbs) {
     U64 a_len = mpaBitLength(a, limbs);
     if (a_len > 64) {
         return 1;
@@ -138,7 +138,7 @@ int mpaCmpInt(U64 a[], U64 b, U64 limbs) {
 
 // === math stuff ===
 
-U64 mpaAdd(U64 a[], U64 b[], U64 limbs) {
+U64 mpaAdd(U64 a[], const U64 b[], U64 limbs) {
     U64 carry = 0;
     for (U64 i=0; i < limbs; i++) {
         U64 ai = a[i];
@@ -153,7 +153,7 @@ U64 mpaAdd(U64 a[], U64 b[], U64 limbs) {
     return carry;
 }
 
-U64 mpaSub(U64 a[], U64 b[], U64 limbs) {
+U64 mpaSub(U64 a[], const U64 b[], U64 limbs) {
     U64 borrow = 0;
     for (U64 i=0; i < limbs; i++) {
         U64 ai = a[i];

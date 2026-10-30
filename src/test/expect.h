@@ -16,10 +16,9 @@ void expectU8(const char* name, U8 value, U8 expected);
 void expectU16(const char* name, U16 value, U16 expected);
 void expectU32(const char* name, U32 value, U32 expected);
 void expectU64(const char* name, U64 value, U64 expected);
+void expectBigInt(const char* name, BigInt* value, BigInt* expected);
 void expectCharPtr(const char* name, char* value, char* expected);
 void expectSlice(const char* name, Slice value, Slice expected);
-//void expectBigInt(const char* name, BigInt* value, BigInt* expected);
-//BigInt*: expectBigInt,
 
 #define expect(name, value, expected) _Generic((value), \
         bool: expectBool, \
@@ -31,6 +30,7 @@ void expectSlice(const char* name, Slice value, Slice expected);
         U16: expectU16, \
         U32: expectU32, \
         U64: expectU64, \
+        BigInt*: expectBigInt, \
         char*: expectCharPtr, \
         Slice: expectSlice, \
         default: expectVoidPtr  \

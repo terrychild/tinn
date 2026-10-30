@@ -13,6 +13,7 @@ add_library(lib
     mem/slice.c
 
     maths/mpa.c
+    maths/bigint.c
 
     sys/sockets.c
     sys/polling.c

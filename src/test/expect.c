@@ -1,8 +1,9 @@
 #include <string.h>
 
 #include "lib/types.h"
+#include "lib/mem/allocator.h"
 #include "lib/mem/slice.h"
-//#include "lib/bigint.h"
+#include "lib/maths/bigint.h"
 #include "lib/bytes.h"
 #include "lib/cli.h"
 
@@ -49,6 +50,24 @@ void expectBool(const char* name, bool value, bool expected) {
         PRINT(CC_MAGENTA, "%s\n", value ? "true" : "false");
         expect_failed++;
     }
+}
+
+void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
+    Allocator* temp_allocator = allocatorNew((value->size + expected->size) * 8);
+    if (biCmp(value, expected)==0) {
+        PRINT(CC_GREEN, "Passed");
+        PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
+        hexDump(biToBESlice(temp_allocator, expected));
+        expect_passed++;
+    } else {
+        PRINT(CC_BRIGHT_RED, "Failed");
+        PRINT(CC_BRIGHT_WHITE, ": %s, expected:\n", name);
+        hexDump(biToBESlice(temp_allocator, expected));
+        PRINT(CC_BRIGHT_WHITE, "got:\n");
+        hexDump(biToBESlice(temp_allocator, value));
+        expect_failed++;
+    }
+    allocatorRelease(temp_allocator);
 }
 
 void expectVoidPtr(const char* name, const void* value, const void* expected) {
@@ -110,22 +129,6 @@ void expectSlice(const char* name, Slice value, Slice expected) {
         expect_failed++;
     }
 }
-
-/*void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
-    if (biCmp(value, expected)==0) {
-        PRINT(CC_GREEN, "Passed");
-        PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
-        hexDump(biToBESlice(expected));
-        expect_passed++;
-    } else {
-        PRINT(CC_BRIGHT_RED, "Failed");
-        PRINT(CC_BRIGHT_WHITE, ": %s, expected:\n", name);
-        hexDump(biToBESlice(expected));
-        PRINT(CC_BRIGHT_WHITE, "got:\n");
-        hexDump(biToBESlice(value));
-        expect_failed++;
-    }
-}*/
 
 void expectNull(const char* name, void* value) {
     if (value==NULL) {
