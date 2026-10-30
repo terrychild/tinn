@@ -64,6 +64,17 @@ void biInit(BigInt* bi, Allocator* allocator, U64 size) {
     bi->mod = NULL;
 }
 
+static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
+    limbs[0] = i<0 ? (U64)0-i : (U64)i;
+
+    bi->allocator = NULL;
+    bi->size = 1;
+    bi->length = mpaBitLength(limbs, 1);
+    bi->negative = i<0;
+    bi->limbs = limbs;
+    bi->mod = NULL;
+}
+
 BigInt* biCopy(BigInt* dest, const BigInt* source) {
     resize(dest, source->size, true);
     for (U64 limb = 0; limb < dest->size; limb++) {
@@ -150,7 +161,7 @@ int biCmpAbs(const BigInt* a, const BigInt* b) {
     }
 }
 
-int biCmp(const BigInt* a, const BigInt* b) {
+int biCmpBi(const BigInt* a, const BigInt* b) {
     if (a->negative == b->negative) {
         if (a->negative) {
             return biCmpAbs(b, a);
@@ -324,7 +335,7 @@ static void sub(BigInt* dest, const BigInt* a, const BigInt* b) {
     updateLen(dest);
 }
 
-BigInt* biAdd(BigInt* a, const BigInt* b) {
+BigInt* biAddBi(BigInt* a, const BigInt* b) {
     if (a->negative == b->negative) {
         add(a, b);
     } else {
@@ -343,8 +354,15 @@ BigInt* biAdd(BigInt* a, const BigInt* b) {
     }
     return a;
 }
+BigInt* biAddInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
 
-BigInt* biSub(BigInt* a, const BigInt* b) {
+    return biAddBi(a, &b);
+}
+
+BigInt* biSubBi(BigInt* a, const BigInt* b) {
     if (a->negative != b->negative) {
         add(a, b);
     } else {
@@ -363,8 +381,15 @@ BigInt* biSub(BigInt* a, const BigInt* b) {
     }
     return a;
 }
+BigInt* biSubInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
 
-BigInt* biMul(BigInt* a, const BigInt* b) {
+    return biSubBi(a, &b);
+}
+
+BigInt* biMulBi(BigInt* a, const BigInt* b) {
     if (biIsZero(a)) {
         return a;
     }
@@ -417,6 +442,13 @@ BigInt* biMul(BigInt* a, const BigInt* b) {
 
     return a;
 }
+BigInt* biMulInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+
+    return biMulBi(a, &b);
+}
 
 static void divide(Allocator* allocator, BigInt* a, const BigInt* b, BigInt* r) {
     biCopy(r, a);
@@ -456,7 +488,7 @@ static void divide(Allocator* allocator, BigInt* a, const BigInt* b, BigInt* r) 
     }
 }
 
-BigInt* biDiv(BigInt* a, const BigInt* b) {
+BigInt* biDivBi(BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
     Allocator* temp_allocator = allocatorNew((a->size + (b->size * 4)) * sizeof(U64));
@@ -465,8 +497,15 @@ BigInt* biDiv(BigInt* a, const BigInt* b) {
 
     return a;
 }
+BigInt* biDivInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
 
-BigInt* biDivRem(BigInt* a, const BigInt* b, BigInt* r) {
+    return biDivBi(a, &b);
+}
+
+BigInt* biDivRemBi(BigInt* a, const BigInt* b, BigInt* r) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
     Allocator* temp_allocator = allocatorNew((b->size * 4) * sizeof(U64));
@@ -475,8 +514,15 @@ BigInt* biDivRem(BigInt* a, const BigInt* b, BigInt* r) {
 
     return a;
 }
+BigInt* biDivRemInt(BigInt* a, I64 b_int, BigInt* r) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
 
-BigInt* biMod(BigInt* a, const BigInt* b) {
+    return biDivRemBi(a, &b, r);
+}
+
+BigInt* biModBi(BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
     Allocator* temp_allocator = allocatorNew((b->size * 4) * sizeof(U64));
@@ -516,8 +562,15 @@ BigInt* biMod(BigInt* a, const BigInt* b) {
 
     return a;
 }
+BigInt* biModInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
 
-BigInt* biPow(BigInt* a, const BigInt* b) {
+    return biModBi(a, &b);
+}
+
+BigInt* biPowBi(BigInt* a, const BigInt* b) {
     Allocator* temp_allocator = allocatorNew((a->size + b->size) * sizeof(U64));
     BigInt* temp_a = biClone(temp_allocator, a);
     BigInt* temp_b = biClone(temp_allocator, b);
@@ -546,4 +599,11 @@ BigInt* biPow(BigInt* a, const BigInt* b) {
     allocatorRelease(temp_allocator);
 
     return a;
+}
+BigInt* biPowInt(BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+
+    return biPowBi(a, &b);
 }

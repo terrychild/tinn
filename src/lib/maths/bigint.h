@@ -28,18 +28,64 @@ Slice biToBESlice(Allocator* allocator, const BigInt* bi);
 bool biBit(const BigInt* bi, U64 bit);
 bool biIsZero(const BigInt* bi);
 int biCmpAbs(const BigInt* a, const BigInt* b);
-int biCmp(const BigInt* a, const BigInt* b);
+
+int biCmpBi(const BigInt* a, const BigInt* b);
 int biCmpInt(const BigInt* a, I64 b);
+#define biCmp(a, b) _Generic((b), \
+		BigInt*: biCmpBi, \
+        default: biCmpInt  \
+    )(a, b)
 
 BigInt* biShiftLeft(BigInt* bi, U64 count);
 BigInt* biShiftRight(BigInt* bi, U64 count);
 
-BigInt* biAdd(BigInt* a, const BigInt* b);
-BigInt* biSub(BigInt* a, const BigInt* b);
-BigInt* biMul(BigInt* a, const BigInt* b);
-BigInt* biDiv(BigInt* a, const BigInt* b);
-BigInt* biDivRem(BigInt* a, const BigInt* b, BigInt* r);
-BigInt* biMod(BigInt* a, const BigInt* b);
-BigInt* biPow(BigInt* a, const BigInt* b);
+BigInt* biAddBi(BigInt* a, const BigInt* b);
+BigInt* biAddInt(BigInt* a, I64 b);
+#define biAdd(a, b) _Generic((b), \
+		BigInt*: biAddBi, \
+        default: biAddInt  \
+    )(a, b)
+
+BigInt* biSubBi(BigInt* a, const BigInt* b);
+BigInt* biSubInt(BigInt* a, I64 b);
+#define biSub(a, b) _Generic((b), \
+		BigInt*: biSubBi, \
+        default: biSubInt  \
+    )(a, b)
+
+BigInt* biMulBi(BigInt* a, const BigInt* b);
+BigInt* biMulInt(BigInt* a, I64 b);
+#define biMul(a, b) _Generic((b), \
+		BigInt*: biMulBi, \
+        default: biMulInt  \
+    )(a, b)
+
+BigInt* biDivBi(BigInt* a, const BigInt* b);
+BigInt* biDivInt(BigInt* a, I64 b);
+#define biDiv(a, b) _Generic((b), \
+		BigInt*: biDivBi, \
+        default: biDivInt  \
+    )(a, b)
+
+BigInt* biDivRemBi(BigInt* a, const BigInt* b, BigInt* r);
+BigInt* biDivRemInt(BigInt* a, I64 b, BigInt* r);
+#define biDivRem(a, b, r) _Generic((b), \
+		BigInt*: biDivRemBi, \
+        default: biDivRemInt  \
+    )(a, b, r)
+
+BigInt* biModBi(BigInt* a, const BigInt* b);
+BigInt* biModInt(BigInt* a, I64 b);
+#define biMod(a, b) _Generic((b), \
+		BigInt*: biModBi, \
+        default: biModInt  \
+    )(a, b)
+
+BigInt* biPowBi(BigInt* a, const BigInt* b);
+BigInt* biPowInt(BigInt* a, I64 b);
+#define biPow(a, b) _Generic((b), \
+		BigInt*: biPowBi, \
+        default: biPowInt  \
+    )(a, b)
 
 #endif
