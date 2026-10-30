@@ -10,6 +10,7 @@ add_executable(test
     pool.c
     buffer.c
     maths.c
+    crypto.c
 )
 
 target_include_directories(test PRIVATE "${CMAKE_SOURCE_DIR}/src")

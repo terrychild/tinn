@@ -11,6 +11,6 @@ void testArray(Allocator* allocator);
 void testPool(Allocator* allocator);
 void testBuffer(Allocator* allocator);
 void testMaths(Allocator* allocator);
-//void testCrypto(Allocator* allocator);
+void testCrypto(Allocator* allocator);
 
 #endif

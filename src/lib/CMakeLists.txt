@@ -22,6 +22,8 @@ add_library(lib
     net/echo.c
     net/http.c
     net/url.c
+
+    crypto/ec.c
 )
 
 target_include_directories(lib PRIVATE "${CMAKE_SOURCE_DIR}/src")
