@@ -6,6 +6,7 @@
 #include "lib/mem/allocator.h"
 #include "lib/mem/slice.h"
 #include "lib/bytes.h"
+#include "lib/cli.h"
 
 void testMaths(Allocator* allocator) {
     U64 key[4];
@@ -99,13 +100,25 @@ void testMaths(Allocator* allocator) {
     expect("square", biMul(bi, bi), biFromHex(allocator, "1000000000000000000000000"));
 
     BigInt* remainder = biNew(allocator);
-    expect("/3", biDiv(bi, biFromInt(allocator, 3), remainder), biFromHex(allocator, "555555555555555555555555"));
+    expect("/3", biDivRem(bi, biFromInt(allocator, 3), remainder), biFromHex(allocator, "555555555555555555555555"));
     expect("remainder", remainder, bi_1);
     expect("mod 1024", biMod(bi, biFromInt(allocator, 1024)), biFromInt(allocator, 341));
+
+    expect("/4", biDiv(bi, biFromInt(allocator, 4)), biFromInt(allocator, 85));
 
     expect("2 pow 16", biPow(biSetInt(bi, 2), biFromInt(allocator, 16)), biFromInt(allocator, 65536));
     expect("2 pow 16 pow 16", biPow(bi, biFromInt(allocator, 16)), biFromHex(allocator, "10000000000000000000000000000000000000000000000000000000000000000"));
 
+    BigInt* bi_2 = biFromInt(allocator, 2);
+    BigInt* bi_MAX = biFromHex(allocator, "FFFFFFFFFFFFFFFF");
+    BigInt* bi_2MAX = biFromHex(allocator, "1FFFFFFFFFFFFFFFE");
+    expect("big first", biMul(biCopy(bi, bi_MAX), bi_2), bi_2MAX);
+    expect("big second", biMul(biCopy(bi, bi_2), bi_MAX), bi_2MAX);
+
+    expect("281474976710656/37", biDivRem(biSetInt(bi, 281474976710656), biFromInt(allocator, 37), remainder), biFromInt(allocator, 7607431802990));
+    PRINT(CC_BLUE, "          %lu\n", bi->limbs[0]);
+    expect("remainder", remainder, biFromInt(allocator, 26));
+    PRINT(CC_BLUE, "          %lu\n", remainder->limbs[0]);
 
     allocatorDebug(allocator);
     allocatorReset(allocator);

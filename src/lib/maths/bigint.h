@@ -34,11 +34,12 @@ int biCmpInt(const BigInt* a, I64 b);
 BigInt* biShiftLeft(BigInt* bi, U64 count);
 BigInt* biShiftRight(BigInt* bi, U64 count);
 
-BigInt* biAdd(BigInt* a, BigInt* b);
-BigInt* biSub(BigInt* a, BigInt* b);
-BigInt* biMul(BigInt* a, BigInt* b);
-BigInt* biDiv(BigInt* a, BigInt* b, BigInt* r);
-BigInt* biMod(BigInt* a, BigInt* b);
-BigInt* biPow(BigInt* a, BigInt* b);
+BigInt* biAdd(BigInt* a, const BigInt* b);
+BigInt* biSub(BigInt* a, const BigInt* b);
+BigInt* biMul(BigInt* a, const BigInt* b);
+BigInt* biDiv(BigInt* a, const BigInt* b);
+BigInt* biDivRem(BigInt* a, const BigInt* b, BigInt* r);
+BigInt* biMod(BigInt* a, const BigInt* b);
+BigInt* biPow(BigInt* a, const BigInt* b);
 
 #endif
