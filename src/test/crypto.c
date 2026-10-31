@@ -2,6 +2,7 @@
 #include "lib/types.h"
 #include "lib/maths/bigint.h"
 #include "lib/crypto/ec.h"
+#include "lib/crypto/mc.h"
 #include "lib/mem/allocator.h"
 #include "lib/cli.h"
 
@@ -33,6 +34,35 @@ void testCrypto(Allocator* allocator) {
     pn = ecPoint(allocator, ec, biFromInt(allocator, 10));
     expect("Elliptic Curve secp256r1 10G x", pn->x, biFromHex(allocator, "cef66d6b2a3a993e591214d1ea223fb545ca6c471c48306e4c36069404c5723f"));
     expect("Elliptic Curve secp256r1 10G y", pn->y, biFromHex(allocator, "878662a229aaae906e123cdd9d3b4c10590ded29fe751eeeca34bbaa44af0773"));
+
+
+    MontgomeryCurve* mc = mcNew(allocator, "76d06", "1", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed", "9");
+
+    BigInt* x = biNew(allocator);
+    xMul(allocator, mc, x, biFromInt(allocator, 2));
+    expect("Elliptic Curve 25519 2G", x, biFromHex(allocator, "20d342d51873f1b7d9750c687d1571148f3f5ced1e350b5c5cae469cdd684efb"));
+    xMul(allocator, mc, x, biFromInt(allocator, 3));
+    expect("Elliptic Curve 25519 3G", x, biFromHex(allocator, "1c12bc1a6d57abe645534d91c21bba64f8824e67621c0859c00a03affb713c12"));
+    xMul(allocator, mc, x, biFromInt(allocator, 10));
+    expect("Elliptic Curve 25519 10G", x, biFromHex(allocator, "41eda655b159060471fb4ce5d7cb3fe43ee51843d2080e0383ce42892c3a9c7b"));
+    xMul(allocator, mc, x, biFromInt(allocator, 256));
+    expect("Elliptic Curve 25519 256G", x, biFromHex(allocator, "4300017536976a742ec8747f7505cd6bc80e610d669acab1a1eed36f680d98e8"));
+
+    xMul(allocator, mc, x, biFromHex(allocator, "10000000"));
+    expect("Elliptic Curve 25519 0x10000000", x, biFromHex(allocator, "6893cedbcf053a23b7d5676bf577dbc309d25c8525a0f2f5036b67f0967fa084"));
+
+    xMul(allocator, mc, x, biFromHex(allocator, "FFFFFFFF"));
+    expect("Elliptic Curve 25519 0xFFFFFFFF", x, biFromHex(allocator, "08de23ae492b2c0a8b7c7e1f216501ba25bea603a30f5fd0c4bbac77fd5fec82"));
+
+    xMul(allocator, mc, x, biFromHex(allocator, "100000000"));
+    expect("Elliptic Curve 25519 0x100000000", x, biFromHex(allocator, "06a8e0bfab511d23d72ddc7e8b0d4e3561183208d3d7886c269a92ca1de7dc30"));
+
+    xMul(allocator, mc, x, biFromHex(allocator, "1000000000000000"));
+    expect("Elliptic Curve 25519 0x1000000000000000", x, biFromHex(allocator, "733350c17acebbbafc697ea8b5f03b354bf7ae172f54e86e883b59d150d1b370"));
+    xMul(allocator, mc, x, biFromHex(allocator, "6A2CB91DA5FB77B12A99C0EB872F4CDF4566B25172C1163C7DA518730A6D0770"));
+    expect("Elliptic Curve 25519", x, biFromHex(allocator, "6a4e9baa8ea9a4ebf41a38260d3abf0d5af73eb4dc7d8b7454a7308909f02085"));
+    xMul(allocator, mc, x, biFromHex(allocator, "4242424242424242424242424242424242424242424242424242424242424240"));
+    expect("Elliptic Curve 25519", x, biFromHex(allocator, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
     allocatorDebug(allocator);
     allocatorReset(allocator);

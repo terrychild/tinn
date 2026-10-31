@@ -40,7 +40,9 @@ U64 mpaSetHex(U64 dest[], U64 limbs, const char* hex) {
             value = 0;
         }
     }
-    dest[limb] = value;
+    if (limb < limbs) {
+        dest[limb] = value;
+    }
     return mpaBitLength(dest, limbs);
 }
 

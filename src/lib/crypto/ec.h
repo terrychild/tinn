@@ -1,5 +1,5 @@
-#ifndef LIB_CRYPTO_H
-#define LIB_CRYPTO_H
+#ifndef LIB_CRYPTO_EC_H
+#define LIB_CRYPTO_EC_H
 
 #include "lib/types.h"
 
