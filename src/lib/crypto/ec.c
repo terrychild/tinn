@@ -12,7 +12,7 @@ static EllipticCurvePoint* newPoint(Allocator* allocator, BigInt* p) {
     return point;
 }
 
-static EllipticCurvePoint* clonePoint(Allocator* allocator, EllipticCurvePoint* source) {
+static EllipticCurvePoint* clonePoint(Allocator* allocator, const EllipticCurvePoint* source) {
     EllipticCurvePoint* dest = allocate(allocator, sizeof(EllipticCurvePoint));
     dest->x = biClone(allocator, source->x);
     dest->y = biClone(allocator, source->y);
@@ -31,54 +31,40 @@ EllipticCurve* ecNew(Allocator* allocator, const char* a, const char* b, const c
     return ec;
 }
 
+static BigInt* inverse(Allocator* allocator, BigInt* a, BigInt* mod) {
+    BigInt* old_t = biFromInt(allocator, 0);
+    BigInt* t = biFromInt(allocator, 1);
+    BigInt* new_t = biNew(allocator);
 
-struct eea_terms {
-	BigInt* r;
-	BigInt* s;
-	BigInt* t;
-};
+    BigInt* old_r = biClone(allocator, mod);
+    BigInt* r = biClone(allocator, a);
+    BigInt* new_r = biNew(allocator);
 
-struct eea_terms eea_recurse(Allocator* allocator, struct eea_terms i2, struct eea_terms i1) {
+    BigInt* q = biNew(allocator);
 
-	if (biIsZero(i1.r)) return i2;
+    while (!biIsZero(r)) {
+        biDivRem(biCopy(q, old_r), r, new_r);
+        biSub(biCopy(new_t, old_t), biMul(q, t));
 
-    struct eea_terms terms = {
-        .r = biNew(allocator),
-        .s = biNew(allocator),
-        .t = biNew(allocator)
-    };
+        biCopy(old_t, t);
+        biCopy(t, new_t);
+        biCopy(old_r, r);
+        biCopy(r, new_r);
+    }
 
-    BigInt* q = biClone(allocator, i2.r);
-	biDivRem(q, i1.r, terms.r);
-
-    biCopy(terms.s, i2.s);
-    biSub(terms.s, biMul(biClone(allocator, q), i1.s));
-
-    biCopy(terms.t, i2.t);
-    biSub(terms.t, biMul(biClone(allocator, q), i1.t));
-
-	return eea_recurse(allocator, i1, terms);
+    PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
+    if (old_t->negative) {
+        biAdd(old_t, mod);
+    }
+    return biCopy(a, old_t);
 }
 
-struct eea_terms eea(Allocator* allocator, BigInt* r0, BigInt* r1) {
-	return eea_recurse(allocator, (struct eea_terms) {r0, biFromInt(allocator, 1), biFromInt(allocator, 0)}, (struct eea_terms) {r1, biFromInt(allocator, 0), biFromInt(allocator, 1)});
-}
-
-BigInt* inverse(Allocator* allocator, BigInt* a, BigInt* mod) {
-	struct eea_terms result = eea(allocator, mod, a);
-
-    PANIC_IF(biCmp(result.r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
-
-    biCopy(a, result.t);
-    return biMod(a, mod);
-}
-
-static EllipticCurvePoint* ecAdd(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, const EllipticCurvePoint* q) {
+static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, const EllipticCurvePoint* q) {
     if (p->is_infinity) {
-        return q;
+        return clonePoint(allocator, q);
     }
     if (q->is_infinity) {
-        return p;
+        return clonePoint(allocator, p);
     }
 
     BigInt* temp = biNew(allocator);
@@ -93,8 +79,7 @@ static EllipticCurvePoint* ecAdd(Allocator* allocator, const EllipticCurve* ec, 
     BigInt* s = biNew(allocator);
     biSetMod(s, ec->p);
     if (biCmp(p->x, q->x)==0 && biCmp(p->y, q->y)==0) {
-        // double
-        //s = mod(((3 * p.x * p.x) + e.a) * inverse(mod(2 * p.y, e.p), e.p), e.p);
+        // double: s = ((3 * p.x * p.x) + e.a) * inverse(2 * p.y, e.p);
         biCopy(s, p->x);
         biPow(s, 2);
         biMul(s, 3);
@@ -106,8 +91,7 @@ static EllipticCurvePoint* ecAdd(Allocator* allocator, const EllipticCurve* ec, 
 
         biMul(s, temp);
     } else {
-        // add
-        //s = mod((q.y - p.y) * inverse(mod(q.x - p.x, e.p), e.p), e.p);
+        // add: s = (q.y - p.y) * inverse(q.x - p.x, e.p);
         biCopy(s, q->y);
         biSub(s, p->y);
 
@@ -121,13 +105,13 @@ static EllipticCurvePoint* ecAdd(Allocator* allocator, const EllipticCurve* ec, 
     EllipticCurvePoint* point = newPoint(allocator, ec->p);
     point->is_infinity = false;
 
-    //int x = mod((s * s) - p.x - q.x, e.p);
+    // x = (s * s) - p.x - q.x;
     biCopy(point->x, s);
     biPow(point->x, 2);
     biSub(point->x, p->x);
     biSub(point->x, q->x);
 
-    //int y = mod((s * (p1.x - x)) - p1.y, e.p);
+    // y = (s * (p.x - x)) - p.y;
     biCopy(point->y, p->x);
     biSub(point->y, point->x);
     biMul(point->y, s);
@@ -136,17 +120,20 @@ static EllipticCurvePoint* ecAdd(Allocator* allocator, const EllipticCurve* ec, 
     return point;
 }
 
-static EllipticCurvePoint* ecMul(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, BigInt* n) {
+static EllipticCurvePoint* mul(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, BigInt* n) {
     EllipticCurvePoint* t = clonePoint(allocator, p);
     for (U64 bit = n->length - 1; bit-- > 0; ) {
-        t = ecAdd(allocator, ec, t, t);
+        t = add(allocator, ec, t, t);
         if (biBit(n, bit)) {
-            t = ecAdd(allocator, ec, t, p);
+            t = add(allocator, ec, t, p);
         }
     }
     return t;
 }
 
 EllipticCurvePoint* ecPoint(Allocator* allocator, const EllipticCurve* ec, BigInt* n) {
-    return ecMul(allocator, ec, ec->g, n);
+    Allocator* temp_allocator = allocatorNew(0);
+    EllipticCurvePoint* point = clonePoint(allocator, mul(temp_allocator, ec, ec->g, n));
+    allocatorRelease(temp_allocator);
+    return point;
 }
