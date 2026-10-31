@@ -3,13 +3,11 @@
 #include "lib/maths/bigint.h"
 #include "lib/log.h"
 
-static EllipticCurvePoint* newPoint(Allocator* allocator, BigInt* p) {
-    EllipticCurvePoint* point = allocate(allocator, sizeof(EllipticCurvePoint));
-    point->x = biNew(allocator);
-    biSetMod(point->x, p);
-    point->y = biNew(allocator);
-    biSetMod(point->y, p);
-    return point;
+static EllipticCurvePoint* copyPoint(EllipticCurvePoint* dest, const EllipticCurvePoint* source) {
+    biCopy(dest->x, source->x);
+    biCopy(dest->y, source->y);
+    dest->is_infinity = source->is_infinity;
+    return dest;
 }
 
 static EllipticCurvePoint* clonePoint(Allocator* allocator, const EllipticCurvePoint* source) {
@@ -31,32 +29,14 @@ EllipticCurve* ecNew(Allocator* allocator, const char* a, const char* b, const c
     return ec;
 }
 
-static BigInt* inverse(Allocator* allocator, BigInt* a, BigInt* mod) {
-    BigInt* old_t = biFromInt(allocator, 0);
-    BigInt* t = biFromInt(allocator, 1);
-    BigInt* new_t = biNew(allocator);
-
-    BigInt* old_r = biClone(allocator, mod);
-    BigInt* r = biClone(allocator, a);
-    BigInt* new_r = biNew(allocator);
-
-    BigInt* q = biNew(allocator);
-
-    while (!biIsZero(r)) {
-        biDivRem(biCopy(q, old_r), r, new_r);
-        biSub(biCopy(new_t, old_t), biMul(q, t));
-
-        biCopy(old_t, t);
-        biCopy(t, new_t);
-        biCopy(old_r, r);
-        biCopy(r, new_r);
-    }
-
-    PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
-    if (old_t->negative) {
-        biAdd(old_t, mod);
-    }
-    return biCopy(a, old_t);
+EllipticCurvePoint* ecNewPoint(Allocator* allocator, EllipticCurve* ec) {
+    EllipticCurvePoint* point = allocate(allocator, sizeof(EllipticCurvePoint));
+    point->x = biNew(allocator);
+    biSetMod(point->x, ec->p);
+    point->y = biNew(allocator);
+    biSetMod(point->y, ec->p);
+    point->is_infinity = true;
+    return point;
 }
 
 static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, const EllipticCurvePoint* q) {
@@ -71,9 +51,7 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
     biSetMod(temp, ec->p);
 
     if (biCmp(p->x, q->x)==0 && biIsZero(biAdd(biCopy(temp, p->y), q->y))) {
-        EllipticCurvePoint* point = newPoint(allocator, ec->p);
-        point->is_infinity = true;
-        return point;
+        return ecNewPoint(allocator, ec);
     }
 
     BigInt* s = biNew(allocator);
@@ -87,7 +65,7 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
 
         biCopy(temp, p->y);
         biMul(temp, 2);
-        inverse(allocator, temp, ec->p);
+        biMulInv(temp, ec->p);
 
         biMul(s, temp);
     } else {
@@ -97,12 +75,12 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
 
         biCopy(temp, q->x);
         biSub(temp, p->x);
-        inverse(allocator, temp, ec->p);
+        biMulInv(temp, ec->p);
 
         biMul(s, temp);
     }
 
-    EllipticCurvePoint* point = newPoint(allocator, ec->p);
+    EllipticCurvePoint* point = ecNewPoint(allocator, ec);
     point->is_infinity = false;
 
     // x = (s * s) - p.x - q.x;
@@ -131,9 +109,8 @@ static EllipticCurvePoint* mul(Allocator* allocator, const EllipticCurve* ec, co
     return t;
 }
 
-EllipticCurvePoint* ecPoint(Allocator* allocator, const EllipticCurve* ec, BigInt* n) {
-    Allocator* temp_allocator = allocatorNew(0);
-    EllipticCurvePoint* point = clonePoint(allocator, mul(temp_allocator, ec, ec->g, n));
-    allocatorRelease(temp_allocator);
-    return point;
+void ecPoint(EllipticCurvePoint* point, const EllipticCurve* ec, BigInt* n) {
+    Allocator* allocator = allocatorNew(0);
+    copyPoint(point, mul(allocator, ec, ec->g, n));
+    allocatorRelease(allocator);
 }

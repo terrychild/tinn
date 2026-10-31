@@ -82,35 +82,7 @@ void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, ProjectedP
     biMul(r->z, x);
 }
 
-static BigInt* inverse(Allocator* allocator, BigInt* a, BigInt* mod) {
-    BigInt* old_t = biFromInt(allocator, 0);
-    BigInt* t = biFromInt(allocator, 1);
-    BigInt* new_t = biNew(allocator);
-
-    BigInt* old_r = biClone(allocator, mod);
-    BigInt* r = biClone(allocator, a);
-    BigInt* new_r = biNew(allocator);
-
-    BigInt* q = biNew(allocator);
-
-    while (!biIsZero(r)) {
-        biDivRem(biCopy(q, old_r), r, new_r);
-        biSub(biCopy(new_t, old_t), biMul(q, t));
-
-        biCopy(old_t, t);
-        biCopy(t, new_t);
-        biCopy(old_r, r);
-        biCopy(r, new_r);
-    }
-
-    PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
-    if (old_t->negative) {
-        biAdd(old_t, mod);
-    }
-    return biCopy(a, old_t);
-}
-
-void xMul(Allocator* allocator, MontgomeryCurve* mc, BigInt* x, BigInt* k) {
+static void mul(Allocator* allocator, BigInt* x, MontgomeryCurve* mc, BigInt* k) {
     ProjectedPoint r0 = {
         .x = biClone(allocator, mc->g),
         .z = biFromInt(allocator, 1)
@@ -135,6 +107,12 @@ void xMul(Allocator* allocator, MontgomeryCurve* mc, BigInt* x, BigInt* k) {
     }
 
     biCopy(x, r0.x);
-    biMul(x, inverse(allocator, r0.z, mc->p));
+    biMul(x, biMulInv(r0.z, mc->p));
     biMod(x, mc->p);
+}
+
+void mcKey(BigInt* point, MontgomeryCurve* mc, BigInt* n) {
+    Allocator* allocator = allocatorNew(0);
+    mul(allocator, point, mc, n);
+    allocatorRelease(allocator);
 }

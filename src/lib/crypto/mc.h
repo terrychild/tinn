@@ -12,6 +12,6 @@ typedef struct {
 } MontgomeryCurve;
 
 MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const char* p, const char* x);
-void xMul(Allocator* allocator, MontgomeryCurve* mc, BigInt* x, BigInt* k);
+void mcKey(BigInt* point, MontgomeryCurve* mc, BigInt* n);
 
 #endif

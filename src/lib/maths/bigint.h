@@ -33,6 +33,7 @@ int biCmpBi(const BigInt* a, const BigInt* b);
 int biCmpInt(const BigInt* a, I64 b);
 #define biCmp(a, b) _Generic((b), \
 		BigInt*: biCmpBi, \
+        const BigInt*: biCmpBi, \
         default: biCmpInt  \
     )(a, b)
 
@@ -43,6 +44,7 @@ BigInt* biAddBi(BigInt* a, const BigInt* b);
 BigInt* biAddInt(BigInt* a, I64 b);
 #define biAdd(a, b) _Generic((b), \
 		BigInt*: biAddBi, \
+        const BigInt*: biAddBi, \
         default: biAddInt  \
     )(a, b)
 
@@ -50,6 +52,7 @@ BigInt* biSubBi(BigInt* a, const BigInt* b);
 BigInt* biSubInt(BigInt* a, I64 b);
 #define biSub(a, b) _Generic((b), \
 		BigInt*: biSubBi, \
+        const BigInt*: biSubBi, \
         default: biSubInt  \
     )(a, b)
 
@@ -57,6 +60,7 @@ BigInt* biMulBi(BigInt* a, const BigInt* b);
 BigInt* biMulInt(BigInt* a, I64 b);
 #define biMul(a, b) _Generic((b), \
 		BigInt*: biMulBi, \
+        const BigInt*: biMulBi, \
         default: biMulInt  \
     )(a, b)
 
@@ -64,6 +68,7 @@ BigInt* biDivBi(BigInt* a, const BigInt* b);
 BigInt* biDivInt(BigInt* a, I64 b);
 #define biDiv(a, b) _Generic((b), \
 		BigInt*: biDivBi, \
+        const BigInt*: biDivBi, \
         default: biDivInt  \
     )(a, b)
 
@@ -71,6 +76,7 @@ BigInt* biDivRemBi(BigInt* a, const BigInt* b, BigInt* r);
 BigInt* biDivRemInt(BigInt* a, I64 b, BigInt* r);
 #define biDivRem(a, b, r) _Generic((b), \
 		BigInt*: biDivRemBi, \
+        const BigInt*: biDivRemBi, \
         default: biDivRemInt  \
     )(a, b, r)
 
@@ -78,6 +84,7 @@ BigInt* biModBi(BigInt* a, const BigInt* b);
 BigInt* biModInt(BigInt* a, I64 b);
 #define biMod(a, b) _Generic((b), \
 		BigInt*: biModBi, \
+        const BigInt*: biModBi, \
         default: biModInt  \
     )(a, b)
 
@@ -85,7 +92,10 @@ BigInt* biPowBi(BigInt* a, const BigInt* b);
 BigInt* biPowInt(BigInt* a, I64 b);
 #define biPow(a, b) _Generic((b), \
 		BigInt*: biPowBi, \
+        const BigInt*: biPowBi, \
         default: biPowInt  \
     )(a, b)
+
+BigInt* biMulInv(BigInt* a, const BigInt* mod);
 
 #endif

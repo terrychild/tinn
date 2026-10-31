@@ -17,6 +17,7 @@ typedef struct {
 } EllipticCurve;
 
 EllipticCurve* ecNew(Allocator* allocator, const char* a, const char* b, const char* p, const char* x, const char* y);
-EllipticCurvePoint* ecPoint(Allocator* allocator, const EllipticCurve* ec, BigInt* n);
+EllipticCurvePoint* ecNewPoint(Allocator* allocator, EllipticCurve* ec);
+void ecPoint(EllipticCurvePoint* point, const EllipticCurve* ec, BigInt* n);
 
 #endif

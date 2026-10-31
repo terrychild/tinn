@@ -607,3 +607,37 @@ BigInt* biPowInt(BigInt* a, I64 b_int) {
 
     return biPowBi(a, &b);
 }
+
+BigInt* biMulInv(BigInt* a, const BigInt* mod) {
+    Allocator* temp_allocator = allocatorNew(a->size * 7 * sizeof(U64));
+
+    BigInt* old_t = biFromInt(temp_allocator, 0);
+    BigInt* t = biFromInt(temp_allocator, 1);
+    BigInt* new_t = biNew(temp_allocator);
+
+    BigInt* old_r = biClone(temp_allocator, mod);
+    BigInt* r = biClone(temp_allocator, a);
+    BigInt* new_r = biNew(temp_allocator);
+
+    BigInt* q = biNew(temp_allocator);
+
+    while (!biIsZero(r)) {
+        biDivRem(biCopy(q, old_r), r, new_r);
+        biSub(biCopy(new_t, old_t), biMul(q, t));
+
+        biCopy(old_t, t);
+        biCopy(t, new_t);
+        biCopy(old_r, r);
+        biCopy(r, new_r);
+    }
+
+    PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
+    if (old_t->negative) {
+        biAdd(old_t, mod);
+    }
+    biCopy(a, old_t);
+
+    allocatorRelease(temp_allocator);
+
+    return a;
+}
