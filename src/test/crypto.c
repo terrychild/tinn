@@ -3,6 +3,7 @@
 #include "lib/maths/bigint.h"
 #include "lib/crypto/ec.h"
 #include "lib/crypto/mc.h"
+#include "lib/crypto/curve25519.h"
 #include "lib/mem/allocator.h"
 #include "lib/cli.h"
 
@@ -60,6 +61,9 @@ void testCrypto(Allocator* allocator) {
     mcKey(x, mc, biFromHex(allocator, "6A2CB91DA5FB77B12A99C0EB872F4CDF4566B25172C1163C7DA518730A6D0770"));
     expect("Elliptic Curve 25519", x, biFromHex(allocator, "6a4e9baa8ea9a4ebf41a38260d3abf0d5af73eb4dc7d8b7454a7308909f02085"));
     mcKey(x, mc, biFromHex(allocator, "4242424242424242424242424242424242424242424242424242424242424240"));
+    expect("Elliptic Curve 25519", x, biFromHex(allocator, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
+
+    x = curve25519Key(allocator, biFromHex(allocator, "4242424242424242424242424242424242424242424242424242424242424240"));
     expect("Elliptic Curve 25519", x, biFromHex(allocator, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
     allocatorDebug(allocator);

@@ -23,7 +23,7 @@ MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const
     return mc;
 }
 
-void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
+static void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
     BigInt* v1 = biNew(allocator);
     biSetMod(v1, p);
     biSet(v1, r1->x);
@@ -51,7 +51,7 @@ void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a2
     biMul(r->z, v3);
 }
 
-void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
+static void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
     BigInt* v0 = biNew(allocator);
     biSetMod(v0, p);
     biSet(v0, r1->x);

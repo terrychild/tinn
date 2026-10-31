@@ -1,11 +1,13 @@
+#include <stdbit.h>
 #include <string.h>
 
 #include "lib/maths/bigint.h"
-#include "lib/maths/mpa.h"
 #include "lib/mem/allocator.h"
+#include "lib/mem/slice.h"
+#include "lib/bytes.h"
 #include "lib/log.h"
 
-static U64 left_bit_mask = 0x8000000000000000;
+static const U64 left_bit_mask = 0x8000000000000000;
 
 // === size and length ===
 
@@ -27,7 +29,13 @@ static void clear(BigInt* bi, U64 new_size) {
 }
 
 static void updateLen(BigInt* bi) {
-    bi->length = mpaBitLength(bi->limbs, bi->size);
+    for (U64 limb = bi->size; limb-- > 0; ) {
+        if (bi->limbs[limb]) {
+            bi->length = (limb * 64) + 64 - stdc_leading_zeros(bi->limbs[limb]);
+            return;
+        }
+    }
+    bi->length = 0;
 }
 
 static U64 bitsToSize(U64 bits) {
@@ -69,7 +77,7 @@ static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
 
     bi->allocator = NULL;
     bi->size = 1;
-    bi->length = mpaBitLength(limbs, 1);
+    bi->length = 64 - stdc_leading_zeros(limbs[0]);
     bi->negative = i<0;
     bi->limbs = limbs;
     bi->mod = NULL;
@@ -92,14 +100,16 @@ BigInt* biSetBi(BigInt* dest, const BigInt* source) {
 }
 BigInt* biSetInt(BigInt* bi, I64 i) {
     if (i>=0) {
-        mpaSetInt(bi->limbs, (U64)i, bi->size);
+        bi->limbs[0] = (U64)i;
         bi->negative = false;
-        bi->length = mpaBitLength(bi->limbs, bi->size);
     } else {
-        mpaSetInt(bi->limbs, (U64)(0-i), bi->size);
+        bi->limbs[0] = (U64)(0-i);
         bi->negative = true;
-        bi->length = mpaBitLength(bi->limbs, bi->size);
     }
+    for (U64 limb = 1; limb < bi->size; limb++) {
+        bi->limbs[limb] = 0;
+    }
+    updateLen(bi);
     return bi;
 }
 BigInt* biFromInt(Allocator* allocator, I64 i) {
@@ -111,9 +121,23 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
     U64 len = (nibbles+15)/16;
 
     resize(bi, len, true);
-    mpaSetHex(bi->limbs, hex, bi->size);
-    bi->length = mpaBitLength(bi->limbs, bi->size);
+
+    U64 limb = 0;
+    U64 bits = 0;
+    U64 value = 0;
+    for (U64 i = nibbles; i-- > 0; ) {
+        value += ((U64)readHexChar(hex[i])) << bits;
+        bits += 4;
+
+        if (bits == 64) {
+            bi->limbs[limb++] = value;
+            bits = 0;
+            value = 0;
+        }
+    }
+    bi->limbs[limb] = value;
     bi->negative = false;
+    updateLen(bi);
 
     return bi;
 }
@@ -128,7 +152,33 @@ void biSetMod(BigInt* bi, BigInt* mod) {
 // === output stuff ===
 
 Slice biToBESlice(Allocator* allocator, const BigInt* bi) {
-    return mpaToBESlice(allocator, bi->limbs, bi->size);
+    if (bi->length == 0) {
+        return sliceNew(allocate(allocator, 1), 1);
+    }
+
+    U64 bytes_len = ((bi->length - 1) / 8) + 1;
+
+    U8* bytes = allocate(allocator, bytes_len);
+
+    U64 i = 0;
+    bool go = false;
+    for (U64 limb = bi->size; limb-- > 0; ) {
+        U64 mask = 0xff00000000000000;
+        U64 bits = 56;
+        while (mask) {
+            if (!go && (bi->limbs[limb] & mask)) {
+                go = true;
+            }
+            if (go) {
+                bytes[i] = (bi->limbs[limb] & mask) >> bits;
+                i++;
+            }
+            bits -= 8;
+            mask >>= 8;
+        }
+    }
+
+    return sliceNew(bytes, bytes_len);
 }
 
 // === comparison stuff ===
@@ -202,7 +252,6 @@ int biCmpInt(const BigInt* a, I64 b) {
 
 BigInt* biShiftLeft(BigInt* bi, U64 count) {
     if (biIsZero(bi)) {
-        biSetInt(bi, 0);
         return bi;
     }
 

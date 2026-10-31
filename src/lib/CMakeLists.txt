@@ -12,9 +12,6 @@ add_library(lib
     mem/buffer.c
     mem/slice.c
 
-    maths/mpa.c
-    maths/bigint.c
-
     sys/sockets.c
     sys/polling.c
 
@@ -23,8 +20,11 @@ add_library(lib
     net/http.c
     net/url.c
 
+    maths/bigint.c
+
     crypto/ec.c
     crypto/mc.c
+    crypto/curve25519.c
 )
 
 target_include_directories(lib PRIVATE "${CMAKE_SOURCE_DIR}/src")
