@@ -13,7 +13,6 @@ typedef uint16_t U16;
 typedef uint32_t U32;
 typedef uint64_t U64;
 
-//typedef uint64_t U256[4];
 typedef struct BigInt BigInt;
 
 typedef struct Arena Arena;

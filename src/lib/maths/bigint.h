@@ -14,12 +14,19 @@ struct BigInt {
 
 BigInt* biNew(Allocator* allocator);
 void biInit(BigInt* bi, Allocator* allocator, U64 size);
-BigInt* biCopy(BigInt* dest, const BigInt* source);
 BigInt* biClone(Allocator* allocator, const BigInt* source);
 
+BigInt* biSetBi(BigInt* dest, const BigInt* source);
 BigInt* biSetInt(BigInt* bi, I64 i);
-BigInt* biFromInt(Allocator* allocator, I64 i);
 BigInt* biSetHex(BigInt* bi, const char* hex);
+#define biSet(dest, source) _Generic((source), \
+		BigInt*: biSetBi, \
+        const BigInt*: biSetBi, \
+        const char*: biSetHex, \
+        default: biSetInt  \
+    )(dest, source)
+
+BigInt* biFromInt(Allocator* allocator, I64 i);
 BigInt* biFromHex(Allocator* allocator, const char* hex);
 void biSetMod(BigInt* bi, BigInt* mod);
 

@@ -75,7 +75,13 @@ static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
     bi->mod = NULL;
 }
 
-BigInt* biCopy(BigInt* dest, const BigInt* source) {
+BigInt* biClone(Allocator* allocator, const BigInt* source) {
+    return biSet(biNew(allocator), source);
+}
+
+// === input stuff ===
+
+BigInt* biSetBi(BigInt* dest, const BigInt* source) {
     resize(dest, source->size, true);
     for (U64 limb = 0; limb < dest->size; limb++) {
         dest->limbs[limb] = limb < source->size ? source->limbs[limb] : 0;
@@ -84,19 +90,13 @@ BigInt* biCopy(BigInt* dest, const BigInt* source) {
     dest->negative = source->negative;
     return dest;
 }
-BigInt* biClone(Allocator* allocator, const BigInt* source) {
-    return biCopy(biNew(allocator), source);
-}
-
-// === input stuff ===
-
 BigInt* biSetInt(BigInt* bi, I64 i) {
     if (i>=0) {
         bi->negative = false;
-        bi->length = mpaSetInt(bi->limbs, bi->size, (U64)i);
+        bi->length = mpaSetInt(bi->limbs, (U64)i, bi->size);
     } else {
         bi->negative = true;
-        bi->length = mpaSetInt(bi->limbs, bi->size, (U64)(0-i));
+        bi->length = mpaSetInt(bi->limbs, (U64)(0-i), bi->size);
     }
     return bi;
 }
@@ -109,7 +109,7 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
     U64 len = (nibbles+15)/16;
 
     resize(bi, len, true);
-    bi->length = mpaSetHex(bi->limbs, len, hex);
+    bi->length = mpaSetHex(bi->limbs, hex, len);
     bi->negative = false;
 
     return bi;
@@ -451,7 +451,7 @@ BigInt* biMulInt(BigInt* a, I64 b_int) {
 }
 
 static void divide(Allocator* allocator, BigInt* a, const BigInt* b, BigInt* r) {
-    biCopy(r, a);
+    biSet(r, a);
     BigInt* orig_b = biClone(allocator, b);
     BigInt* temp_b = biClone(allocator, b);
     BigInt* mask = biFromInt(allocator, 1);
@@ -622,20 +622,20 @@ BigInt* biMulInv(BigInt* a, const BigInt* mod) {
     BigInt* q = biNew(temp_allocator);
 
     while (!biIsZero(r)) {
-        biDivRem(biCopy(q, old_r), r, new_r);
-        biSub(biCopy(new_t, old_t), biMul(q, t));
+        biDivRem(biSet(q, old_r), r, new_r);
+        biSub(biSet(new_t, old_t), biMul(q, t));
 
-        biCopy(old_t, t);
-        biCopy(t, new_t);
-        biCopy(old_r, r);
-        biCopy(r, new_r);
+        biSet(old_t, t);
+        biSet(t, new_t);
+        biSet(old_r, r);
+        biSet(r, new_r);
     }
 
     PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
     if (old_t->negative) {
         biAdd(old_t, mod);
     }
-    biCopy(a, old_t);
+    biSet(a, old_t);
 
     allocatorRelease(temp_allocator);
 

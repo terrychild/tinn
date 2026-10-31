@@ -16,7 +16,7 @@ MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const
     mc->a24 = biNew(allocator);
     mc->g = biFromHex(allocator, x);
 
-    biCopy(mc->a24, mc->a);
+    biSet(mc->a24, mc->a);
     biAdd(mc->a24, 2);
     biDiv(mc->a24, 4);
 
@@ -26,57 +26,57 @@ MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const
 void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
     BigInt* v1 = biNew(allocator);
     biSetMod(v1, p);
-    biCopy(v1, r1->x);
+    biSet(v1, r1->x);
     biAdd(v1, r1->z);
     biPow(v1, 2);
 
     BigInt* v2 = biNew(allocator);
     biSetMod(v2, p);
-    biCopy(v2, r1->x);
+    biSet(v2, r1->x);
     biSub(v2, r1->z);
     biPow(v2, 2);
 
-    biCopy(r->x, v1);
+    biSet(r->x, v1);
     biMul(r->x, v2);
 
     biSub(v1, v2);
 
     BigInt* v3 = biNew(allocator);
     biSetMod(v3, p);
-    biCopy(v3, a24);
+    biSet(v3, a24);
     biMul(v3, v1);
     biAdd(v3, v2);
 
-    biCopy(r->z, v1);
+    biSet(r->z, v1);
     biMul(r->z, v3);
 }
 
 void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
     BigInt* v0 = biNew(allocator);
     biSetMod(v0, p);
-    biCopy(v0, r1->x);
+    biSet(v0, r1->x);
     biAdd(v0, r1->z);
 
     BigInt* v1 = biNew(allocator);
     biSetMod(v1, p);
-    biCopy(v1, r2->x);
+    biSet(v1, r2->x);
     biSub(v1, r2->z);
     biMul(v1, v0);
 
-    biCopy(v0, r1->x);
+    biSet(v0, r1->x);
     biSub(v0, r1->z);
 
     BigInt* v2 = biNew(allocator);
     biSetMod(v2, p);
-    biCopy(v2, r2->x);
+    biSet(v2, r2->x);
     biAdd(v2, r2->z);
     biMul(v2, v0);
 
-    biCopy(r->x, v1);
+    biSet(r->x, v1);
     biAdd(r->x, v2);
     biPow(r->x, 2);
 
-    biCopy(r->z, v1);
+    biSet(r->z, v1);
     biSub(r->z, v2);
     biPow(r->z, 2);
     biMul(r->z, x);
@@ -106,7 +106,7 @@ static void mul(Allocator* allocator, BigInt* x, MontgomeryCurve* mc, BigInt* k)
         }
     }
 
-    biCopy(x, r0.x);
+    biSet(x, r0.x);
     biMul(x, biMulInv(r0.z, mc->p));
     biMod(x, mc->p);
 }

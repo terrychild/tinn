@@ -4,8 +4,8 @@
 #include "lib/log.h"
 
 static EllipticCurvePoint* copyPoint(EllipticCurvePoint* dest, const EllipticCurvePoint* source) {
-    biCopy(dest->x, source->x);
-    biCopy(dest->y, source->y);
+    biSet(dest->x, source->x);
+    biSet(dest->y, source->y);
     dest->is_infinity = source->is_infinity;
     return dest;
 }
@@ -29,7 +29,7 @@ EllipticCurve* ecNew(Allocator* allocator, const char* a, const char* b, const c
     return ec;
 }
 
-EllipticCurvePoint* ecNewPoint(Allocator* allocator, EllipticCurve* ec) {
+EllipticCurvePoint* ecNewPoint(Allocator* allocator, const EllipticCurve* ec) {
     EllipticCurvePoint* point = allocate(allocator, sizeof(EllipticCurvePoint));
     point->x = biNew(allocator);
     biSetMod(point->x, ec->p);
@@ -50,7 +50,7 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
     BigInt* temp = biNew(allocator);
     biSetMod(temp, ec->p);
 
-    if (biCmp(p->x, q->x)==0 && biIsZero(biAdd(biCopy(temp, p->y), q->y))) {
+    if (biCmp(p->x, q->x)==0 && biIsZero(biAdd(biSet(temp, p->y), q->y))) {
         return ecNewPoint(allocator, ec);
     }
 
@@ -58,22 +58,22 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
     biSetMod(s, ec->p);
     if (biCmp(p->x, q->x)==0 && biCmp(p->y, q->y)==0) {
         // double: s = ((3 * p.x * p.x) + e.a) * inverse(2 * p.y, e.p);
-        biCopy(s, p->x);
+        biSet(s, p->x);
         biPow(s, 2);
         biMul(s, 3);
         biAdd(s, ec->a);
 
-        biCopy(temp, p->y);
+        biSet(temp, p->y);
         biMul(temp, 2);
         biMulInv(temp, ec->p);
 
         biMul(s, temp);
     } else {
         // add: s = (q.y - p.y) * inverse(q.x - p.x, e.p);
-        biCopy(s, q->y);
+        biSet(s, q->y);
         biSub(s, p->y);
 
-        biCopy(temp, q->x);
+        biSet(temp, q->x);
         biSub(temp, p->x);
         biMulInv(temp, ec->p);
 
@@ -84,13 +84,13 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
     point->is_infinity = false;
 
     // x = (s * s) - p.x - q.x;
-    biCopy(point->x, s);
+    biSet(point->x, s);
     biPow(point->x, 2);
     biSub(point->x, p->x);
     biSub(point->x, q->x);
 
     // y = (s * (p.x - x)) - p.y;
-    biCopy(point->y, p->x);
+    biSet(point->y, p->x);
     biSub(point->y, point->x);
     biMul(point->y, s);
     biSub(point->y, p->y);

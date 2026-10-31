@@ -10,16 +10,16 @@
 
 void testMaths(Allocator* allocator) {
     U64 key[4];
-    expect("set int to 256 (bit length)", mpaSetInt(key, 4, 256), 9);
+    expect("set int to 256 (bit length)", mpaSet(key, 256, 4), 9);
     U8 bytes_256[] = {1, 0};
     expect("set int to 256", mpaToBESlice(allocator, key, 4), sliceNew(bytes_256, 2));
 
-    expect("set int to U64 max (bit length)", mpaSetHex(key, 4, "FFFFFFFFFFFFFFFF"), 64);
+    expect("set int to U64 max (bit length)", mpaSet(key, "FFFFFFFFFFFFFFFF", 4), 64);
     U8 bytes_u64_max[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     expect("set int to U64 max", mpaToBESlice(allocator, key, 4), sliceNew(bytes_u64_max, 8));
     expect("cmp U64 max", mpaCmpInt(key, 0xFFFFFFFFFFFFFFFF, 4), 0);
 
-    expect("set int to hex 42* (bit length)", mpaSetHex(key, 4, "4242424242424242424242424242424242424242424242424242424242424242"), 255);
+    expect("set int to hex 42* (bit length)", mpaSet(key, "4242424242424242424242424242424242424242424242424242424242424242", 4), 255);
     U8 bytes_42s[] = {
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
@@ -29,14 +29,14 @@ void testMaths(Allocator* allocator) {
     expect("set int to hex 42*", mpaToBESlice(allocator, key, 4), sliceNew(bytes_42s, 32));
 
     U64 key_plus[4];
-    mpaSetHex(key_plus, 4, "4242424242424242424242424242424242424242424242424242424242424243");
+    mpaSet(key_plus, "4242424242424242424242424242424242424242424242424242424242424243", 4);
     U64 key_minus[4];
-    mpaSetHex(key_minus, 4, "4242424242424242424242424242424242424242424242424242424242424241");
+    mpaSet(key_minus, "4242424242424242424242424242424242424242424242424242424242424241", 4);
     expect("cmp plus", mpaCmp(key, key_plus, 4), -1);
     expect("cmp minus", mpaCmp(key, key_minus, 4), 1);
 
     U64 one[4];
-    mpaSetInt(one, 4, 1);
+    mpaSet(one, 1, 4);
     expect("add one (carry)", mpaAdd(key, one, 4), 0);
     U8 bytes_42s_plus[] = {
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
@@ -48,7 +48,7 @@ void testMaths(Allocator* allocator) {
     expect("add one (cmp)", mpaCmp(key, key_plus, 4), 0);
 
     U64 two[4];
-    mpaSetInt(two, 4, 2);
+    mpaSet(two, 2, 4);
     expect("minus two (borrow)", mpaSub(key, two, 4), 0);
     U8 bytes_42s_minus[] = {
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
@@ -59,7 +59,7 @@ void testMaths(Allocator* allocator) {
     expect("minus two (value)", mpaToBESlice(allocator, key, 4), sliceNew(bytes_42s_minus, 32));
     expect("minus two (cmp)", mpaCmp(key, key_minus, 4), 0);
 
-    mpaSetHex(key, 4, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    mpaSet(key, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF", 4);
     expect("carry", mpaAdd(key, one, 4), 1);
     expect("is zero", mpaIsZero(key, 4), true);
     expect("borrow", mpaSub(key, one, 4), 1);
@@ -110,7 +110,7 @@ void testMaths(Allocator* allocator) {
 
     BigInt* bi_MAX = biFromHex(allocator, "FFFFFFFFFFFFFFFF");
     BigInt* bi_2MAX = biFromHex(allocator, "1FFFFFFFFFFFFFFFE");
-    expect("big first", biMul(biCopy(bi, bi_MAX), 2), bi_2MAX);
+    expect("big first", biMul(biSet(bi, bi_MAX), 2), bi_2MAX);
     expect("big second", biMul(biSetInt(bi, 2), bi_MAX), bi_2MAX);
 
     expect("281474976710656/37", biDivRem(biSetInt(bi, 281474976710656), 37, remainder), biFromInt(allocator, 7607431802990));

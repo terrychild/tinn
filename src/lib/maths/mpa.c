@@ -9,7 +9,15 @@
 
 // === input stuff ===
 
-U64 mpaSetInt(U64 dest[], U64 limbs, U64 i) {
+U64 mpaSetMpa(U64 dest[], const U64 source[], U64 limbs) {
+    for (U64 limb = 0; limb < limbs; limb++) {
+        dest[limb] = source[limb];
+    }
+
+    return mpaBitLength(dest, limbs);
+}
+
+U64 mpaSetInt(U64 dest[], U64 i, U64 limbs) {
     dest[0] = i;
     for (U64 limb = 1; limb < limbs; limb++) {
         dest[limb] = 0;
@@ -18,7 +26,7 @@ U64 mpaSetInt(U64 dest[], U64 limbs, U64 i) {
     return mpaBitLength(dest, limbs);
 }
 
-U64 mpaSetHex(U64 dest[], U64 limbs, const char* hex) {
+U64 mpaSetHex(U64 dest[], const char* hex, U64 limbs) {
     U64 nibbles = strlen(hex);
     U64 len = (nibbles+15)/16;
     PANIC_IF(len > limbs, "Hex string exceeds number range");
@@ -90,7 +98,7 @@ U64 mpaBitLength(const U64 source[], U64 limbs) {
     return 0;
 }
 
-bool mpaBit(const U64 source[], U64 limbs, U64 bit) {
+bool mpaBit(const U64 source[], U64 bit, U64 limbs) {
     U64 len = mpaBitLength(source, limbs);
     if (bit > len) {
         return false;
