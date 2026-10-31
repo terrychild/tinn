@@ -10,16 +10,19 @@
 
 void testMaths(Allocator* allocator) {
     U64 key[4];
-    expect("set int to 256 (bit length)", mpaSet(key, 256, 4), 9);
+    mpaSet(key, 256, 4);
+    expect("set int to 256 (bit length)", mpaBitLength(key, 4), 9);
     U8 bytes_256[] = {1, 0};
     expect("set int to 256", mpaToBESlice(allocator, key, 4), sliceNew(bytes_256, 2));
 
-    expect("set int to U64 max (bit length)", mpaSet(key, "FFFFFFFFFFFFFFFF", 4), 64);
+    mpaSet(key, "FFFFFFFFFFFFFFFF", 4);
+    expect("set int to U64 max (bit length)", mpaBitLength(key, 4), 64);
     U8 bytes_u64_max[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
     expect("set int to U64 max", mpaToBESlice(allocator, key, 4), sliceNew(bytes_u64_max, 8));
     expect("cmp U64 max", mpaCmpInt(key, 0xFFFFFFFFFFFFFFFF, 4), 0);
 
-    expect("set int to hex 42* (bit length)", mpaSet(key, "4242424242424242424242424242424242424242424242424242424242424242", 4), 255);
+    mpaSet(key, "4242424242424242424242424242424242424242424242424242424242424242", 4);
+    expect("set int to hex 42* (bit length)", mpaBitLength(key, 4), 255);
     U8 bytes_42s[] = {
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,
         0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42, 0x42,

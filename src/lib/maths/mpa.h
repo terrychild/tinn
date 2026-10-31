@@ -3,9 +3,9 @@
 
 #include "lib/types.h"
 
-U64 mpaSetMpa(U64 dest[], const U64 source[], U64 limbs);
-U64 mpaSetInt(U64 dest[], U64 i, U64 limbs);
-U64 mpaSetHex(U64 dest[], const char* hex, U64 limbs);
+void mpaSetMpa(U64 dest[], const U64 source[], U64 limbs);
+void mpaSetInt(U64 dest[], U64 i, U64 limbs);
+void mpaSetHex(U64 dest[], const char* hex, U64 limbs);
 #define mpaSet(dest, source, limbs) _Generic((source), \
 		U64*: mpaSetMpa, \
         const U64*: mpaSetMpa, \

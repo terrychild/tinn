@@ -92,11 +92,13 @@ BigInt* biSetBi(BigInt* dest, const BigInt* source) {
 }
 BigInt* biSetInt(BigInt* bi, I64 i) {
     if (i>=0) {
+        mpaSetInt(bi->limbs, (U64)i, bi->size);
         bi->negative = false;
-        bi->length = mpaSetInt(bi->limbs, (U64)i, bi->size);
+        bi->length = mpaBitLength(bi->limbs, bi->size);
     } else {
+        mpaSetInt(bi->limbs, (U64)(0-i), bi->size);
         bi->negative = true;
-        bi->length = mpaSetInt(bi->limbs, (U64)(0-i), bi->size);
+        bi->length = mpaBitLength(bi->limbs, bi->size);
     }
     return bi;
 }
@@ -109,7 +111,8 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
     U64 len = (nibbles+15)/16;
 
     resize(bi, len, true);
-    bi->length = mpaSetHex(bi->limbs, hex, len);
+    mpaSetHex(bi->limbs, hex, bi->size);
+    bi->length = mpaBitLength(bi->limbs, bi->size);
     bi->negative = false;
 
     return bi;
