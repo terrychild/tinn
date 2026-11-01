@@ -2,7 +2,7 @@
 
 #include "lib/net/http.h"
 #include "lib/macros.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
@@ -303,11 +303,11 @@ static void onSent(ServerConnection* connection, bool* and_close) {
     }
 }
 
-HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port) {
+HttpServer* httpServer(Memory* mem, Polling* polling, const char* port) {
     HttpServer* http_server = NULL;
-    Server* server = serverNew(allocator, polling, port);
+    Server* server = serverNew(mem, polling, port);
     if (server) {
-        http_server = allocate(allocator, sizeof(HttpServer));
+        http_server = allocate(mem, sizeof(HttpServer));
 
         server->onConnect = onConnect;
         server->onReceive = onReceive;

@@ -1,7 +1,7 @@
 #include <string.h>
 
+#include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
-#include "lib/mem/allocator.h"
 #include "lib/bytes.h"
 
 Slice sliceNew(const U8* start, U64 length) {
@@ -158,8 +158,8 @@ Slice sliceTrim(const Slice source) {
     return slice(source, start, end);
 }
 
-Slice sliceToLowerCase(Allocator* allocator, Slice source) {
-    U8* target = allocate(allocator, source.length);
+Slice sliceToLowerCase(Memory* mem, Slice source) {
+    U8* target = allocate(mem, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'A' && source.start[i] <= 'Z') {
             target[i] = source.start[i] + 32;
@@ -169,8 +169,8 @@ Slice sliceToLowerCase(Allocator* allocator, Slice source) {
     }
     return sliceNew(target, source.length);
 }
-Slice sliceToUpperCase(Allocator* allocator, Slice source) {
-    U8* target = allocate(allocator, source.length);
+Slice sliceToUpperCase(Memory* mem, Slice source) {
+    U8* target = allocate(mem, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'a' && source.start[i] <= 'z') {
             target[i] = source.start[i] - 32;

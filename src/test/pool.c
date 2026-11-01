@@ -3,18 +3,18 @@
 #include "lib/macros.h"
 #include "lib/types.h"
 #include "lib/cli.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/arena.h"
 #include "lib/mem/pool.h"
 
-void testPool(Allocator* allocator) {
+void testPool(Memory* mem) {
     PRINT(CC_BLUE, "================\n Pool tests\n================\n");
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
-    Pool* pool = poolNew(allocator, sizeof(U64), 4);
+    Pool* pool = poolNew(mem, sizeof(U64), 4);
     expect("capacity", pool->capacity, 4);
-    expect("total allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Allocation) + sizeof(Pool) + sizeof(Allocation) + (4 * (sizeof(PoolNode) + sizeof(U64))));
+    expect("total allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Pool) + sizeof(Allocation) + (4 * (sizeof(PoolNode) + sizeof(U64))));
     poolDebug(pool);
     U64* p0 = poolPush(pool, &nums[0]);
     expect("add 1", pool->count, 1);
@@ -43,17 +43,17 @@ void testPool(Allocator* allocator) {
     U64* p7 = poolPush(pool, &nums[7]);
     expect("add two more", pool->count, 8);
     expect("after two more", pool->capacity, 8);
-    expect("total allocated", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Allocation) + sizeof(Pool) + (2 * sizeof(Allocation)) + (8 * (sizeof(PoolNode) + sizeof(U64))));
+    expect("total allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Pool) + (2 * sizeof(Allocation)) + (8 * (sizeof(PoolNode) + sizeof(U64))));
     poolDebug(pool);
-    allocatorDebug(allocator);
+    memoryDebug(mem);
 
-    allocate(allocator, 1);
-    expect("allocated something else", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Allocation) + sizeof(Pool) + (2 * sizeof(Allocation)) + (8 * (sizeof(PoolNode) + sizeof(U64))) + sizeof(Allocation) + 8);
+    allocate(mem, 1);
+    expect("allocated something else", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Pool) + (2 * sizeof(Allocation)) + (8 * (sizeof(PoolNode) + sizeof(U64))) + sizeof(Allocation) + 8);
 
     U64* p8 = poolPush(pool, &nums[8]);
     expect("count after extra one", pool->count, 9);
     expect("capacity after extra one", pool->capacity, 16);
-    expect("allocated something else", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator) + sizeof(Allocation) + sizeof(Pool) + (3 * sizeof(Allocation)) + (16 * (sizeof(PoolNode) + sizeof(U64))) + sizeof(Allocation) + 8);
+    expect("allocated something else", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Pool) + (3 * sizeof(Allocation)) + (16 * (sizeof(PoolNode) + sizeof(U64))) + sizeof(Allocation) + 8);
     poolDebug(pool);
 
     poolRemove(pool, p1);
@@ -108,6 +108,6 @@ void testPool(Allocator* allocator) {
     expect("count after reset", pool->count, 0);
     poolDebug(pool);
 
-    allocatorDebug(allocator);
-    allocatorReset(allocator);
+    memoryDebug(mem);
+    memoryReset(mem);
 }

@@ -1,16 +1,16 @@
 #ifndef TEST_TESTS_H
 #define TEST_TESTS_H
 
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 
 void testThings();
 void testTypes();
 void testArena();
-void testAllocator(Allocator* allocator);
-void testArray(Allocator* allocator);
-void testPool(Allocator* allocator);
-void testBuffer(Allocator* allocator);
-void testMaths(Allocator* allocator);
-void testCrypto(Allocator* allocator);
+void testMemory(Memory* mem);
+void testArray(Memory* mem);
+void testPool(Memory* mem);
+void testBuffer(Memory* mem);
+void testMaths(Memory* mem);
+void testCrypto(Memory* mem);
 
 #endif

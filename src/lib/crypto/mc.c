@@ -1,5 +1,5 @@
 #include "lib/crypto/mc.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/maths/bigint.h"
 #include "lib/log.h"
 
@@ -8,13 +8,13 @@ typedef struct {
     BigInt* z;
 } ProjectedPoint;
 
-MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const char* p, const char* x) {
-    MontgomeryCurve* mc = allocate(allocator, sizeof(MontgomeryCurve));
-    mc->a = biFromHex(allocator, a);
-    mc->b = biFromHex(allocator, b);
-    mc->p = biFromHex(allocator, p);
-    mc->a24 = biNew(allocator);
-    mc->g = biFromHex(allocator, x);
+MontgomeryCurve* mcNew(Memory* mem, const char* a, const char* b, const char* p, const char* x) {
+    MontgomeryCurve* mc = allocate(mem, sizeof(MontgomeryCurve));
+    mc->a = biFromHex(mem, a);
+    mc->b = biFromHex(mem, b);
+    mc->p = biFromHex(mem, p);
+    mc->a24 = biNew(mem);
+    mc->g = biFromHex(mem, x);
 
     biSet(mc->a24, mc->a);
     biAdd(mc->a24, 2);
@@ -23,14 +23,14 @@ MontgomeryCurve* mcNew(Allocator* allocator, const char* a, const char* b, const
     return mc;
 }
 
-static void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
-    BigInt* v1 = biNew(allocator);
+static void dbl(Memory* mem, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
+    BigInt* v1 = biNew(mem);
     biSetMod(v1, p);
     biSet(v1, r1->x);
     biAdd(v1, r1->z);
     biPow(v1, 2);
 
-    BigInt* v2 = biNew(allocator);
+    BigInt* v2 = biNew(mem);
     biSetMod(v2, p);
     biSet(v2, r1->x);
     biSub(v2, r1->z);
@@ -41,7 +41,7 @@ static void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, Big
 
     biSub(v1, v2);
 
-    BigInt* v3 = biNew(allocator);
+    BigInt* v3 = biNew(mem);
     biSetMod(v3, p);
     biSet(v3, a24);
     biMul(v3, v1);
@@ -51,13 +51,13 @@ static void dbl(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, Big
     biMul(r->z, v3);
 }
 
-static void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
-    BigInt* v0 = biNew(allocator);
+static void add(Memory* mem, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
+    BigInt* v0 = biNew(mem);
     biSetMod(v0, p);
     biSet(v0, r1->x);
     biAdd(v0, r1->z);
 
-    BigInt* v1 = biNew(allocator);
+    BigInt* v1 = biNew(mem);
     biSetMod(v1, p);
     biSet(v1, r2->x);
     biSub(v1, r2->z);
@@ -66,7 +66,7 @@ static void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, Pro
     biSet(v0, r1->x);
     biSub(v0, r1->z);
 
-    BigInt* v2 = biNew(allocator);
+    BigInt* v2 = biNew(mem);
     biSetMod(v2, p);
     biSet(v2, r2->x);
     biAdd(v2, r2->z);
@@ -82,27 +82,27 @@ static void add(Allocator* allocator, ProjectedPoint* r, ProjectedPoint* r1, Pro
     biMul(r->z, x);
 }
 
-static void mul(Allocator* allocator, BigInt* x, MontgomeryCurve* mc, BigInt* k) {
+static void mul(Memory* mem, BigInt* x, MontgomeryCurve* mc, BigInt* k) {
     ProjectedPoint r0 = {
-        .x = biClone(allocator, mc->g),
-        .z = biFromInt(allocator, 1)
+        .x = biClone(mem, mc->g),
+        .z = biFromInt(mem, 1)
     };
     ProjectedPoint r1 = {
-        .x = biNew(allocator),
-        .z = biNew(allocator)
+        .x = biNew(mem),
+        .z = biNew(mem)
     };
     biSetMod(r0.x, mc->p);
     biSetMod(r0.z, mc->p);
     biSetMod(r1.x, mc->p);
     biSetMod(r1.z, mc->p);
-    dbl(allocator, &r1, &r0, mc->a24, mc->p);
+    dbl(mem, &r1, &r0, mc->a24, mc->p);
     for (U64 bit = k->length - 1; bit-- > 0; ) {
         if (biBit(k, bit) == 0) {
-            add(allocator, &r1, &r0, &r1, mc->g, mc->p);
-            dbl(allocator, &r0, &r0, mc->a24, mc->p);
+            add(mem, &r1, &r0, &r1, mc->g, mc->p);
+            dbl(mem, &r0, &r0, mc->a24, mc->p);
         } else {
-            add(allocator, &r0, &r0, &r1, mc->g, mc->p);
-            dbl(allocator, &r1, &r1, mc->a24, mc->p);
+            add(mem, &r0, &r0, &r1, mc->g, mc->p);
+            dbl(mem, &r1, &r1, mc->a24, mc->p);
         }
     }
 
@@ -112,7 +112,7 @@ static void mul(Allocator* allocator, BigInt* x, MontgomeryCurve* mc, BigInt* k)
 }
 
 void mcKey(BigInt* point, MontgomeryCurve* mc, BigInt* n) {
-    Allocator* allocator = allocatorNew(0);
-    mul(allocator, point, mc, n);
-    allocatorRelease(allocator);
+    Memory* mem = memoryNew(0);
+    mul(mem, point, mc, n);
+    memoryRelease(mem);
 }

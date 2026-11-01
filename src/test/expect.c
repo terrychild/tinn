@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "lib/types.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/maths/bigint.h"
 #include "lib/bytes.h"
@@ -53,7 +53,7 @@ void expectBool(const char* name, bool value, bool expected) {
 }
 
 void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
-    Allocator* temp_allocator = allocatorNew((value->size + expected->size) * 8);
+    Memory* temp_allocator = memoryNew((value->size + expected->size) * 8);
     if (biCmp(value, expected)==0) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
@@ -67,7 +67,7 @@ void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
         hexDump(biToBESlice(temp_allocator, value));
         expect_failed++;
     }
-    allocatorRelease(temp_allocator);
+    memoryRelease(temp_allocator);
 }
 
 void expectVoidPtr(const char* name, const void* value, const void* expected) {

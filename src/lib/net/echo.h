@@ -4,6 +4,6 @@
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
 
-Server* echoServer(Allocator* allocator, Polling* polling, const char* port);
+Server* echoServer(Memory* mem, Polling* polling, const char* port);
 
 #endif

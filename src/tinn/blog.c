@@ -1,7 +1,7 @@
 #include "blog.h"
 #include "lib/log.h"
 #include "lib/macros.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/mfile.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
@@ -19,37 +19,37 @@ static void readPosts(Blog* blog) {
         post->title = nextToken(&fields);
         post->date = nextToken(&fields);
 
-        Buffer* temp_path = bufNew(blog->allocator, 32);
+        Buffer* temp_path = bufNew(blog->mem, 32);
         bufAppendStr(temp_path, "./blog/");
         bufAppendSlice(temp_path, post->dir);
         post->url = bufSlice(temp_path, 1, -1);
 
         bufAppendStr(temp_path, "/.post.html");
-        post->content = allocateFile(blog->allocator, blog->polling, bufAsStr(temp_path));
+        post->content = allocateFile(blog->mem, blog->polling, bufAsStr(temp_path));
 
         line = nextToken(&lines);
     }
 }
 
-Blog* blogNew(Allocator* allocator, Polling* polling) {
-    Blog* blog = allocate(allocator, sizeof(Blog));
-    blog->allocator = allocator;
+Blog* blogNew(Memory* mem, Polling* polling) {
+    Blog* blog = allocate(mem, sizeof(Blog));
+    blog->mem = mem;
     blog->polling = polling;
-    blog->posts = arrayNew(allocator, sizeof(BlogPost), 32);
+    blog->posts = arrayNew(blog->mem, sizeof(BlogPost), 32);
 
-    blog->posts_file = allocateFile(allocator, polling, "./blog/.posts.dat");
+    blog->posts_file = allocateFile(blog->mem, polling, "./blog/.posts.dat");
     if (!blog->posts_file) {
         return NULL;
     }
     readPosts(blog);
 
-    blog->header1 = allocateFile(allocator, polling, "./blog/.header1.html");
-    blog->header2 = allocateFile(allocator, polling, "./blog/.header2.html");
-    blog->footer = allocateFile(allocator, polling, "./blog/.footer.html");
+    blog->header1 = allocateFile(blog->mem, polling, "./blog/.header1.html");
+    blog->header2 = allocateFile(blog->mem, polling, "./blog/.header2.html");
+    blog->footer = allocateFile(blog->mem, polling, "./blog/.footer.html");
     if (!blog->header1 || !blog->header2 || !blog->footer) {
-        deallocateFile(allocator, blog->header1);
-        deallocateFile(allocator, blog->header2);
-        deallocateFile(allocator, blog->footer);
+        deallocateFile(blog->mem, blog->header1);
+        deallocateFile(blog->mem, blog->header2);
+        deallocateFile(blog->mem, blog->footer);
         return NULL;
     }
 
@@ -97,7 +97,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
     // check for changes
     if (blog->mod_date < blog->posts_file->mod_date) {
         for (U64 i=0; i<blog->posts->count; i++) {
-            deallocateFile(blog->allocator, ((BlogPost*)arrayGet(blog->posts, i))->content);
+            deallocateFile(blog->mem, ((BlogPost*)arrayGet(blog->posts, i))->content);
         }
         arrayReset(blog->posts);
         readPosts(blog);

@@ -5,7 +5,7 @@ add_executable(test
     things.c
     types.c
     arena.c
-    allocator.c
+    memory.c
     array.c
     pool.c
     buffer.c

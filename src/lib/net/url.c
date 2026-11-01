@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "lib/net/url.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
@@ -35,8 +35,8 @@ static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool is_l
         }
     }
 }
-static void addPath(Allocator* allocator, URL* url, U64 length) {
-    Buffer* path = bufNew(allocator, length);
+static void addPath(Memory* mem, URL* url, U64 length) {
+    Buffer* path = bufNew(mem, length);
     for (U64 i=0; i<url->path_segments->count; i++) {
         bufAppendStr(path, "/");
         bufAppendSlice(path, *(Slice*)arrayGet(url->path_segments, i));
@@ -44,9 +44,9 @@ static void addPath(Allocator* allocator, URL* url, U64 length) {
     url->path = bufAsSlice(path);
 }
 
-URL* urlFromOrigin(Allocator* allocator, Slice source) {
-    URL* url = allocate(allocator, sizeof(URL));
-    url->path_segments = arrayNew(allocator, sizeof(Slice), 8);
+URL* urlFromOrigin(Memory* mem, Slice source) {
+    URL* url = allocate(mem, sizeof(URL));
+    url->path_segments = arrayNew(mem, sizeof(Slice), 8);
 
     // validate path starts with a forward slash
 	if (source.length == 0 || source.start[0] != '/') {
@@ -68,7 +68,7 @@ URL* urlFromOrigin(Allocator* allocator, Slice source) {
 			case '?':
 				if (state == PARSE_PATH) {
                     addPathSegment(url, source, segment_start, i, true);
-                    addPath(allocator, url, i - component_start);
+                    addPath(mem, url, i - component_start);
                     component_start = i + 1;
 					state = PARSE_QUERY;
 				}
@@ -76,7 +76,7 @@ URL* urlFromOrigin(Allocator* allocator, Slice source) {
             case '#':
                 if (state == PARSE_PATH) {
                     addPathSegment(url, source, segment_start, i, true);
-                    addPath(allocator, url, i - component_start);
+                    addPath(mem, url, i - component_start);
                 } else if (state == PARSE_QUERY) {
                     url->query = slice(source, component_start, i);
                 }
@@ -92,7 +92,7 @@ URL* urlFromOrigin(Allocator* allocator, Slice source) {
     // finished parse last segment
     if (state == PARSE_PATH) {
         addPathSegment(url, source, segment_start, -1, true);
-        addPath(allocator, url, source.length - component_start);
+        addPath(mem, url, source.length - component_start);
     } else if (state == PARSE_QUERY) {
         url->query = slice(source, component_start, -1);
     }

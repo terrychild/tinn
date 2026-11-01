@@ -3,24 +3,24 @@
 #include <sys/inotify.h>
 
 #include "lib/sys/polling.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/array.h"
 #include "lib/mem/pool.h"
 #include "lib/log.h"
 #include "lib/macros.h"
 
-Polling* pollingNew(Allocator* allocator, U64 capacity) {
-    Polling* polling = allocate(allocator, sizeof(*polling));
-    pollingInit(polling, allocator, capacity);
+Polling* pollingNew(Memory* mem, U64 capacity) {
+    Polling* polling = allocate(mem, sizeof(*polling));
+    pollingInit(polling, mem, capacity);
     return polling;
 }
-void pollingInit(Polling* polling, Allocator* allocator, U64 capacity) {
+void pollingInit(Polling* polling, Memory* mem, U64 capacity) {
     assert(capacity > 0);
 
-    polling->pollfds = arrayNew(allocator, sizeof(struct pollfd), capacity);
-    polling->callbacks = arrayNew(allocator, sizeof(PollingCallback), capacity);
+    polling->pollfds = arrayNew(mem, sizeof(struct pollfd), capacity);
+    polling->callbacks = arrayNew(mem, sizeof(PollingCallback), capacity);
     polling->inotify = -1;
-    polling->files = poolNew(allocator, sizeof(PollingFileCallback), capacity);
+    polling->files = poolNew(mem, sizeof(PollingFileCallback), capacity);
 }
 
 void pollingAdd(Polling* polling, int fd, PollingCallback callback) {

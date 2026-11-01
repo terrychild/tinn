@@ -4,7 +4,7 @@
 #include "lib/net/server.h"
 #include "lib/macros.h"
 #include "lib/sys/sockets.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/pool.h"
 #include "lib/mem/buffer.h"
 #include "lib/log.h"
@@ -23,7 +23,7 @@ ServerExchange* connectionStartExchange(ServerConnection* connection) {
 }
 void connectionEndExchange(ServerConnection* connection) {
     if (connection->exchange) {
-        allocatorReset(connection->exchange_scope);
+        memoryReset(connection->exchange_scope);
         connection->exchange = NULL;
     }
 }
@@ -168,15 +168,15 @@ void serverClose(Server* server) {
 }
 
 // server setup
-Server* serverNew(Allocator* allocator, Polling* polling, const char* port) {
-    Server* server = allocate(allocator, sizeof(Server));
-    if (!serverInit(server, allocator, polling, port)) {
+Server* serverNew(Memory* mem, Polling* polling, const char* port) {
+    Server* server = allocate(mem, sizeof(Server));
+    if (!serverInit(server, mem, polling, port)) {
         return NULL;
     }
     return server;
 }
-bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port) {
-    server->scope = allocator;
+bool serverInit(Server* server, Memory* mem, Polling* polling, const char* port) {
+    server->scope = mem;
     server->polling = polling;
 
     DEBUG("Opening server socket on port %s", port);

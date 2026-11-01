@@ -17,7 +17,7 @@ typedef struct BigInt BigInt;
 
 typedef struct Arena Arena;
 typedef struct MappedFile MappedFile;
-typedef struct Allocator Allocator;
+typedef struct Memory Memory;
 typedef struct Array Array;
 typedef struct Pool Pool;
 typedef struct Buffer Buffer;

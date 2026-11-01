@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "tls.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
@@ -473,8 +473,8 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
 }
 
 // the server
-Server* tlsTestServer(Allocator* allocator, Polling* polling, const char* port) {
-    Server* server = serverNew(allocator, polling, port);
+Server* tlsTestServer(Memory* mem, Polling* polling, const char* port) {
+    Server* server = serverNew(mem, polling, port);
     if (server) {
         server->onReceive = decodeRecord;
     }

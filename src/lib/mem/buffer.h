@@ -4,7 +4,7 @@
 #include "lib/types.h"
 
 struct Buffer {
-    Allocator* allocator;
+    Memory* mem;
     U64 size;
     U64 length;
     U8* start;
@@ -15,8 +15,8 @@ typedef struct {
     U8* start;
 } BufferSpace;
 
-Buffer* bufNew(Allocator* allocator, U64 size);
-void bufInit(Buffer* buf, Allocator* allocator, U64 size);
+Buffer* bufNew(Memory* mem, U64 size);
+void bufInit(Buffer* buf, Memory* mem, U64 size);
 void bufReset(Buffer* buf);
 
 void bufAppend(Buffer* buf, const U8* data, U64 n);

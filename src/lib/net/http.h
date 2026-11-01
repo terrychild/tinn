@@ -57,7 +57,7 @@ typedef struct {
 
 typedef struct {
     ServerConnection* connection;
-    Allocator* scope;
+    Memory* scope;
     HttpServerConnectionStatus status;
     HttpServerRequest* request;
     HttpServerResponse* response;
@@ -75,7 +75,7 @@ typedef struct {
     HttpServerExchange* exchange;
 } HttpServerConnection;
 
-HttpServer* httpServer(Allocator* allocator, Polling* polling, const char* port);
+HttpServer* httpServer(Memory* mem, Polling* polling, const char* port);
 
 void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_code);
 void httpServerSetContentHeaders(HttpServerExchange* exchange, Slice content_type, U64 content_length);

@@ -9,7 +9,7 @@ typedef struct PoolNode {
 } PoolNode;
 
 struct Pool {
-    Allocator* allocator;
+    Memory* mem;
     U64 node_size;
     U64 capacity;
     U64 count;
@@ -17,8 +17,8 @@ struct Pool {
     PoolNode* first;
 };
 
-Pool* poolNew(Allocator* allocator, U64 item_size, U64 capacity);
-void poolInit(Pool* pool, Allocator* allocator, U64 item_size, U64 capacity);
+Pool* poolNew(Memory* mem, U64 item_size, U64 capacity);
+void poolInit(Pool* pool, Memory* mem, U64 item_size, U64 capacity);
 void poolReset(Pool* pool);
 
 void* poolAdd(Pool* pool);

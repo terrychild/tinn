@@ -16,7 +16,7 @@ typedef struct {
 } BlogPost;
 
 typedef struct {
-    Allocator* allocator;
+    Memory* mem;
     Polling* polling;
     time_t mod_date;
     MappedFile* posts_file;
@@ -26,7 +26,7 @@ typedef struct {
     MappedFile* footer;
 } Blog;
 
-Blog* blogNew(Allocator* allocator, Polling* polling);
+Blog* blogNew(Memory* mem, Polling* polling);
 bool blogContent(Blog* blog, HttpServerExchange* exchange);
 
 #endif

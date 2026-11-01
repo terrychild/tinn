@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "lib/maths/bigint.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
@@ -14,7 +14,7 @@ static const U64 left_bit_mask = 0x8000000000000000;
 static void resize(BigInt* bi, U64 new_size, bool clear_extra) {
     if (new_size > bi->size) {
         bi->size = new_size;
-        bi->limbs = reallocate(bi->allocator, bi->limbs, sizeof(bi->limbs) * bi->size);
+        bi->limbs = reallocate(bi->mem, bi->limbs, sizeof(bi->limbs) * bi->size);
     } else if (clear_extra && new_size < bi->size) {
         for (U64 limb = new_size; limb < bi->size; limb++) {
             bi->limbs[limb] = 0;
@@ -55,27 +55,27 @@ static U64 maxNormalSize(const BigInt* a, const BigInt* b) {
 
 // === make new big ints ===
 
-BigInt* biNew(Allocator* allocator) {
-    BigInt* bi = allocate(allocator, sizeof(BigInt));
-    biInit(bi, allocator, 1);
+BigInt* biNew(Memory* mem) {
+    BigInt* bi = allocate(mem, sizeof(BigInt));
+    biInit(bi, mem, 1);
     return bi;
 }
 
-void biInit(BigInt* bi, Allocator* allocator, U64 size) {
+void biInit(BigInt* bi, Memory* mem, U64 size) {
     PANIC_IF(size == 0, "BigInt size cannot be 0.");
 
-    bi->allocator = allocator;
+    bi->mem = mem;
     bi->size = size;
     bi->length = 0;
     bi->negative = false;
-    bi->limbs = allocate(allocator, sizeof(bi->limbs) * bi->size);
+    bi->limbs = allocate(mem, sizeof(bi->limbs) * bi->size);
     bi->mod = NULL;
 }
 
 static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
     limbs[0] = i<0 ? (U64)0-i : (U64)i;
 
-    bi->allocator = NULL;
+    bi->mem = NULL;
     bi->size = 1;
     bi->length = 64 - stdc_leading_zeros(limbs[0]);
     bi->negative = i<0;
@@ -83,8 +83,8 @@ static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
     bi->mod = NULL;
 }
 
-BigInt* biClone(Allocator* allocator, const BigInt* source) {
-    return biSet(biNew(allocator), source);
+BigInt* biClone(Memory* mem, const BigInt* source) {
+    return biSet(biNew(mem), source);
 }
 
 // === input stuff ===
@@ -112,8 +112,8 @@ BigInt* biSetInt(BigInt* bi, I64 i) {
     updateLen(bi);
     return bi;
 }
-BigInt* biFromInt(Allocator* allocator, I64 i) {
-    return biSetInt(biNew(allocator), i);
+BigInt* biFromInt(Memory* mem, I64 i) {
+    return biSetInt(biNew(mem), i);
 }
 
 BigInt* biSetHex(BigInt* bi, const char* hex) {
@@ -141,8 +141,8 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
 
     return bi;
 }
-BigInt* biFromHex(Allocator* allocator, const char* hex) {
-    return biSetHex(biNew(allocator), hex);
+BigInt* biFromHex(Memory* mem, const char* hex) {
+    return biSetHex(biNew(mem), hex);
 }
 
 void biSetMod(BigInt* bi, BigInt* mod) {
@@ -151,14 +151,14 @@ void biSetMod(BigInt* bi, BigInt* mod) {
 
 // === output stuff ===
 
-Slice biToBESlice(Allocator* allocator, const BigInt* bi) {
+Slice biToBESlice(Memory* mem, const BigInt* bi) {
     if (bi->length == 0) {
-        return sliceNew(allocate(allocator, 1), 1);
+        return sliceNew(allocate(mem, 1), 1);
     }
 
     U64 bytes_len = ((bi->length - 1) / 8) + 1;
 
-    U8* bytes = allocate(allocator, bytes_len);
+    U8* bytes = allocate(mem, bytes_len);
 
     U64 i = 0;
     bool go = false;
@@ -453,17 +453,17 @@ BigInt* biMulBi(BigInt* a, const BigInt* b) {
     }
 
     U64 size = bitsToSize(a->length + b->length + 1);
-    Allocator* temp_allocator;
+    Memory* temp_memory;
     BigInt* temp_a;
     BigInt* temp_b;
     if (biCmpAbs(a, b) >= 0) {
-        temp_allocator = allocatorNew((size + b->size) * sizeof(U64));
-        temp_b = biClone(temp_allocator, b);
-        temp_a = biClone(temp_allocator, a);
+        temp_memory = memoryNew((size + b->size) * sizeof(U64));
+        temp_b = biClone(temp_memory, b);
+        temp_a = biClone(temp_memory, a);
     } else {
-        temp_allocator = allocatorNew((size + a->size) * sizeof(U64));
-        temp_b = biClone(temp_allocator, a);
-        temp_a = biClone(temp_allocator, b);
+        temp_memory = memoryNew((size + a->size) * sizeof(U64));
+        temp_b = biClone(temp_memory, a);
+        temp_a = biClone(temp_memory, b);
     }
 
     clear(a, size);
@@ -486,7 +486,7 @@ BigInt* biMulBi(BigInt* a, const BigInt* b) {
         }
     }
 
-    allocatorRelease(temp_allocator);
+    memoryRelease(temp_memory);
 
     if (a->mod) {
         biMod(a, a->mod);
@@ -502,11 +502,11 @@ BigInt* biMulInt(BigInt* a, I64 b_int) {
     return biMulBi(a, &b);
 }
 
-static void divide(Allocator* allocator, BigInt* a, const BigInt* b, BigInt* r) {
+static void divide(Memory* mem, BigInt* a, const BigInt* b, BigInt* r) {
     biSet(r, a);
-    BigInt* orig_b = biClone(allocator, b);
-    BigInt* temp_b = biClone(allocator, b);
-    BigInt* mask = biFromInt(allocator, 1);
+    BigInt* orig_b = biClone(mem, b);
+    BigInt* temp_b = biClone(mem, b);
+    BigInt* mask = biFromInt(mem, 1);
 
     biSetInt(a, 0);
     a->negative = a->negative != b->negative;
@@ -543,9 +543,9 @@ static void divide(Allocator* allocator, BigInt* a, const BigInt* b, BigInt* r) 
 BigInt* biDivBi(BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
-    Allocator* temp_allocator = allocatorNew((a->size + (b->size * 4)) * sizeof(U64));
-    divide(temp_allocator, a, b, biNew(temp_allocator));
-    allocatorRelease(temp_allocator);
+    Memory* temp_memory = memoryNew((a->size + (b->size * 4)) * sizeof(U64));
+    divide(temp_memory, a, b, biNew(temp_memory));
+    memoryRelease(temp_memory);
 
     return a;
 }
@@ -560,9 +560,9 @@ BigInt* biDivInt(BigInt* a, I64 b_int) {
 BigInt* biDivRemBi(BigInt* a, const BigInt* b, BigInt* r) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
-    Allocator* temp_allocator = allocatorNew((b->size * 4) * sizeof(U64));
-    divide(temp_allocator, a, b, r);
-    allocatorRelease(temp_allocator);
+    Memory* temp_memory = memoryNew((b->size * 4) * sizeof(U64));
+    divide(temp_memory, a, b, r);
+    memoryRelease(temp_memory);
 
     return a;
 }
@@ -577,10 +577,10 @@ BigInt* biDivRemInt(BigInt* a, I64 b_int, BigInt* r) {
 BigInt* biModBi(BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
-    Allocator* temp_allocator = allocatorNew((b->size * 4) * sizeof(U64));
-    BigInt* orig_b = biClone(temp_allocator, b);
-    BigInt* temp_b = biClone(temp_allocator, b);
-    BigInt* mask = biFromInt(temp_allocator, 1);
+    Memory* temp_memory = memoryNew((b->size * 4) * sizeof(U64));
+    BigInt* orig_b = biClone(temp_memory, b);
+    BigInt* temp_b = biClone(temp_memory, b);
+    BigInt* mask = biFromInt(temp_memory, 1);
 
     U64 shift = 0;
     if (a->length > temp_b->length) {
@@ -610,7 +610,7 @@ BigInt* biModBi(BigInt* a, const BigInt* b) {
         a->negative = false;
     }
 
-    allocatorRelease(temp_allocator);
+    memoryRelease(temp_memory);
 
     return a;
 }
@@ -623,9 +623,9 @@ BigInt* biModInt(BigInt* a, I64 b_int) {
 }
 
 BigInt* biPowBi(BigInt* a, const BigInt* b) {
-    Allocator* temp_allocator = allocatorNew((a->size + b->size) * sizeof(U64));
-    BigInt* temp_a = biClone(temp_allocator, a);
-    BigInt* temp_b = biClone(temp_allocator, b);
+    Memory* temp_memory = memoryNew((a->size + b->size) * sizeof(U64));
+    BigInt* temp_a = biClone(temp_memory, a);
+    BigInt* temp_b = biClone(temp_memory, b);
 
     bool go = false;
     U64 limb = temp_b->size;
@@ -648,7 +648,7 @@ BigInt* biPowBi(BigInt* a, const BigInt* b) {
 
     } while (limb>0);
 
-    allocatorRelease(temp_allocator);
+    memoryRelease(temp_memory);
 
     return a;
 }
@@ -661,17 +661,17 @@ BigInt* biPowInt(BigInt* a, I64 b_int) {
 }
 
 BigInt* biMulInv(BigInt* a, const BigInt* mod) {
-    Allocator* temp_allocator = allocatorNew(a->size * 7 * sizeof(U64));
+    Memory* temp_memory = memoryNew(a->size * 7 * sizeof(U64));
 
-    BigInt* old_t = biFromInt(temp_allocator, 0);
-    BigInt* t = biFromInt(temp_allocator, 1);
-    BigInt* new_t = biNew(temp_allocator);
+    BigInt* old_t = biFromInt(temp_memory, 0);
+    BigInt* t = biFromInt(temp_memory, 1);
+    BigInt* new_t = biNew(temp_memory);
 
-    BigInt* old_r = biClone(temp_allocator, mod);
-    BigInt* r = biClone(temp_allocator, a);
-    BigInt* new_r = biNew(temp_allocator);
+    BigInt* old_r = biClone(temp_memory, mod);
+    BigInt* r = biClone(temp_memory, a);
+    BigInt* new_r = biNew(temp_memory);
 
-    BigInt* q = biNew(temp_allocator);
+    BigInt* q = biNew(temp_memory);
 
     while (!biIsZero(r)) {
         biDivRem(biSet(q, old_r), r, new_r);
@@ -689,7 +689,7 @@ BigInt* biMulInv(BigInt* a, const BigInt* mod) {
     }
     biSet(a, old_t);
 
-    allocatorRelease(temp_allocator);
+    memoryRelease(temp_memory);
 
     return a;
 }

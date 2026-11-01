@@ -4,7 +4,7 @@
 #include "lib/types.h"
 
 struct BigInt {
-    Allocator* allocator;
+    Memory* mem;
 	U64 size;
 	U64 length;
 	U64* limbs;
@@ -12,9 +12,9 @@ struct BigInt {
 	bool negative;
 };
 
-BigInt* biNew(Allocator* allocator);
-void biInit(BigInt* bi, Allocator* allocator, U64 size);
-BigInt* biClone(Allocator* allocator, const BigInt* source);
+BigInt* biNew(Memory* mem);
+void biInit(BigInt* bi, Memory* mem, U64 size);
+BigInt* biClone(Memory* mem, const BigInt* source);
 
 BigInt* biSetBi(BigInt* dest, const BigInt* source);
 BigInt* biSetInt(BigInt* bi, I64 i);
@@ -26,11 +26,11 @@ BigInt* biSetHex(BigInt* bi, const char* hex);
         default: biSetInt  \
     )(dest, source)
 
-BigInt* biFromInt(Allocator* allocator, I64 i);
-BigInt* biFromHex(Allocator* allocator, const char* hex);
+BigInt* biFromInt(Memory* mem, I64 i);
+BigInt* biFromHex(Memory* mem, const char* hex);
 void biSetMod(BigInt* bi, BigInt* mod);
 
-Slice biToBESlice(Allocator* allocator, const BigInt* bi);
+Slice biToBESlice(Memory* mem, const BigInt* bi);
 
 bool biBit(const BigInt* bi, U64 bit);
 bool biIsZero(const BigInt* bi);

@@ -8,8 +8,8 @@ static void echo(ServerConnection* connection, Slice data) {
     connectionSend(connection, data, false);
 }
 
-Server* echoServer(Allocator* allocator, Polling* polling, const char* port) {
-    Server* server = serverNew(allocator, polling, port);
+Server* echoServer(Memory* mem, Polling* polling, const char* port) {
+    Server* server = serverNew(mem, polling, port);
     if (server) {
         server->onReceive = echo;
     }

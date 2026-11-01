@@ -5,7 +5,7 @@
 
 #include "static.h"
 #include "lib/log.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"

@@ -25,8 +25,8 @@ Slice sliceRightBackStr(const Slice source, const char* search);
 
 Slice sliceTrim(const Slice source);
 
-Slice sliceToLowerCase(Allocator* allocator, Slice source);
-Slice sliceToUpperCase(Allocator* allocator, Slice source);
+Slice sliceToLowerCase(Memory* mem, Slice source);
+Slice sliceToUpperCase(Memory* mem, Slice source);
 
 typedef struct {
     Slice slice;

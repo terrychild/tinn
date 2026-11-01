@@ -4,15 +4,15 @@
 #include "lib/types.h"
 
 struct Array {
-    Allocator* allocator;
+    Memory* mem;
     U64 item_size;
     U64 capacity;
     U64 count;
     U8* start;
 };
 
-Array* arrayNew(Allocator* allocator, U64 item_size, U64 capacity);
-void arrayInit(Array* array, Allocator* allocator, U64 item_size, U64 capacity);
+Array* arrayNew(Memory* mem, U64 item_size, U64 capacity);
+void arrayInit(Array* array, Memory* mem, U64 item_size, U64 capacity);
 void arrayReset(Array* array);
 
 void* arrayAdd(Array* array);

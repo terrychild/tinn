@@ -1,5 +1,5 @@
 #include "lib/crypto/ec.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/maths/bigint.h"
 #include "lib/log.h"
 
@@ -10,51 +10,51 @@ static EllipticCurvePoint* copyPoint(EllipticCurvePoint* dest, const EllipticCur
     return dest;
 }
 
-static EllipticCurvePoint* clonePoint(Allocator* allocator, const EllipticCurvePoint* source) {
-    EllipticCurvePoint* dest = allocate(allocator, sizeof(EllipticCurvePoint));
-    dest->x = biClone(allocator, source->x);
-    dest->y = biClone(allocator, source->y);
+static EllipticCurvePoint* clonePoint(Memory* mem, const EllipticCurvePoint* source) {
+    EllipticCurvePoint* dest = allocate(mem, sizeof(EllipticCurvePoint));
+    dest->x = biClone(mem, source->x);
+    dest->y = biClone(mem, source->y);
     dest->is_infinity = source->is_infinity;
     return dest;
 }
 
-EllipticCurve* ecNew(Allocator* allocator, const char* a, const char* b, const char* p, const char* x, const char* y) {
-    EllipticCurve* ec = allocate(allocator, sizeof(EllipticCurve));
-    ec->a = biFromHex(allocator, a);
-    ec->b = biFromHex(allocator, b);
-    ec->p = biFromHex(allocator, p);
-    ec->g = allocate(allocator, sizeof(EllipticCurvePoint));
-    ec->g->x = biFromHex(allocator, x);
-    ec->g->y = biFromHex(allocator, y);
+EllipticCurve* ecNew(Memory* mem, const char* a, const char* b, const char* p, const char* x, const char* y) {
+    EllipticCurve* ec = allocate(mem, sizeof(EllipticCurve));
+    ec->a = biFromHex(mem, a);
+    ec->b = biFromHex(mem, b);
+    ec->p = biFromHex(mem, p);
+    ec->g = allocate(mem, sizeof(EllipticCurvePoint));
+    ec->g->x = biFromHex(mem, x);
+    ec->g->y = biFromHex(mem, y);
     return ec;
 }
 
-EllipticCurvePoint* ecNewPoint(Allocator* allocator, const EllipticCurve* ec) {
-    EllipticCurvePoint* point = allocate(allocator, sizeof(EllipticCurvePoint));
-    point->x = biNew(allocator);
+EllipticCurvePoint* ecNewPoint(Memory* mem, const EllipticCurve* ec) {
+    EllipticCurvePoint* point = allocate(mem, sizeof(EllipticCurvePoint));
+    point->x = biNew(mem);
     biSetMod(point->x, ec->p);
-    point->y = biNew(allocator);
+    point->y = biNew(mem);
     biSetMod(point->y, ec->p);
     point->is_infinity = true;
     return point;
 }
 
-static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, const EllipticCurvePoint* q) {
+static EllipticCurvePoint* add(Memory* mem, const EllipticCurve* ec, const EllipticCurvePoint* p, const EllipticCurvePoint* q) {
     if (p->is_infinity) {
-        return clonePoint(allocator, q);
+        return clonePoint(mem, q);
     }
     if (q->is_infinity) {
-        return clonePoint(allocator, p);
+        return clonePoint(mem, p);
     }
 
-    BigInt* temp = biNew(allocator);
+    BigInt* temp = biNew(mem);
     biSetMod(temp, ec->p);
 
     if (biCmp(p->x, q->x)==0 && biIsZero(biAdd(biSet(temp, p->y), q->y))) {
-        return ecNewPoint(allocator, ec);
+        return ecNewPoint(mem, ec);
     }
 
-    BigInt* s = biNew(allocator);
+    BigInt* s = biNew(mem);
     biSetMod(s, ec->p);
     if (biCmp(p->x, q->x)==0 && biCmp(p->y, q->y)==0) {
         // double: s = ((3 * p.x * p.x) + e.a) * inverse(2 * p.y, e.p);
@@ -80,7 +80,7 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
         biMul(s, temp);
     }
 
-    EllipticCurvePoint* point = ecNewPoint(allocator, ec);
+    EllipticCurvePoint* point = ecNewPoint(mem, ec);
     point->is_infinity = false;
 
     // x = (s * s) - p.x - q.x;
@@ -98,19 +98,19 @@ static EllipticCurvePoint* add(Allocator* allocator, const EllipticCurve* ec, co
     return point;
 }
 
-static EllipticCurvePoint* mul(Allocator* allocator, const EllipticCurve* ec, const EllipticCurvePoint* p, BigInt* n) {
-    EllipticCurvePoint* t = clonePoint(allocator, p);
+static EllipticCurvePoint* mul(Memory* mem, const EllipticCurve* ec, const EllipticCurvePoint* p, BigInt* n) {
+    EllipticCurvePoint* t = clonePoint(mem, p);
     for (U64 bit = n->length - 1; bit-- > 0; ) {
-        t = add(allocator, ec, t, t);
+        t = add(mem, ec, t, t);
         if (biBit(n, bit)) {
-            t = add(allocator, ec, t, p);
+            t = add(mem, ec, t, p);
         }
     }
     return t;
 }
 
 void ecPoint(EllipticCurvePoint* point, const EllipticCurve* ec, BigInt* n) {
-    Allocator* allocator = allocatorNew(0);
-    copyPoint(point, mul(allocator, ec, ec->g, n));
-    allocatorRelease(allocator);
+    Memory* mem = memoryNew(0);
+    copyPoint(point, mul(mem, ec, ec->g, n));
+    memoryRelease(mem);
 }

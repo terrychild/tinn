@@ -15,7 +15,7 @@ typedef void (*ServerReceiveFunc)(ServerConnection* connection, Slice data);
 typedef void (*ServerSentFunc)(ServerConnection* connection, bool* and_close);
 
 typedef struct {
-    Allocator* scope;
+    Memory* scope;
     Polling* polling;
     int socket;
     Pool* connections;
@@ -32,8 +32,8 @@ struct ServerConnection {
     int socket;
     char address[INET6_ADDRSTRLEN];
     Server* server;
-    Allocator* scope;
-    Allocator* exchange_scope;
+    Memory* scope;
+    Memory* exchange_scope;
     ServerExchange* exchange;
     void* context;
 };
@@ -44,8 +44,8 @@ struct ServerExchange {
     Slice response;
 };
 
-Server* serverNew(Allocator* allocator, Polling* polling, const char* port);
-bool serverInit(Server* server, Allocator* allocator, Polling* polling, const char* port);
+Server* serverNew(Memory* mem, Polling* polling, const char* port);
+bool serverInit(Server* server, Memory* mem, Polling* polling, const char* port);
 void serverClose(Server* server);
 
 ServerExchange* connectionStartExchange(ServerConnection* connection);

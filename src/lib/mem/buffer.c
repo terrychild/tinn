@@ -4,23 +4,23 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include "lib/mem/memory.h"
 #include "lib/mem/buffer.h"
-#include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
 #include "lib/mem/mfile.h"
 
-Buffer* bufNew(Allocator* allocator, U64 size) {
-    Buffer* buf = allocate(allocator, sizeof(Buffer));
-    bufInit(buf, allocator, size);
+Buffer* bufNew(Memory* mem, U64 size) {
+    Buffer* buf = allocate(mem, sizeof(Buffer));
+    bufInit(buf, mem, size);
     return buf;
 }
-void bufInit(Buffer* buf, Allocator* allocator, U64 size) {
+void bufInit(Buffer* buf, Memory* mem, U64 size) {
     assert(size > 0);
 
-    buf->allocator = allocator;
+    buf->mem = mem;
     buf->size = size;
     buf->length = 0;
-    buf->start = allocate(buf->allocator, size);
+    buf->start = allocate(buf->mem, size);
 }
 void bufReset(Buffer* buf) {
     buf->length = 0;
@@ -33,7 +33,7 @@ static void ensure(Buffer* buf, U64 n) {
     }
     if (new_size > buf->size) {
         buf->size = new_size;
-        buf->start = reallocate(buf->allocator, buf->start, new_size);
+        buf->start = reallocate(buf->mem, buf->start, new_size);
     }
 }
 

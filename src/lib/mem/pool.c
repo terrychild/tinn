@@ -2,8 +2,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "lib/mem/memory.h"
 #include "lib/mem/pool.h"
-#include "lib/mem/allocator.h"
 #include "lib/mem/arena.h"
 #include "lib/log.h"
 #include "lib/cli.h"
@@ -18,19 +18,19 @@ static void buildFreeList(Pool* pool, U8* start, U64 count) {
     node->next = NULL;
 }
 
-Pool* poolNew(Allocator* allocator, U64 item_size, U64 capacity) {
-    Pool* pool = allocate(allocator, sizeof(Pool));
-    poolInit(pool, allocator, item_size, capacity);
+Pool* poolNew(Memory* mem, U64 item_size, U64 capacity) {
+    Pool* pool = allocate(mem, sizeof(Pool));
+    poolInit(pool, mem, item_size, capacity);
     return pool;
 }
-void poolInit(Pool* pool, Allocator* allocator, U64 item_size, U64 capacity) {
+void poolInit(Pool* pool, Memory* mem, U64 item_size, U64 capacity) {
     assert(capacity > 0);
 
-    pool->allocator = allocator;
+    pool->mem = mem;
     pool->node_size = sizeof(PoolNode*) + item_size;
     pool->capacity = capacity;
     pool->count = 0;
-    buildFreeList(pool, allocate(pool->allocator, capacity * pool->node_size), capacity);
+    buildFreeList(pool, allocate(pool->mem, capacity * pool->node_size), capacity);
     pool->first = NULL;
 }
 
@@ -47,7 +47,7 @@ void poolReset(Pool* pool) {
 
 static void* add(Pool* pool) {
     if (pool->free == NULL) {
-        buildFreeList(pool, allocate(pool->allocator, pool->capacity * pool->node_size), pool->capacity);
+        buildFreeList(pool, allocate(pool->mem, pool->capacity * pool->node_size), pool->capacity);
         pool->capacity *= 2;
     }
 
@@ -98,7 +98,7 @@ void poolDebug(Pool* pool) {
     PoolNode* node = pool->free;
     U64 count = 0;
     while (node != NULL && count<32) {
-        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->allocator->arena->start);
+        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->mem->arena->start);
         node = node->next;
         count++;
     }
@@ -111,7 +111,7 @@ void poolDebug(Pool* pool) {
     node = pool->first;
     count = 0;
     while (node != NULL && count<32) {
-        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->allocator->arena->start);
+        PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->mem->arena->start);
         node = node->next;
         count++;
     }

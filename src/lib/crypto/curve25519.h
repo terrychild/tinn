@@ -3,6 +3,6 @@
 
 #include "lib/types.h"
 
-BigInt* curve25519Key(Allocator* allocator, BigInt* k);
+BigInt* curve25519Key(Memory* mem, BigInt* k);
 
 #endif

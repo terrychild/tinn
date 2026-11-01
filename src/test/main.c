@@ -3,7 +3,7 @@
 
 #include "test/tests.h"
 #include "test/expect.h"
-#include "lib/mem/allocator.h"
+#include "lib/mem/memory.h"
 #include "lib/mem/arena.h"
 #include "lib/cli.h"
 
@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 
     expect_passed = 0;
     expect_failed = 0;
-    Allocator* allocator = allocatorNew(0);
+    Memory* mem = memoryNew(0);
 
     if (all || strcmp(argv[1], "things") == 0) {
         testThings();
@@ -26,27 +26,27 @@ int main(int argc, char* argv[]) {
     if (all || strcmp(argv[1], "arena") == 0) {
         testArena();
     }
-    if (all || strcmp(argv[1], "allocator") == 0) {
-        testAllocator(allocator);
+    if (all || strcmp(argv[1], "memory") == 0) {
+        testMemory(mem);
     }
     if (all || strcmp(argv[1], "array") == 0) {
-        testArray(allocator);
+        testArray(mem);
     }
     if (all || strcmp(argv[1], "pool") == 0) {
-        testPool(allocator);
+        testPool(mem);
     }
     if (all || strcmp(argv[1], "buffer") == 0) {
-        testBuffer(allocator);
+        testBuffer(mem);
     }
     if (all || strcmp(argv[1], "maths") == 0) {
-        testMaths(allocator);
+        testMaths(mem);
     }
     if (all || strcmp(argv[1], "crypto") == 0) {
-        testCrypto(allocator);
+        testCrypto(mem);
     }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
-    expect("Final allocator check", allocator->arena->allocated, sizeof(Arena) + sizeof(Allocator));
+    expect("Final memory check", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
 
     PRINT(CC_BRIGHT_WHITE, "Tests passed: ");
     if (expect_failed > 0) {

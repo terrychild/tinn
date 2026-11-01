@@ -26,8 +26,8 @@ typedef struct {
     Pool* files;
 } Polling;
 
-Polling* pollingNew(Allocator* allocator, U64 max_capacity);
-void pollingInit(Polling* polling, Allocator* allocator, U64 max_capacity);
+Polling* pollingNew(Memory* mem, U64 max_capacity);
+void pollingInit(Polling* polling, Memory* mem, U64 max_capacity);
 
 void pollingAdd(Polling* polling, int fd, PollingCallback callback);
 void pollingRemove(Polling* polling, int fd);

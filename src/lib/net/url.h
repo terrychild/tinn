@@ -13,6 +13,6 @@ typedef struct {
     //Slice fragment;
 } URL;
 
-URL* urlFromOrigin(Allocator* allocator, Slice origin);
+URL* urlFromOrigin(Memory* mem, Slice origin);
 
 #endif
