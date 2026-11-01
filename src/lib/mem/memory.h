@@ -16,6 +16,11 @@ struct Memory {
     Allocation* last_allocation;
 };
 
+typedef struct {
+    Memory* mem;
+    U64 allocated;
+} ScratchMemory;
+
 Memory* memoryNew(U64 size);
 void memoryInit(Memory* mem, Arena* arena);
 void memoryReset(Memory* mem);
@@ -29,6 +34,10 @@ void deallocateFile(Memory* mem, MappedFile* child);
 
 void* allocate(Memory* mem, U64 size);
 void* reallocate(Memory* mem, void* original, U64 size);
+
+Memory* programMemory();
+ScratchMemory scratchMemory(Memory* current);
+void scratchRelease(ScratchMemory scratch);
 
 void memoryDebug(Memory* mem);
 

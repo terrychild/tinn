@@ -15,7 +15,6 @@ int main(int argc, char* argv[]) {
 
     expect_passed = 0;
     expect_failed = 0;
-    Memory* mem = memoryNew(0);
 
     if (all || strcmp(argv[1], "things") == 0) {
         testThings();
@@ -27,26 +26,31 @@ int main(int argc, char* argv[]) {
         testArena();
     }
     if (all || strcmp(argv[1], "memory") == 0) {
-        testMemory(mem);
+        testMemory();
     }
     if (all || strcmp(argv[1], "array") == 0) {
-        testArray(mem);
+        testArray();
     }
     if (all || strcmp(argv[1], "pool") == 0) {
-        testPool(mem);
+        testPool();
     }
     if (all || strcmp(argv[1], "buffer") == 0) {
-        testBuffer(mem);
+        testBuffer();
     }
     if (all || strcmp(argv[1], "maths") == 0) {
-        testMaths(mem);
+        testMaths();
     }
     if (all || strcmp(argv[1], "crypto") == 0) {
-        testCrypto(mem);
+        testCrypto();
     }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
-    expect("Final memory check", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
+    Memory* mem = programMemory();
+    ScratchMemory scratch = scratchMemory(NULL);
+    ScratchMemory scratch2 = scratchMemory(scratch.mem);
+    expect("Program memory check", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
+    expect("Scratch memory check 1", scratch.mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
+    expect("Scratch memory check 2", scratch2.mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
 
     PRINT(CC_BRIGHT_WHITE, "Tests passed: ");
     if (expect_failed > 0) {

@@ -8,8 +8,10 @@
 #include "lib/mem/array.h"
 #include "lib/mem/arena.h"
 
-void testArray(Memory* mem) {
+void testArray() {
     PRINT(CC_BLUE, "================\n Array tests\n================\n");
+    ScratchMemory scratch = scratchMemory(NULL);
+    Memory* mem = scratch.mem;
 
     Array* array = arrayNew(mem, 1, 10);
     expect("allocated capacity (10 * U8)", array->capacity, 10);
@@ -76,5 +78,5 @@ void testArray(Memory* mem) {
     expect("set 1", *((U64*)arrayGet(array, 1)), nums[1]);
 
     memoryDebug(mem);
-    memoryReset(mem);
+    scratchRelease(scratch);
 }

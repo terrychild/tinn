@@ -7,7 +7,11 @@
 #include "lib/bytes.h"
 #include "lib/cli.h"
 
-void testMaths(Memory* mem) {
+void testMaths() {
+    PRINT(CC_BLUE, "================\n Maths tests\n================\n");
+    ScratchMemory scratch = scratchMemory(NULL);
+    Memory* mem = scratch.mem;
+
     BigInt* bi = biFromInt(mem, 14);
 
     expect("bi 15", biAdd(bi, 1), biFromInt(mem, 15));
@@ -55,5 +59,5 @@ void testMaths(Memory* mem) {
     PRINT(CC_BLUE, "          %lu\n", remainder->limbs[0]);
 
     memoryDebug(mem);
-    memoryReset(mem);
+    scratchRelease(scratch);
 }

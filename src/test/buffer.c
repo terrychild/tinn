@@ -9,8 +9,10 @@
 #include "lib/mem/buffer.h"
 #include "lib/bytes.h"
 
-void testBuffer(Memory* mem) {
+void testBuffer() {
     PRINT(CC_BLUE, "================\n Buffer tests\n================\n");
+    ScratchMemory scratch = scratchMemory(NULL);
+    Memory* mem = scratch.mem;
 
     Buffer* buf = bufNew(mem, 8);
     expect("length", buf->length, 0);
@@ -96,4 +98,6 @@ void testBuffer(Memory* mem) {
     expect("allocator with data and two buffers", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 48 + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 16 + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 32);
     memoryDebug(mem);
     memoryReset(mem);
+
+    scratchRelease(scratch);
 }

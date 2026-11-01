@@ -6,11 +6,11 @@
 void testThings();
 void testTypes();
 void testArena();
-void testMemory(Memory* mem);
-void testArray(Memory* mem);
-void testPool(Memory* mem);
-void testBuffer(Memory* mem);
-void testMaths(Memory* mem);
-void testCrypto(Memory* mem);
+void testMemory();
+void testArray();
+void testPool();
+void testBuffer();
+void testMaths();
+void testCrypto();
 
 #endif

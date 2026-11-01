@@ -7,8 +7,9 @@
 #include "lib/mem/arena.h"
 #include "lib/mem/pool.h"
 
-void testMemory(Memory* mem) {
+void testMemory() {
     PRINT(CC_BLUE, "================\n Memory tests\n================\n");
+    Memory* mem = programMemory();
 
     expect("size", mem->arena->size, GB(1));
     expect("committed", mem->arena->committed, KB(4));
@@ -23,7 +24,7 @@ void testMemory(Memory* mem) {
     expect("reallocate (size)", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 16);
     expect("reallocate (pointers)", updated_data, some_data);
     expect("reallocate (data)", *updated_data, 14);
-    U64* other_data = allocate(mem, 8);
+    allocate(mem, 8);
     expect("allocate other thing", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 16 + sizeof(Allocation) + 8);
     updated_data = reallocate(mem, some_data, 24);
     expect("reallocate again (size)", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 16 + sizeof(Allocation) + 8 + sizeof(Allocation) + 24);
@@ -56,4 +57,24 @@ void testMemory(Memory* mem) {
     memoryReset(mem);
     expect("reset", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
     memoryDebug(mem);
+
+    ScratchMemory scratch1 = scratchMemory(mem);
+    allocate(scratch1.mem, 8);
+    expect("scratch 1 (allocated)", scratch1.mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 8);
+
+    ScratchMemory scratch2 = scratchMemory(scratch1.mem);
+    allocate(scratch2.mem, 16);
+    expect("scratch 2 (allocated)", scratch2.mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 16);
+    expectDiff("scratch 1 != scratch 2", scratch1.mem, scratch2.mem);
+
+    ScratchMemory scratch3 = scratchMemory(scratch2.mem);
+    allocate(scratch3.mem, 40);
+    expect("scratch 3 (allocated)", scratch3.mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 8 + sizeof(Allocation) + 40);
+    expect("scratch 1 == scratch 3", scratch1.mem, scratch3.mem);
+    expect("scratch 1 (allocated)", scratch1.mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 8 + sizeof(Allocation) + 40);
+
+    scratchRelease(scratch3);
+    expect("scratch 1 (allocated)", scratch1.mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 8);
+    scratchRelease(scratch2);
+    scratchRelease(scratch1);
 }

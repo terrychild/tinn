@@ -7,7 +7,11 @@
 #include "lib/mem/memory.h"
 #include "lib/cli.h"
 
-void testCrypto(Memory* mem) {
+void testCrypto() {
+    PRINT(CC_BLUE, "================\n Crypto tests\n================\n");
+    ScratchMemory scratch = scratchMemory(NULL);
+    Memory* mem = scratch.mem;
+
     EllipticCurve* ec = ecNew(mem, "2", "2", "11", "5", "1");
     EllipticCurvePoint* point = ecNewPoint(mem, ec);
     ecPoint(point, ec, biFromInt(mem, 2));
@@ -67,5 +71,5 @@ void testCrypto(Memory* mem) {
     expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
     memoryDebug(mem);
-    memoryReset(mem);
+    scratchRelease(scratch);
 }

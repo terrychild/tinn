@@ -7,8 +7,10 @@
 #include "lib/mem/arena.h"
 #include "lib/mem/pool.h"
 
-void testPool(Memory* mem) {
+void testPool() {
     PRINT(CC_BLUE, "================\n Pool tests\n================\n");
+    ScratchMemory scratch = scratchMemory(NULL);
+    Memory* mem = scratch.mem;
 
     U64 nums[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 
@@ -109,5 +111,5 @@ void testPool(Memory* mem) {
     poolDebug(pool);
 
     memoryDebug(mem);
-    memoryReset(mem);
+    scratchRelease(scratch);
 }

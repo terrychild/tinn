@@ -7,6 +7,8 @@
 #include "lib/mem/mfile.h"
 #include "lib/mem/pool.h"
 
+#include "lib/macros.h"
+#include "lib/log.h"
 #include "lib/cli.h"
 
 // children
@@ -117,6 +119,42 @@ void memoryReset(Memory* mem) {
 }
 void memoryRelease(Memory* mem) {
     arenaRelease(mem->arena);
+}
+
+// Global memory
+static Memory* program_memory = NULL;
+static Memory* scratch_memory[] = { NULL, NULL };
+
+Memory* programMemory() {
+    if (!program_memory) {
+        program_memory = memoryNew(GB(1));
+    }
+    return program_memory;
+}
+
+ScratchMemory scratchMemory(Memory* current) {
+    U64 scratch_count = sizeof(scratch_memory)/sizeof(scratch_memory[0]);
+    if (!scratch_memory[0]) {
+        for (U64 i=0; i<scratch_count; i++) {
+            scratch_memory[i] = memoryNew(MB(512));
+        }
+    }
+
+    for (U64 i=0; i<scratch_count; i++) {
+        if (scratch_memory[i] != current) {
+            return (ScratchMemory) {
+                .mem = scratch_memory[i],
+                .allocated = scratch_memory[i]->arena->allocated
+            };
+        }
+    }
+
+    PANIC("No scratch memory available");
+    return (ScratchMemory) { .mem = NULL, .allocated = 0 }; // unreachable
+}
+
+void scratchRelease(ScratchMemory scratch) {
+    scratch.mem->arena->allocated = scratch.allocated;
 }
 
 // debug
