@@ -18,7 +18,7 @@ ServerExchange* connectionStartExchange(ServerConnection* connection) {
     connectionEndExchange(connection);
     connection->exchange = allocate(connection->exchange_scope, sizeof(ServerExchange));
     connection->exchange->connection = connection;
-    connection->exchange->request = bufNew(connection->exchange_scope, KB(4));
+    connection->exchange->request = bufNew(connection->exchange_scope, KiB(4));
     return connection->exchange;
 }
 void connectionEndExchange(ServerConnection* connection) {
@@ -79,7 +79,7 @@ static void onConnectionEvent(struct pollfd* pfd, void* context) {
             connectionStartExchange(connection);
         }
         if (pfd->revents & POLLIN) {
-            BufferSpace wrtie_buf = bufReadyWrite(connection->exchange->request, KB(1));
+            BufferSpace wrtie_buf = bufReadyWrite(connection->exchange->request, KiB(1));
             ssize_t recvied = recv(pfd->fd, wrtie_buf.start, wrtie_buf.length, 0);
             if (recvied > 0) {
                 DEBUG("Recived: %ld bytes", recvied);
@@ -192,8 +192,8 @@ bool serverInit(Server* server, Memory* mem, Polling* polling, const char* port)
 
     server->connections = poolNew(server->scope, sizeof(ServerConnection), 256);
 
-    server->connection_size = MB(1);
-    server->exchange_size = MB(100);
+    server->connection_size = MiB(1);
+    server->exchange_size = MiB(100);
 
     server->onConnect = NULL;
     server->onDisconnect = NULL;

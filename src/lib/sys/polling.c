@@ -77,7 +77,7 @@ static void monitorFile(struct pollfd* pfd, void* context){
     Polling* polling = context;
     // TODO check for POLL errors?
     if (pfd->revents & POLLIN) {
-        char buffer[KB(4)];
+        char buffer[KiB(4)];
         char* ptr;
         int read_len, event_len;
 

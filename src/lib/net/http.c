@@ -76,7 +76,7 @@ static Slice validateContentType(Slice content_type) {
 
 // message generation
 static Slice generateResponseHeader(HttpServerExchange* exchange) {
-    Buffer* header = bufNew(exchange->scope, KB(4));
+    Buffer* header = bufNew(exchange->scope, KiB(4));
 
     // default status code
     if (exchange->response->status_code == 0) {
@@ -184,7 +184,7 @@ void httpServerSendNotModified(HttpServerExchange* exchange) {
 	"</html>"
 
 void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code) {
-    Buffer* content = bufNew(exchange->scope, KB(4));
+    Buffer* content = bufNew(exchange->scope, KiB(4));
     bufAppendFormat(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
     httpServerSetStatus(exchange, status_code);

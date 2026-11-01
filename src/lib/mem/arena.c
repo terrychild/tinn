@@ -6,7 +6,7 @@
 #include "lib/macros.h"
 #include "lib/log.h"
 
-static const U64 ARENA_DEFAULT_SIZE = GB(1);
+static const U64 ARENA_DEFAULT_SIZE = GiB(1);
 
 // system calls
 // TODO: support more than linux?

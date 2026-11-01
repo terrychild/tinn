@@ -11,8 +11,8 @@ void testMemory() {
     PRINT(CC_BLUE, "================\n Memory tests\n================\n");
     Memory* mem = programMemory();
 
-    expect("size", mem->arena->size, GB(1));
-    expect("committed", mem->arena->committed, KB(4));
+    expect("size", mem->arena->size, GiB(1));
+    expect("committed", mem->arena->committed, KiB(4));
     expect("allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
     memoryDebug(mem);
 

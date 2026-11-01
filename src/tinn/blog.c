@@ -104,7 +104,7 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
     }
 
     // start content
-    Buffer* content = bufNew(exchange->scope, KB(4));
+    Buffer* content = bufNew(exchange->scope, KiB(4));
     URL* target = exchange->request->target;
 
     // home page

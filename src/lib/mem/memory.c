@@ -127,7 +127,7 @@ static Memory* scratch_memory[] = { NULL, NULL };
 
 Memory* programMemory() {
     if (!program_memory) {
-        program_memory = memoryNew(GB(1));
+        program_memory = memoryNew(GiB(1));
     }
     return program_memory;
 }
@@ -136,7 +136,7 @@ ScratchMemory scratchMemory(Memory* current) {
     U64 scratch_count = sizeof(scratch_memory)/sizeof(scratch_memory[0]);
     if (!scratch_memory[0]) {
         for (U64 i=0; i<scratch_count; i++) {
-            scratch_memory[i] = memoryNew(MB(512));
+            scratch_memory[i] = memoryNew(MiB(512));
         }
     }
 
