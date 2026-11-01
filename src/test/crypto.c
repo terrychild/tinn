@@ -2,8 +2,8 @@
 #include "lib/types.h"
 #include "lib/maths/bigint.h"
 #include "lib/crypto/ec.h"
-//#include "lib/crypto/mc.h"
-//#include "lib/crypto/curve25519.h"
+#include "lib/crypto/mc.h"
+#include "lib/crypto/curve25519.h"
 #include "lib/mem/memory.h"
 #include "lib/cli.h"
 
@@ -41,33 +41,25 @@ void testCrypto() {
     expect("Elliptic Curve secp256r1 10G y", point->y, biFromHex(mem, "878662a229aaae906e123cdd9d3b4c10590ded29fe751eeeca34bbaa44af0773"));
 
 
-    /*MontgomeryCurve* mc = mcNew(mem, "76d06", "1", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed", "9");
+    MontgomeryCurve* mc = mcNew(mem, "76d06", "1", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed", "9");
 
-    BigInt* x = biNew(mem);
-    mcKey(x, mc, biFromInt(mem, 2));
-    expect("Elliptic Curve 25519 2G", x, biFromHex(mem, "20d342d51873f1b7d9750c687d1571148f3f5ced1e350b5c5cae469cdd684efb"));
-    mcKey(x, mc, biFromInt(mem, 3));
-    expect("Elliptic Curve 25519 3G", x, biFromHex(mem, "1c12bc1a6d57abe645534d91c21bba64f8824e67621c0859c00a03affb713c12"));
-    mcKey(x, mc, biFromInt(mem, 10));
-    expect("Elliptic Curve 25519 10G", x, biFromHex(mem, "41eda655b159060471fb4ce5d7cb3fe43ee51843d2080e0383ce42892c3a9c7b"));
-    mcKey(x, mc, biFromInt(mem, 256));
-    expect("Elliptic Curve 25519 256G", x, biFromHex(mem, "4300017536976a742ec8747f7505cd6bc80e610d669acab1a1eed36f680d98e8"));
+    expect("Elliptic Curve 25519 2G", mcKey(mem, mc, biFromInt(mem, 2)), biFromHex(mem, "20d342d51873f1b7d9750c687d1571148f3f5ced1e350b5c5cae469cdd684efb"));
+    expect("Elliptic Curve 25519 3G", mcKey(mem, mc, biFromInt(mem, 3)), biFromHex(mem, "1c12bc1a6d57abe645534d91c21bba64f8824e67621c0859c00a03affb713c12"));
+    expect("Elliptic Curve 25519 10G", mcKey(mem, mc, biFromInt(mem, 10)), biFromHex(mem, "41eda655b159060471fb4ce5d7cb3fe43ee51843d2080e0383ce42892c3a9c7b"));
+    expect("Elliptic Curve 25519 256G", mcKey(mem, mc, biFromInt(mem, 256)), biFromHex(mem, "4300017536976a742ec8747f7505cd6bc80e610d669acab1a1eed36f680d98e8"));
 
-    mcKey(x, mc, biFromHex(mem, "10000000"));
-    expect("Elliptic Curve 25519 0x10000000", x, biFromHex(mem, "6893cedbcf053a23b7d5676bf577dbc309d25c8525a0f2f5036b67f0967fa084"));
-    mcKey(x, mc, biFromHex(mem, "FFFFFFFF"));
-    expect("Elliptic Curve 25519 0xFFFFFFFF", x, biFromHex(mem, "08de23ae492b2c0a8b7c7e1f216501ba25bea603a30f5fd0c4bbac77fd5fec82"));
-    mcKey(x, mc, biFromHex(mem, "100000000"));
-    expect("Elliptic Curve 25519 0x100000000", x, biFromHex(mem, "06a8e0bfab511d23d72ddc7e8b0d4e3561183208d3d7886c269a92ca1de7dc30"));
-    mcKey(x, mc, biFromHex(mem, "1000000000000000"));
-    expect("Elliptic Curve 25519 0x1000000000000000", x, biFromHex(mem, "733350c17acebbbafc697ea8b5f03b354bf7ae172f54e86e883b59d150d1b370"));
-    mcKey(x, mc, biFromHex(mem, "6A2CB91DA5FB77B12A99C0EB872F4CDF4566B25172C1163C7DA518730A6D0770"));
+    expect("Elliptic Curve 25519 0x10000000", mcKey(mem, mc, biFromHex(mem, "10000000")), biFromHex(mem, "6893cedbcf053a23b7d5676bf577dbc309d25c8525a0f2f5036b67f0967fa084"));
+    expect("Elliptic Curve 25519 0xFFFFFFFF", mcKey(mem, mc, biFromHex(mem, "FFFFFFFF")), biFromHex(mem, "08de23ae492b2c0a8b7c7e1f216501ba25bea603a30f5fd0c4bbac77fd5fec82"));
+    expect("Elliptic Curve 25519 0x100000000", mcKey(mem, mc, biFromHex(mem, "100000000")), biFromHex(mem, "06a8e0bfab511d23d72ddc7e8b0d4e3561183208d3d7886c269a92ca1de7dc30"));
+    expect("Elliptic Curve 25519 0x1000000000000000", mcKey(mem, mc, biFromHex(mem, "1000000000000000")), biFromHex(mem, "733350c17acebbbafc697ea8b5f03b354bf7ae172f54e86e883b59d150d1b370"));
+    BigInt* x = mcKey(mem, mc, biFromHex(mem, "6A2CB91DA5FB77B12A99C0EB872F4CDF4566B25172C1163C7DA518730A6D0770"));
     expect("Elliptic Curve 25519", x, biFromHex(mem, "6a4e9baa8ea9a4ebf41a38260d3abf0d5af73eb4dc7d8b7454a7308909f02085"));
-    mcKey(x, mc, biFromHex(mem, "4242424242424242424242424242424242424242424242424242424242424240"));
+    x = mcKey(mem, mc, biFromHex(mem, "4242424242424242424242424242424242424242424242424242424242424240"));
     expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
-    x = curve25519Key(mem, biFromHex(mem, "4242424242424242424242424242424242424242424242424242424242424240"));
-    expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));*/
+    expect("25519 256G", curve25519Key(mem, 256), biFromHex(mem, "4300017536976a742ec8747f7505cd6bc80e610d669acab1a1eed36f680d98e8"));
+    x = curve25519Key(mem, "4242424242424242424242424242424242424242424242424242424242424240");
+    expect("25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
     memoryDebug(mem);
     scratchRelease(scratch);

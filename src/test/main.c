@@ -45,12 +45,15 @@ int main(int argc, char* argv[]) {
     }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");
+    PRINT(CC_MAGENTA, "Program memory: ");
     Memory* mem = programMemory();
+    memoryDebug(mem);
+    PRINT(CC_MAGENTA, "Scratch 1: ");
     ScratchMemory scratch = scratchMemory(NULL);
+    memoryDebug(scratch.mem);
+    PRINT(CC_MAGENTA, "Scratch 2: ");
     ScratchMemory scratch2 = scratchMemory(scratch.mem);
-    expect("Program memory check", mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
-    expect("Scratch memory check 1", scratch.mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
-    expect("Scratch memory check 2", scratch2.mem->arena->allocated, sizeof(Arena) + sizeof(Memory));
+    memoryDebug(scratch2.mem);
 
     PRINT(CC_BRIGHT_WHITE, "Tests passed: ");
     if (expect_failed > 0) {

@@ -16,103 +16,75 @@ MontgomeryCurve* mcNew(Memory* mem, const char* a, const char* b, const char* p,
     mc->a24 = biNew(mem);
     mc->g = biFromHex(mem, x);
 
-    biSet(mc->a24, mc->a);
-    biAdd(mc->a24, 2);
+    biAdd(mc->a24, mc->a, 2);
     biDiv(mc->a24, 4);
 
     return mc;
 }
 
-static void dbl(Memory* mem, ProjectedPoint* r, ProjectedPoint* r1, BigInt* a24, BigInt* p) {
-    BigInt* v1 = biNew(mem);
-    biSetMod(v1, p);
-    biSet(v1, r1->x);
-    biAdd(v1, r1->z);
-    biPow(v1, 2);
+static void dbl(Memory* mem, ProjectedPoint* r, const ProjectedPoint* r1, const BigInt* a24, const BigInt* p) {
+    BigInt* v1 = biAdd(mem, r1->x, r1->z, p);
+    biPow(v1, v1, 2, p);
 
-    BigInt* v2 = biNew(mem);
-    biSetMod(v2, p);
-    biSet(v2, r1->x);
-    biSub(v2, r1->z);
-    biPow(v2, 2);
+    BigInt* v2 = biSub(mem, r1->x, r1->z, p);
+    biPow(v2, v2, 2, p);
 
-    biSet(r->x, v1);
-    biMul(r->x, v2);
+    biMul(r->x, v1, v2, p);
 
-    biSub(v1, v2);
+    biSub(v1, v1, v2, p);
 
-    BigInt* v3 = biNew(mem);
-    biSetMod(v3, p);
-    biSet(v3, a24);
-    biMul(v3, v1);
-    biAdd(v3, v2);
+    BigInt* v3 = biMul(mem, a24, v1, p);
+    biAdd(v3, v3, v2, p);
 
-    biSet(r->z, v1);
-    biMul(r->z, v3);
+    biMul(r->z, v1, v3, p);
 }
 
-static void add(Memory* mem, ProjectedPoint* r, ProjectedPoint* r1, ProjectedPoint* r2, BigInt* x, BigInt* p) {
-    BigInt* v0 = biNew(mem);
-    biSetMod(v0, p);
-    biSet(v0, r1->x);
-    biAdd(v0, r1->z);
+static void add(Memory* scratch_mem, ProjectedPoint* r, const ProjectedPoint* r1, const ProjectedPoint* r2, const BigInt* x, const BigInt* p) {
+    BigInt* v0 = biAdd(scratch_mem, r1->x, r1->z, p);
 
-    BigInt* v1 = biNew(mem);
-    biSetMod(v1, p);
-    biSet(v1, r2->x);
-    biSub(v1, r2->z);
-    biMul(v1, v0);
+    BigInt* v1 = biSub(scratch_mem, r2->x, r2->z, p);
+    biMul(v1, v1, v0, p);
 
-    biSet(v0, r1->x);
-    biSub(v0, r1->z);
+    biSub(v0, r1->x, r1->z, p);
 
-    BigInt* v2 = biNew(mem);
-    biSetMod(v2, p);
-    biSet(v2, r2->x);
-    biAdd(v2, r2->z);
-    biMul(v2, v0);
+    BigInt* v2 = biAdd(scratch_mem, r2->x, r2->z, p);
+    biMul(v2, v2, v0, p);
 
-    biSet(r->x, v1);
-    biAdd(r->x, v2);
-    biPow(r->x, 2);
+    biAdd(r->x, v1, v2, p);
+    biPow(r->x, r->x, 2, p);
 
-    biSet(r->z, v1);
-    biSub(r->z, v2);
-    biPow(r->z, 2);
-    biMul(r->z, x);
+    biSub(r->z, v1, v2, p);
+    biPow(r->z, r->z, 2, p);
+    biMul(r->z, r->z, x, p);
 }
 
-static void mul(Memory* mem, BigInt* x, MontgomeryCurve* mc, BigInt* k) {
+static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
+    ScratchMemory scratch = scratchMemory(mem);
+
     ProjectedPoint r0 = {
-        .x = biClone(mem, mc->g),
-        .z = biFromInt(mem, 1)
+        .x = biClone(scratch.mem, mc->g),
+        .z = biFromInt(scratch.mem, 1)
     };
     ProjectedPoint r1 = {
-        .x = biNew(mem),
-        .z = biNew(mem)
+        .x = biNew(scratch.mem),
+        .z = biNew(scratch.mem)
     };
-    biSetMod(r0.x, mc->p);
-    biSetMod(r0.z, mc->p);
-    biSetMod(r1.x, mc->p);
-    biSetMod(r1.z, mc->p);
-    dbl(mem, &r1, &r0, mc->a24, mc->p);
+    dbl(scratch.mem, &r1, &r0, mc->a24, mc->p);
     for (U64 bit = k->length - 1; bit-- > 0; ) {
         if (biBit(k, bit) == 0) {
-            add(mem, &r1, &r0, &r1, mc->g, mc->p);
-            dbl(mem, &r0, &r0, mc->a24, mc->p);
+            add(scratch.mem, &r1, &r0, &r1, mc->g, mc->p);
+            dbl(scratch.mem, &r0, &r0, mc->a24, mc->p);
         } else {
-            add(mem, &r0, &r0, &r1, mc->g, mc->p);
-            dbl(mem, &r1, &r1, mc->a24, mc->p);
+            add(scratch.mem, &r0, &r0, &r1, mc->g, mc->p);
+            dbl(scratch.mem, &r1, &r1, mc->a24, mc->p);
         }
     }
 
-    biSet(x, r0.x);
-    biMul(x, biMulInv(r0.z, mc->p));
-    biMod(x, mc->p);
+    BigInt* x = biMod(biMul(biClone(mem, r0.x), biMulInv(scratch.mem, r0.z, mc->p)), mc->p);
+    scratchRelease(scratch);
+    return x;
 }
 
-void mcKey(BigInt* point, MontgomeryCurve* mc, BigInt* n) {
-    Memory* mem = memoryNew(0);
-    mul(mem, point, mc, n);
-    memoryRelease(mem);
+BigInt* mcKey(Memory* mem, const MontgomeryCurve* mc, const BigInt* n) {
+    return mul(mem, mc, n);
 }
