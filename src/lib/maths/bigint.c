@@ -69,7 +69,6 @@ void biInit(BigInt* bi, Memory* mem, U64 size) {
     bi->length = 0;
     bi->negative = false;
     bi->limbs = allocate(mem, sizeof(bi->limbs) * bi->size);
-    bi->mod = NULL;
 }
 
 static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
@@ -80,14 +79,21 @@ static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
     bi->length = 64 - stdc_leading_zeros(limbs[0]);
     bi->negative = i<0;
     bi->limbs = limbs;
-    bi->mod = NULL;
 }
 
 BigInt* biClone(Memory* mem, const BigInt* source) {
     return biSet(biNew(mem), source);
 }
 
-// === input stuff ===
+BigInt* biFromInt(Memory* mem, I64 i) {
+    return biSetInt(biNew(mem), i);
+}
+
+BigInt* biFromHex(Memory* mem, const char* hex) {
+    return biSetHex(biNew(mem), hex);
+}
+
+// === input ===
 
 BigInt* biSetBi(BigInt* dest, const BigInt* source) {
     resize(dest, source->size, true);
@@ -111,9 +117,6 @@ BigInt* biSetInt(BigInt* bi, I64 i) {
     }
     updateLen(bi);
     return bi;
-}
-BigInt* biFromInt(Memory* mem, I64 i) {
-    return biSetInt(biNew(mem), i);
 }
 
 BigInt* biSetHex(BigInt* bi, const char* hex) {
@@ -141,15 +144,8 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
 
     return bi;
 }
-BigInt* biFromHex(Memory* mem, const char* hex) {
-    return biSetHex(biNew(mem), hex);
-}
 
-void biSetMod(BigInt* bi, BigInt* mod) {
-    bi->mod = mod;
-}
-
-// === output stuff ===
+// === output ===
 
 Slice biToBESlice(Memory* mem, const BigInt* bi) {
     if (bi->length == 0) {
@@ -181,7 +177,7 @@ Slice biToBESlice(Memory* mem, const BigInt* bi) {
     return sliceNew(bytes, bytes_len);
 }
 
-// === comparison stuff ===
+// === comparison ===
 
 bool biBit(const BigInt* bi, U64 bit) {
     if (bit > bi->length) {
@@ -248,11 +244,11 @@ int biCmpInt(const BigInt* a, I64 b) {
     }
 }
 
-// === bit shift stuff ===
+// === bit shifting ===
 
-BigInt* biShiftLeft(BigInt* bi, U64 count) {
+void shiftLeft(BigInt* bi, U64 count) {
     if (biIsZero(bi)) {
-        return bi;
+        return;
     }
 
     U64 move = count / 64;
@@ -281,18 +277,12 @@ BigInt* biShiftLeft(BigInt* bi, U64 count) {
     }
 
     bi->length = bi->length + count;
-
-    if (bi->mod) {
-        biMod(bi, bi->mod);
-    }
-
-    return bi;
 }
 
-BigInt* biShiftRight(BigInt* bi, U64 count) {
+void shiftRight(BigInt* bi, U64 count) {
     if (bi->length <= count) {
         biSetInt(bi, 0);
-        return bi;
+        return;
     }
 
     U64 move = count / 64;
@@ -326,15 +316,21 @@ BigInt* biShiftRight(BigInt* bi, U64 count) {
     }
 
     bi->length = bi->length - count;
-
-    return bi;
 }
 
-// === math stuff ===
+// === lowest level math ===
 
-static void add(BigInt* a, const BigInt* b) {
+static void add(BigInt* dest, const BigInt* a, const BigInt* b);
+static void subtract(BigInt* dest, const BigInt* a, const BigInt* b);
+static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
+static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r);
+static void modulus(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
+
+// === addition ===
+
+static void add(BigInt* dest, const BigInt* a, const BigInt* b) {
     U64 size = maxNormalSize(a, b);
-    resize(a, size, true);
+    resize(dest, size, true);
 
     U64 carry = 0;
     for (U64 i=0; i < size; i++) {
@@ -346,22 +342,93 @@ static void add(BigInt* a, const BigInt* b) {
         if (i < b->size) {
             bi = b->limbs[i];
         }
-        a->limbs[i] = ai + bi + carry;
+        dest->limbs[i] = ai + bi + carry;
         if (carry) {
-            carry = a->limbs[i] <= ai ? 1 : 0;
+            carry = dest->limbs[i] <= ai ? 1 : 0;
         } else {
-            carry = a->limbs[i] < ai ? 1 : 0;
+            carry = dest->limbs[i] < ai ? 1 : 0;
         }
     }
 
     if (carry) {
-        resize(a, size + 1, false);
-        a->limbs[size] = 1;
+        resize(dest, size + 1, false);
+        dest->limbs[size] = 1;
     }
-    updateLen(a);
+    updateLen(dest);
 }
 
-static void sub(BigInt* dest, const BigInt* a, const BigInt* b) {
+BigInt* biAdd_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    if (a->negative == b->negative) {
+        add(dest, a, b);
+    } else {
+        if (biCmpAbs(a, b) >= 0) {
+            subtract(dest, a, b);
+        } else {
+            subtract(dest, b, a);
+            dest->negative = b->negative;
+        }
+    }
+    if (mod) {
+        ScratchMemory scratch = scratchMemory(dest->mem);
+        modulus(scratch.mem, dest, dest, mod);
+        scratchRelease(scratch);
+    } else if (biIsZero(dest)) {
+        dest->negative = false;
+    }
+    return dest;
+}
+BigInt* biAdd_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biAdd_bbb(dest, a, &b, mod);
+}
+BigInt* biAdd_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biAdd_bbb(dest, &a, b, mod);
+}
+BigInt* biAdd_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biAdd_bbb(dest, &a, &b, mod);
+}
+
+BigInt* biAdd_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    BigInt* dest = biNew(mem);
+    biAdd_bbb(dest, a, b, mod);
+    return dest;
+}
+BigInt* biAdd_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biAdd_mbb(mem, a, &b, mod);
+}
+BigInt* biAdd_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biAdd_mbb(mem, &a, b, mod);
+}
+BigInt* biAdd_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biAdd_mbb(mem, &a, &b, mod);
+}
+
+// === subtraction ===
+
+static void subtract(BigInt* dest, const BigInt* a, const BigInt* b) {
     U64 size = maxNormalSize(a, b);
     resize(dest, size, true);
 
@@ -387,96 +454,92 @@ static void sub(BigInt* dest, const BigInt* a, const BigInt* b) {
     updateLen(dest);
 }
 
-BigInt* biAddBi(BigInt* a, const BigInt* b) {
-    if (a->negative == b->negative) {
-        add(a, b);
-    } else {
-        if (biCmpAbs(a, b) >= 0) {
-            sub(a, a, b);
-        } else {
-            sub(a, b, a);
-            a->negative = b->negative;
-        }
-    }
-    if (a->mod) {
-        biMod(a, a->mod);
-    }
-    if (biIsZero(a)) {
-        a->negative = false;
-    }
-    return a;
-}
-BigInt* biAddInt(BigInt* a, I64 b_int) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-
-    return biAddBi(a, &b);
-}
-
-BigInt* biSubBi(BigInt* a, const BigInt* b) {
+BigInt* biSub_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
     if (a->negative != b->negative) {
-        add(a, b);
+        add(dest, a, b);
     } else {
         if (biCmpAbs(a, b) >= 0) {
-            sub(a, a, b);
+            subtract(dest, a, b);
         } else {
-            sub(a, b, a);
-            a->negative = !b->negative;
+            subtract(dest, b, a);
+            dest->negative = !b->negative;
         }
     }
-    if (a->mod) {
-        biMod(a, a->mod);
+    if (mod) {
+        ScratchMemory scratch = scratchMemory(dest->mem);
+        modulus(scratch.mem, dest, dest, mod);
+        scratchRelease(scratch);
+    } else if (biIsZero(dest)) {
+        dest->negative = false;
     }
-    if (biIsZero(a)) {
-        a->negative = false;
-    }
-    return a;
+    return dest;
 }
-BigInt* biSubInt(BigInt* a, I64 b_int) {
+BigInt* biSub_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biSubBi(a, &b);
+    return biSub_bbb(dest, a, &b, mod);
+}
+BigInt* biSub_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biSub_bbb(dest, &a, b, mod);
+}
+BigInt* biSub_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biSub_bbb(dest, &a, &b, mod);
 }
 
-BigInt* biMulBi(BigInt* a, const BigInt* b) {
-    if (biIsZero(a)) {
-        return a;
-    }
-    if (biIsZero(b)) {
-        clear(a, 1);
-        a->length = 0;
-        a->negative = false;
-        return a;
-    }
+BigInt* biSub_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    BigInt* dest = biNew(mem);
+    biSub_bbb(dest, a, b, mod);
+    return dest;
+}
+BigInt* biSub_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biSub_mbb(mem, a, &b, mod);
+}
+BigInt* biSub_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biSub_mbb(mem, &a, b, mod);
+}
+BigInt* biSub_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biSub_mbb(mem, &a, &b, mod);
+}
 
-    U64 size = bitsToSize(a->length + b->length + 1);
-    Memory* temp_memory;
-    BigInt* temp_a;
-    BigInt* temp_b;
-    if (biCmpAbs(a, b) >= 0) {
-        temp_memory = memoryNew((size + b->size) * sizeof(U64));
-        temp_b = biClone(temp_memory, b);
-        temp_a = biClone(temp_memory, a);
-    } else {
-        temp_memory = memoryNew((size + a->size) * sizeof(U64));
-        temp_b = biClone(temp_memory, a);
-        temp_a = biClone(temp_memory, b);
-    }
+// === multiplication ===
 
-    clear(a, size);
-    a->negative = a->negative != b->negative;
+static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b) {
+    BigInt* temp_b = biClone(scratch_mem, a);
+    BigInt* temp_a = biClone(scratch_mem, b);
+
+    clear(dest, bitsToSize(a->length + b->length + 1));
+    dest->negative = a->negative != b->negative;
 
     U64 limb = 0;
     U64 mask = 1;
     U64 shift = 0;
     while (limb < temp_b->size) {
         if (temp_b->limbs[limb] & mask) {
-            biShiftLeft(temp_a, shift);
+            shiftLeft(temp_a, shift);
             shift = 0;
-            add(a, temp_a);
+            add(dest, dest, temp_a);
         }
         shift++;
         mask <<= 1;
@@ -485,147 +548,269 @@ BigInt* biMulBi(BigInt* a, const BigInt* b) {
             mask = 1;
         }
     }
+}
 
-    memoryRelease(temp_memory);
+BigInt* biMul_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
 
-    if (a->mod) {
-        biMod(a, a->mod);
+    if (biCmpAbs(a, b) >= 0) {
+		multiply(scratch.mem, dest, a, b);
+	} else {
+        multiply(scratch.mem, dest, b, a);
     }
 
-    return a;
+    if (mod) {
+        modulus(scratch.mem, dest, dest, mod);
+    }
+
+    scratchRelease(scratch);
+
+    return dest;
 }
-BigInt* biMulInt(BigInt* a, I64 b_int) {
+BigInt* biMul_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biMulBi(a, &b);
+    return biMul_bbb(dest, a, &b, mod);
+}
+BigInt* biMul_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMul_bbb(dest, &a, b, mod);
+}
+BigInt* biMul_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMul_bbb(dest, &a, &b, mod);
 }
 
-static void divide(Memory* mem, BigInt* a, const BigInt* b, BigInt* r) {
-    biSet(r, a);
-    BigInt* orig_b = biClone(mem, b);
-    BigInt* temp_b = biClone(mem, b);
-    BigInt* mask = biFromInt(mem, 1);
+BigInt* biMul_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    BigInt* dest = biNew(mem);
+    biMul_bbb(dest, a, b, mod);
+    return dest;
+}
+BigInt* biMul_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMul_mbb(mem, a, &b, mod);
+}
+BigInt* biMul_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMul_mbb(mem, &a, b, mod);
+}
+BigInt* biMul_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMul_mbb(mem, &a, &b, mod);
+}
 
-    biSetInt(a, 0);
-    a->negative = a->negative != b->negative;
+// === division ===
+
+static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r) {
+    PANIC_IF(biIsZero(b), "Divide by zero!");
+
+    biSet(r, a);
+    BigInt* orig_b = biClone(scratch_mem, b);
+    BigInt* temp_b = biClone(scratch_mem, b);
+    BigInt* mask = biFromInt(scratch_mem, 1);
+
+    biSetInt(dest, 0);
+    dest->negative = a->negative != b->negative;
 
     U64 shift = 0;
     if (r->length > temp_b->length) {
         shift = r->length - b->length;
     }
-    biShiftLeft(temp_b, shift);
+    shiftLeft(temp_b, shift);
     if (biCmpAbs(temp_b, r) < 0) {
-        biShiftLeft(temp_b, 1);
+        shiftLeft(temp_b, 1);
         shift++;
     }
-    biShiftLeft(mask, shift);
+    shiftLeft(mask, shift);
 
     while (biCmpAbs(r, orig_b) >= 0) {
         if (biCmpAbs(r, temp_b) >= 0) {
-            add(a, mask);
-            sub(r, r, temp_b);
+            add(dest, dest, mask);
+            subtract(r, r, temp_b);
         }
         shift = 1;
         if (temp_b->length > r->length) {
             shift = temp_b->length - r->length;
         }
-        biShiftRight(temp_b, shift);
-        biShiftRight(mask, shift);
-    }
-
-    if (a->mod) {
-        biMod(a, a->mod);
+        shiftRight(temp_b, shift);
+        shiftRight(mask, shift);
     }
 }
 
-BigInt* biDivBi(BigInt* a, const BigInt* b) {
-    PANIC_IF(biIsZero(b), "Divide by zero!");
-
-    Memory* temp_memory = memoryNew((a->size + (b->size * 4)) * sizeof(U64));
-    divide(temp_memory, a, b, biNew(temp_memory));
-    memoryRelease(temp_memory);
-
-    return a;
+BigInt* biDiv_bbb(BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    divide(scratch.mem, dest, a, b, r == NULL ? biNew(scratch.mem) : r);
+    scratchRelease(scratch);
+    return dest;
 }
-BigInt* biDivInt(BigInt* a, I64 b_int) {
+BigInt* biDiv_bbi(BigInt* dest, const BigInt* a, I64 b_int, BigInt* r) {
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biDivBi(a, &b);
+    return biDiv_bbb(dest, a, &b, r);
 }
-
-BigInt* biDivRemBi(BigInt* a, const BigInt* b, BigInt* r) {
-    PANIC_IF(biIsZero(b), "Divide by zero!");
-
-    Memory* temp_memory = memoryNew((b->size * 4) * sizeof(U64));
-    divide(temp_memory, a, b, r);
-    memoryRelease(temp_memory);
-
-    return a;
+BigInt* biDiv_bib(BigInt* dest, I64 a_int, const BigInt* b, BigInt* r) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biDiv_bbb(dest, &a, b, r);
 }
-BigInt* biDivRemInt(BigInt* a, I64 b_int, BigInt* r) {
+BigInt* biDiv_bii(BigInt* dest, I64 a_int, I64 b_int, BigInt* r) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biDivRemBi(a, &b, r);
+    return biDiv_bbb(dest, &a, &b, r);
 }
 
-BigInt* biModBi(BigInt* a, const BigInt* b) {
+BigInt* biDiv_mbb(Memory* mem, const BigInt* a, const BigInt* b, BigInt* r) {
+    BigInt* dest = biNew(mem);
+    biDiv_bbb(dest, a, b, r);
+    return dest;
+}
+BigInt* biDiv_mbi(Memory* mem, const BigInt* a, I64 b_int, BigInt* r) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biDiv_mbb(mem, a, &b, r);
+}
+BigInt* biDiv_mib(Memory* mem, I64 a_int, const BigInt* b, BigInt* r) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biDiv_mbb(mem, &a, b, r);
+}
+BigInt* biDiv_mii(Memory* mem, I64 a_int, I64 b_int, BigInt* r) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biDiv_mbb(mem, &a, &b, r);
+}
+
+// === modulus ===
+
+void modulus(Memory* scratch_mem, BigInt* r, const BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
-    Memory* temp_memory = memoryNew((b->size * 4) * sizeof(U64));
-    BigInt* orig_b = biClone(temp_memory, b);
-    BigInt* temp_b = biClone(temp_memory, b);
-    BigInt* mask = biFromInt(temp_memory, 1);
+    biSet(r, a);
+    BigInt* orig_b = biClone(scratch_mem, b);
+    BigInt* temp_b = biClone(scratch_mem, b);
+    BigInt* mask = biFromInt(scratch_mem, 1);
 
     U64 shift = 0;
-    if (a->length > temp_b->length) {
-        shift = a->length - b->length;
+    if (r->length > temp_b->length) {
+        shift = r->length - b->length;
     }
-    biShiftLeft(temp_b, shift);
-    if (biCmpAbs(temp_b, a) < 0) {
-        biShiftLeft(temp_b, 1);
+    shiftLeft(temp_b, shift);
+    if (biCmpAbs(temp_b, r) < 0) {
+        shiftLeft(temp_b, 1);
         shift++;
     }
-    biShiftLeft(mask, shift);
+    shiftLeft(mask, shift);
 
-    while (biCmpAbs(a, orig_b) >= 0) {
-        if (biCmpAbs(a, temp_b) >= 0) {
-            sub(a, a, temp_b);
+    while (biCmpAbs(r, orig_b) >= 0) {
+        if (biCmpAbs(r, temp_b) >= 0) {
+            subtract(r, r, temp_b);
         }
         shift = 1;
-        if (temp_b->length > a->length) {
-            shift = temp_b->length - a->length;
+        if (temp_b->length > r->length) {
+            shift = temp_b->length - r->length;
         }
-        biShiftRight(temp_b, shift);
-        biShiftRight(mask, shift);
+        shiftRight(temp_b, shift);
+        shiftRight(mask, shift);
     }
 
-    if (a->negative) {
-        sub(a, b, a);
-        a->negative = false;
+    if (r->negative) {
+        subtract(r, b, r);
+        r->negative = false;
     }
-
-    memoryRelease(temp_memory);
-
-    return a;
 }
-BigInt* biModInt(BigInt* a, I64 b_int) {
+
+BigInt* biMod_bbb(BigInt* dest, const BigInt* a, const BigInt* b) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    modulus(scratch.mem, dest, a, b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biMod_bbi(BigInt* dest, const BigInt* a, I64 b_int) {
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biModBi(a, &b);
+    return biMod_bbb(dest, a, &b);
+}
+BigInt* biMod_bib(BigInt* dest, I64 a_int, const BigInt* b) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMod_bbb(dest, &a, b);
+}
+BigInt* biMod_bii(BigInt* dest, I64 a_int, I64 b_int) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMod_bbb(dest, &a, &b);
 }
 
-BigInt* biPowBi(BigInt* a, const BigInt* b) {
-    Memory* temp_memory = memoryNew((a->size + b->size) * sizeof(U64));
-    BigInt* temp_a = biClone(temp_memory, a);
-    BigInt* temp_b = biClone(temp_memory, b);
+BigInt* biMod_mbb(Memory* mem, const BigInt* a, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    biMod_bbb(dest, a, b);
+    return dest;
+}
+BigInt* biMod_mbi(Memory* mem, const BigInt* a, I64 b_int) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMod_mbb(mem, a, &b);
+}
+BigInt* biMod_mib(Memory* mem, I64 a_int, const BigInt* b) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMod_mbb(mem, &a, b);
+}
+BigInt* biMod_mii(Memory* mem, I64 a_int, I64 b_int) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biMod_mbb(mem, &a, &b);
+}
+
+// === exponentiation ===
+
+BigInt* biPow_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+
+    biSet(dest, a);
+    BigInt* temp_a = biClone(scratch.mem, a);
+    BigInt* temp_b = biClone(scratch.mem, b);
 
     bool go = false;
     U64 limb = temp_b->size;
@@ -638,9 +823,15 @@ BigInt* biPowBi(BigInt* a, const BigInt* b) {
                     go = true;
                 }
             } else {
-                biMul(a, a);
+                multiply(scratch.mem, dest, dest, dest);
+                if (mod) {
+                    modulus(scratch.mem, dest, dest, mod);
+                }
                 if (temp_b->limbs[limb] & mask) {
-                    biMul(a, temp_a);
+                    multiply(scratch.mem, dest, dest, temp_a);
+                    if (mod) {
+                        modulus(scratch.mem, dest, dest, mod);
+                    }
                 }
             }
             mask >>= 1;
@@ -648,34 +839,78 @@ BigInt* biPowBi(BigInt* a, const BigInt* b) {
 
     } while (limb>0);
 
-    memoryRelease(temp_memory);
+    scratchRelease(scratch);
 
-    return a;
+    return dest;
 }
-BigInt* biPowInt(BigInt* a, I64 b_int) {
+BigInt* biPow_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
     BigInt b;
     U64 b_limbs[1];
     biInitInt(&b, b_limbs, b_int);
-
-    return biPowBi(a, &b);
+    return biPow_bbb(dest, a, &b, mod);
+}
+BigInt* biPow_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biPow_bbb(dest, &a, b, mod);
+}
+BigInt* biPow_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biPow_bbb(dest, &a, &b, mod);
 }
 
-BigInt* biMulInv(BigInt* a, const BigInt* mod) {
-    Memory* temp_memory = memoryNew(a->size * 7 * sizeof(U64));
+BigInt* biPow_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    BigInt* dest = biNew(mem);
+    biPow_bbb(dest, a, b, mod);
+    return dest;
+}
+BigInt* biPow_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biPow_mbb(mem, a, &b, mod);
+}
+BigInt* biPow_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biPow_mbb(mem, &a, b, mod);
+}
+BigInt* biPow_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt b;
+    U64 b_limbs[1];
+    biInitInt(&b, b_limbs, b_int);
+    return biPow_mbb(mem, &a, &b, mod);
+}
 
-    BigInt* old_t = biFromInt(temp_memory, 0);
-    BigInt* t = biFromInt(temp_memory, 1);
-    BigInt* new_t = biNew(temp_memory);
+// === multiplicative inverse ===
 
-    BigInt* old_r = biClone(temp_memory, mod);
-    BigInt* r = biClone(temp_memory, a);
-    BigInt* new_r = biNew(temp_memory);
+BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(mem);
 
-    BigInt* q = biNew(temp_memory);
+    BigInt* old_t = biFromInt(scratch.mem, 0);
+    BigInt* t = biFromInt(scratch.mem, 1);
+    BigInt* new_t = biNew(scratch.mem);
+
+    BigInt* old_r = biClone(scratch.mem, mod);
+    BigInt* r = biClone(scratch.mem, a);
+    BigInt* new_r = biNew(scratch.mem);
+
+    BigInt* q = biNew(scratch.mem);
 
     while (!biIsZero(r)) {
-        biDivRem(biSet(q, old_r), r, new_r);
-        biSub(biSet(new_t, old_t), biMul(q, t));
+        divide(scratch.mem, q, old_r, r, new_r);
+        multiply(scratch.mem, new_t, q, t);
+        subtract(new_t, old_t, new_t);
 
         biSet(old_t, t);
         biSet(t, new_t);
@@ -684,12 +919,13 @@ BigInt* biMulInv(BigInt* a, const BigInt* mod) {
     }
 
     PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
-    if (old_t->negative) {
-        biAdd(old_t, mod);
+
+    BigInt* dest = biClone(mem, old_t);
+    if (dest->negative) {
+        add(dest, dest, mod);
     }
-    biSet(a, old_t);
 
-    memoryRelease(temp_memory);
+    scratchRelease(scratch);
 
-    return a;
+    return dest;
 }

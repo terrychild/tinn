@@ -53,21 +53,21 @@ void expectBool(const char* name, bool value, bool expected) {
 }
 
 void expectBigInt(const char* name, BigInt* value, BigInt* expected) {
-    Memory* temp_allocator = memoryNew((value->size + expected->size) * 8);
+    ScratchMemory scratch = scratchMemory(NULL);
     if (biCmp(value, expected)==0) {
         PRINT(CC_GREEN, "Passed");
         PRINT(CC_BRIGHT_WHITE, ": %s:\n", name);
-        hexDump(biToBESlice(temp_allocator, expected));
+        hexDump(biToBESlice(scratch.mem, expected));
         expect_passed++;
     } else {
         PRINT(CC_BRIGHT_RED, "Failed");
         PRINT(CC_BRIGHT_WHITE, ": %s, expected:\n", name);
-        hexDump(biToBESlice(temp_allocator, expected));
+        hexDump(biToBESlice(scratch.mem, expected));
         PRINT(CC_BRIGHT_WHITE, "got:\n");
-        hexDump(biToBESlice(temp_allocator, value));
+        hexDump(biToBESlice(scratch.mem, value));
         expect_failed++;
     }
-    memoryRelease(temp_allocator);
+    scratchRelease(scratch);
 }
 
 void expectVoidPtr(const char* name, const void* value, const void* expected) {
