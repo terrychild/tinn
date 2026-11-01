@@ -894,8 +894,8 @@ BigInt* biPow_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
 
 // === multiplicative inverse ===
 
-BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod) {
-    ScratchMemory scratch = scratchMemory(mem);
+BigInt* biMulInv_bbb(BigInt* dest, const BigInt* a, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
 
     BigInt* old_t = biFromInt(scratch.mem, 0);
     BigInt* t = biFromInt(scratch.mem, 1);
@@ -910,7 +910,7 @@ BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod) {
     while (!biIsZero(r)) {
         divide(scratch.mem, q, old_r, r, new_r);
         multiply(scratch.mem, new_t, q, t);
-        subtract(new_t, old_t, new_t);
+        biSub_bbb(new_t, old_t, new_t, mod);
 
         biSet(old_t, t);
         biSet(t, new_t);
@@ -920,7 +920,7 @@ BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod) {
 
     PANIC_IF(biCmp(old_r, 1) != 0, "GCD is not 1 so the inverse does not exsis\n");
 
-    BigInt* dest = biClone(mem, old_t);
+    biSet(dest, old_t);
     if (dest->negative) {
         add(dest, dest, mod);
     }
@@ -928,4 +928,52 @@ BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod) {
     scratchRelease(scratch);
 
     return dest;
+}
+BigInt* biMulInv_bbi(BigInt* dest, const BigInt* a, I64 mod_int) {
+    BigInt mod;
+    U64 mod_limbs[1];
+    biInitInt(&mod, mod_limbs, mod_int);
+    return biMulInv_bbb(dest, a, &mod);
+}
+BigInt* biMulInv_bib(BigInt* dest, I64 a_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMulInv_bbb(dest, &a, mod);
+}
+BigInt* biMulInv_bii(BigInt* dest, I64 a_int, I64 mod_int) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt mod;
+    U64 mod_limbs[1];
+    biInitInt(&mod, mod_limbs, mod_int);
+    return biMulInv_bbb(dest, &a, &mod);
+}
+
+BigInt* biMulInv_mbb(Memory* mem, const BigInt* a, const BigInt* mod) {
+    BigInt* dest = biNew(mem);
+    biMulInv_bbb(dest, a, mod);
+    return dest;
+}
+BigInt* biMulInv_mbi(Memory* mem, const BigInt* a, I64 mod_int) {
+    BigInt mod;
+    U64 mod_limbs[1];
+    biInitInt(&mod, mod_limbs, mod_int);
+    return biMulInv_mbb(mem, a, &mod);
+}
+BigInt* biMulInv_mib(Memory* mem, I64 a_int, const BigInt* mod) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    return biMulInv_mbb(mem, &a, mod);
+}
+BigInt* biMulInv_mii(Memory* mem, I64 a_int, I64 mod_int) {
+    BigInt a;
+    U64 a_limbs[1];
+    biInitInt(&a, a_limbs, a_int);
+    BigInt mod;
+    U64 mod_limbs[1];
+    biInitInt(&mod, mod_limbs, mod_int);
+    return biMulInv_mbb(mem, &a, &mod);
 }

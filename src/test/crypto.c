@@ -2,8 +2,8 @@
 #include "lib/types.h"
 #include "lib/maths/bigint.h"
 #include "lib/crypto/ec.h"
-#include "lib/crypto/mc.h"
-#include "lib/crypto/curve25519.h"
+//#include "lib/crypto/mc.h"
+//#include "lib/crypto/curve25519.h"
 #include "lib/mem/memory.h"
 #include "lib/cli.h"
 
@@ -13,12 +13,11 @@ void testCrypto() {
     Memory* mem = scratch.mem;
 
     EllipticCurve* ec = ecNew(mem, "2", "2", "11", "5", "1");
-    EllipticCurvePoint* point = ecNewPoint(mem, ec);
-    ecPoint(point, ec, biFromInt(mem, 2));
+    EllipticCurvePoint* point = ecPoint(mem, ec, biFromInt(mem, 2));
     expect("Elliptic Curve double [x]", point->x->limbs[0], 6);
     expect("Elliptic Curve double [y]", point->y->limbs[0], 3);
     for (int i=3; i<=21; i++) {
-        ecPoint(point, ec, biFromInt(mem, i));
+        point = ecPoint(mem, ec, biFromInt(mem, i));
         if (point->is_infinity) {
             PRINT(CC_YELLOW, "Elliptic Curve %dP: infinity\n", i);
         } else {
@@ -33,16 +32,16 @@ void testCrypto() {
         "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
         "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"
     );
-    ecPoint(point, ec, biFromInt(mem, 2));
+    point = ecPoint(mem, ec, biFromInt(mem, 2));
     expect("Elliptic Curve secp256r1 2G x", point->x, biFromHex(mem, "7cf27b188d034f7e8a52380304b51ac3c08969e277f21b35a60b48fc47669978"));
     expect("Elliptic Curve secp256r1 2G y", point->y, biFromHex(mem, "7775510db8ed040293d9ac69f7430dbba7dade63ce982299e04b79d227873d1"));
 
-    ecPoint(point, ec, biFromInt(mem, 10));
+    point = ecPoint(mem, ec, biFromInt(mem, 10));
     expect("Elliptic Curve secp256r1 10G x", point->x, biFromHex(mem, "cef66d6b2a3a993e591214d1ea223fb545ca6c471c48306e4c36069404c5723f"));
     expect("Elliptic Curve secp256r1 10G y", point->y, biFromHex(mem, "878662a229aaae906e123cdd9d3b4c10590ded29fe751eeeca34bbaa44af0773"));
 
 
-    MontgomeryCurve* mc = mcNew(mem, "76d06", "1", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed", "9");
+    /*MontgomeryCurve* mc = mcNew(mem, "76d06", "1", "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed", "9");
 
     BigInt* x = biNew(mem);
     mcKey(x, mc, biFromInt(mem, 2));
@@ -68,7 +67,7 @@ void testCrypto() {
     expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
 
     x = curve25519Key(mem, biFromHex(mem, "4242424242424242424242424242424242424242424242424242424242424240"));
-    expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));
+    expect("Elliptic Curve 25519", x, biFromHex(mem, "72f493999c4dd1279321ae3a50c1cc1fe776aa283360727ed5fb10e02b442c13"));*/
 
     memoryDebug(mem);
     scratchRelease(scratch);

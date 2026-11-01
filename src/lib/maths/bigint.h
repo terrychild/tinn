@@ -1,6 +1,7 @@
 #ifndef LIB_MATHS_BIGINT_H
 #define LIB_MATHS_BIGINT_H
 
+#include <stdlib.h>
 #include "lib/macros.h"
 #include "lib/types.h"
 
@@ -376,6 +377,55 @@ BigInt* biPow_mii(Memory* mem, I64 a, I64 b, const BigInt* mod);
 
 // === multiplicative inverse ===
 
-BigInt* biMulInv(Memory* mem, const BigInt* a, const BigInt* mod);
+BigInt* biMulInv_bbb(BigInt* dest, const BigInt* a, const BigInt* mod);
+BigInt* biMulInv_bbi(BigInt* dest, const BigInt* a, I64 mod);
+BigInt* biMulInv_bib(BigInt* dest, I64 a, const BigInt* mod);
+BigInt* biMulInv_bii(BigInt* dest, I64 a, I64 mod);
+BigInt* biMulInv_mbb(Memory* mem, const BigInt* a, const BigInt* mod);
+BigInt* biMulInv_mbi(Memory* mem, const BigInt* a, I64 mod);
+BigInt* biMulInv_mib(Memory* mem, I64 a, const BigInt* mod);
+BigInt* biMulInv_mii(Memory* mem, I64 a, I64 mod);
+
+#define biMulInv_dispatch(dest, a, mod) _Generic((dest), \
+    BigInt*: _Generic((a), \
+        const BigInt*: _Generic((mod), \
+            const BigInt*: biMulInv_bbb, \
+            BigInt*: biMulInv_bbb, \
+            default: biMulInv_bbi  \
+        ), \
+        BigInt*: _Generic((mod), \
+            const BigInt*: biMulInv_bbb, \
+            BigInt*: biMulInv_bbb, \
+            default: biMulInv_bbi  \
+        ), \
+        default: _Generic((mod), \
+            const BigInt*: biMulInv_bib, \
+            BigInt*: biMulInv_bib, \
+            default: biMulInv_bii  \
+        )  \
+    ), \
+    Memory*: _Generic((a), \
+        const BigInt*: _Generic((mod), \
+            const BigInt*: biMulInv_mbb, \
+            BigInt*: biMulInv_mbb, \
+            default: biMulInv_mbi  \
+        ), \
+        BigInt*: _Generic((mod), \
+            const BigInt*: biMulInv_mbb, \
+            BigInt*: biMulInv_mbb, \
+            default: biMulInv_mbi  \
+        ), \
+        default: _Generic((mod), \
+            const BigInt*: biMulInv_mib, \
+            BigInt*: biMulInv_mib, \
+            default: biMulInv_mii  \
+        )  \
+    ) \
+)(dest, a, mod)
+
+#define biMulInv_2(a, mod)       biMulInv_dispatch(   a, a, mod)
+#define biMulInv_3(dest, a, mod) biMulInv_dispatch(dest, a, mod)
+
+#define biMulInv(...) CONCAT(biMulInv_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 #endif
