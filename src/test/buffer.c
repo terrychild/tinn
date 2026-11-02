@@ -25,7 +25,7 @@ void testBuffer() {
     expect(" size", buf->size, 8);
     expect(" total allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 8);
 
-    bufAppendStr(buf, " world!");
+    bufAppend(buf, " world!");
     expect("Appeding a string", bufAsStr(buf), "hello world!");
     expect(" length", buf->length, 12);
     expect(" size", buf->size, 16);
@@ -72,15 +72,15 @@ void testBuffer() {
     allocate(mem, 1);
     expect("allocate something else", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 32 + sizeof(Allocation) + 8);
 
-    bufAppendStr(buf, "012345");
-    expect("after next append", buf->length, 32);
+    bufAppend(buf, "01234");
+    expect("after next append", buf->length, 31);
     expect(" size", buf->size, 32);
     expect(" total allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 32 + sizeof(Allocation) + 8);
 
-    bufAppendStr(buf, "6");
-    expect("after resize and move", bufAsStr(buf), "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456");
-    expect(" length", buf->length, 33);
-    expect(" size", buf->size, 64);
+    bufAppend(buf, "5");
+    expect("after resize and move", bufAsStr(buf), "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345");
+    expect(" length", buf->length, 32);
+    expect(" size", buf->size, 64); // the null terminator required more space
     expect(" total allocated", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 32 + sizeof(Allocation) + 8 + sizeof(Allocation) + 64);
 
     memoryDebug(mem);
@@ -90,11 +90,11 @@ void testBuffer() {
 
     allocate(mem, 48);
     buf = bufNew(mem, 8);
-    bufAppendStr(buf, "more testing");
+    bufAppend(buf, "more testing");
     expect("allocator with data and buf", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 48 + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 16);
     memoryDebug(mem);
     buf = bufNew(mem, 8);
-    bufAppendStr(buf, "double buffer time!");
+    bufAppend(buf, "double buffer time!");
     expect("allocator with data and two buffers", mem->arena->allocated, sizeof(Arena) + sizeof(Memory) + sizeof(Allocation) + 48 + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 16 + sizeof(Allocation) + sizeof(Buffer) + sizeof(Allocation) + 32);
     memoryDebug(mem);
     memoryReset(mem);

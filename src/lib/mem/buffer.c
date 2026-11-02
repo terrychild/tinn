@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <assert.h>
 #include <stdarg.h>
 
 #include "lib/mem/memory.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/arena.h"
 #include "lib/mem/mfile.h"
+#include "lib/log.h"
 
 Buffer* bufNew(Memory* mem, U64 size) {
     Buffer* buf = allocate(mem, sizeof(Buffer));
@@ -15,7 +15,7 @@ Buffer* bufNew(Memory* mem, U64 size) {
     return buf;
 }
 void bufInit(Buffer* buf, Memory* mem, U64 size) {
-    assert(size > 0);
+    PANIC_IF(size == 0, "Initial buffer size can not be zero.");
 
     buf->mem = mem;
     buf->size = size;
@@ -37,24 +37,21 @@ static void ensure(Buffer* buf, U64 n) {
     }
 }
 
-void bufAppend(Buffer* buf, const U8* data, U64 n) {
+void bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
     ensure(buf, n);
 
     memcpy(buf->start + buf->length, data, n);
     buf->length += n;
 }
 void bufAppendSlice(Buffer* buf, const Slice slice) {
-    bufAppend(buf, slice.start, slice.length);
+    bufAppendBytes(buf, slice.start, slice.length);
 }
-void bufAppendMFile(Buffer* buf, MappedFile* file) {
+void bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
     if (file) {
-        bufAppend(buf, file->start, file->length);
+        bufAppendBytes(buf, file->start, file->length);
     }
 }
-void bufAppendStr(Buffer* buf, const char* str) {
-    bufAppend(buf, (U8*)str, strlen(str));
-}
-void bufAppendFormat(Buffer* buf, const char* format, ...) {
+void bufAppendStr(Buffer* buf, const char* format, ...) {
     va_list args;
     va_start(args, format);
     U64 n = vsnprintf(NULL, (U64)0, format, args);
@@ -77,7 +74,7 @@ BufferSpace bufReadyWrite(Buffer* buf, U64 min_size) {
     };
 }
 void bufConfirmWrite(Buffer* buf, U64 n) {
-    assert(buf->length + n <= buf->size);
+    PANIC_IF(buf->length + n > buf->size, "Writing beyond the end of the buffer");
     buf->length += n;
 }
 

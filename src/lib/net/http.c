@@ -84,33 +84,33 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
     }
 
     // status line
-    bufAppendFormat(header, "%s %d %s\r\n", exchange->response->version, exchange->response->status_code, status_text[exchange->response->status_code]);
+    bufAppend(header, "%s %d %s\r\n", exchange->response->version, exchange->response->status_code, status_text[exchange->response->status_code]);
 
     // date header
-	bufAppendStr(header, "Date: ");
+	bufAppend(header, "Date: ");
 	toImfDate((char *)bufReadyWrite(header, IMF_DATE_LEN).start, IMF_DATE_LEN, time(NULL));
 	bufConfirmWrite(header, IMF_DATE_LEN-1);
-	bufAppendStr(header, "\r\n");
+	bufAppend(header, "\r\n");
 
 	// server header
-	bufAppendStr(header, "Server: Tinn\r\n");
+	bufAppend(header, "Server: Tinn\r\n");
 
 	// content headers
     if (exchange->response->status_code != HTTP_NO_CONTENT && exchange->response->status_code != HTTP_NOT_MODIFIED) {
-        bufAppendFormat(header, "Content-Length: %ld\r\n", exchange->response->content_length);
+        bufAppend(header, "Content-Length: %ld\r\n", exchange->response->content_length);
         if (exchange->response->content_type.length > 0) {
-            bufAppendFormat(header, "Content-Type: %.*s\r\n", exchange->response->content_type.length, exchange->response->content_type.start);
+            bufAppend(header, "Content-Type: %.*s\r\n", exchange->response->content_type.length, exchange->response->content_type.start);
         }
     }
 
 	// other headers
 	for (size_t i=0; i<exchange->response->headers->count; i++) {
         HttpHeader* kvp = (HttpHeader*)arrayGet(exchange->response->headers, i);
-		bufAppendFormat(header, "%.*s: %.*s\r\n", kvp->name.length, kvp->name.start, kvp->value.length, kvp->value.start);
+		bufAppend(header, "%.*s: %.*s\r\n", kvp->name.length, kvp->name.start, kvp->value.length, kvp->value.start);
 	}
 
 	// close with empty line
-	bufAppendStr(header, "\r\n");
+	bufAppend(header, "\r\n");
 
     return bufAsSlice(header);
 }
@@ -185,7 +185,7 @@ void httpServerSendNotModified(HttpServerExchange* exchange) {
 
 void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code) {
     Buffer* content = bufNew(exchange->scope, KiB(4));
-    bufAppendFormat(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
+    bufAppend(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
     httpServerSetStatus(exchange, status_code);
     httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));

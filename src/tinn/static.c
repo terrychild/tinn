@@ -15,13 +15,13 @@ bool staticContent(HttpServerExchange* exchange) {
     // build a local path
     URL* target = exchange->request->target;
     Buffer* local_path = bufNew(exchange->scope, 1 + target->path.length + 11 + 1); // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
-    bufAppendStr(local_path, ".");
-    bufAppendSlice(local_path, target->path);
+    bufAppend(local_path, ".");
+    bufAppend(local_path, target->path);
 
     Slice last_segment = *(Slice*)arrayPeek(target->path_segments);
 
     if (last_segment.length == 0) {
-        bufAppendStr(local_path, "index.html");
+        bufAppend(local_path, "index.html");
         last_segment = sliceFromStr("index.html");
     }
 
@@ -90,7 +90,7 @@ bool staticContent(HttpServerExchange* exchange) {
 
     } else if (S_ISDIR(attrib.st_mode)) {
         // check for index
-        bufAppendStr(local_path, "/index.html");
+        bufAppend(local_path, "/index.html");
         if (stat(local_path_str, &attrib) == 0) {
             if (S_ISREG(attrib.st_mode)) {
                 Slice new_path = bufSlice(local_path, 1, target->path.length + 2);

@@ -2,6 +2,7 @@
 #define LIB_MEM_BUFFER_H
 
 #include "lib/types.h"
+#include "lib/macros.h"
 
 struct Buffer {
     Memory* mem;
@@ -19,11 +20,22 @@ Buffer* bufNew(Memory* mem, U64 size);
 void bufInit(Buffer* buf, Memory* mem, U64 size);
 void bufReset(Buffer* buf);
 
-void bufAppend(Buffer* buf, const U8* data, U64 n);
+void bufAppendBytes(Buffer* buf, const U8* data, U64 n);
 void bufAppendSlice(Buffer* buf, const Slice slice);
-void bufAppendMFile(Buffer* buf, MappedFile* file);
-void bufAppendStr(Buffer* buf, const char* str);
-void bufAppendFormat(Buffer* buf, const char* format, ...);
+void bufAppendMappedFile(Buffer* buf, const MappedFile* file);
+void bufAppendStr(Buffer* buf, const char* format, ...);
+
+# define bufAppend(buf, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+    const U8*: bufAppendBytes, \
+    U8*: bufAppendBytes, \
+    const Slice: bufAppendSlice, \
+    Slice: bufAppendSlice, \
+    const MappedFile*: bufAppendMappedFile, \
+    MappedFile*: bufAppendMappedFile, \
+    const char*: bufAppendStr, \
+    char*: bufAppendStr \
+)(buf, __VA_ARGS__)
+
 
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size);
 void bufConfirmWrite(Buffer* buf, U64 n);

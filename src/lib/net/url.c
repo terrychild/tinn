@@ -38,8 +38,8 @@ static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool is_l
 static void addPath(Memory* mem, URL* url, U64 length) {
     Buffer* path = bufNew(mem, length);
     for (U64 i=0; i<url->path_segments->count; i++) {
-        bufAppendStr(path, "/");
-        bufAppendSlice(path, *(Slice*)arrayGet(url->path_segments, i));
+        bufAppend(path, "/");
+        bufAppend(path, *(Slice*)arrayGet(url->path_segments, i));
     }
     url->path = bufAsSlice(path);
 }
