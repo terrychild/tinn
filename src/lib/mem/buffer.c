@@ -7,6 +7,7 @@
 #include "lib/mem/buffer.h"
 #include "lib/mem/arena.h"
 #include "lib/mem/mfile.h"
+#include "lib/bytes.h"
 #include "lib/log.h"
 
 Buffer* bufNew(Memory* mem, U64 size) {
@@ -49,38 +50,86 @@ void bufConfirmWrite(Buffer* buf, U64 n) {
     buf->length += n;
 }
 
-BufferSlice bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
+U64 bufReserve(Buffer* buf, U64 n) {
     ensure(buf, n);
     U64 offset = buf->length;
     buf->length += n;
+    return offset;
+}
 
-    memcpy(buf->start + offset, data, n);
-    return (BufferSlice) { buf, offset, n};
+void bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
+    ensure(buf, n);
+    memcpy(buf->start + buf->length, data, n);
+    buf->length += n;
 }
-BufferSlice bufAppendSlice(Buffer* buf, const Slice slice) {
-    return bufAppendBytes(buf, slice.start, slice.length);
+void bufAppendSlice(Buffer* buf, const Slice slice) {
+    bufAppendBytes(buf, slice.start, slice.length);
 }
-BufferSlice bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
+void bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
     if (file) {
-        return bufAppendBytes(buf, file->start, file->length);
+        bufAppendBytes(buf, file->start, file->length);
     }
-    return (BufferSlice) { buf, buf->length, 0};
 }
-BufferSlice bufAppendStr(Buffer* buf, const char* format, ...) {
+void bufAppendStr(Buffer* buf, const char* format, ...) {
     va_list args;
     va_start(args, format);
     U64 n = vsnprintf(NULL, (U64)0, format, args);
     va_end(args);
 
     ensure(buf, n+1);
-    U64 offset = buf->length;
-    buf->length += n;
 
     va_start(args, format);
-    vsnprintf((char*)buf->start + offset, n+1, format, args);
+    vsnprintf((char*)buf->start + buf->length, n+1, format, args);
     va_end(args);
 
-    return (BufferSlice) { buf, offset, n};
+    buf->length += n;
+}
+
+void bufAppendBE8(Buffer* buf, U8 i) {
+    ensure(buf, 1);
+    toBE8(buf->start + buf->length, i);
+    buf->length += 1;
+}
+void bufAppendBE16(Buffer* buf, U16 i) {
+    ensure(buf, 1);
+    toBE16(buf->start + buf->length, i);
+    buf->length += 2;
+}
+void bufAppendBE24(Buffer* buf, U32 i) {
+    ensure(buf, 1);
+    toBE24(buf->start + buf->length, i);
+    buf->length += 3;
+}
+void bufAppendBE32(Buffer* buf, U32 i) {
+    ensure(buf, 1);
+    toBE32(buf->start + buf->length, i);
+    buf->length += 4;
+}
+void bufAppendBE64(Buffer* buf, U64 i) {
+    ensure(buf, 1);
+    toBE64(buf->start + buf->length, i);
+    buf->length += 8;
+}
+
+void bufSetBE8(Buffer* buf, U64 offset, U8 i) {
+    PANIC_IF(offset + 1 > buf->length, "Writing beyond the end of the buffer");
+    toBE8(buf->start + offset, i);
+}
+void bufSetBE16(Buffer* buf, U64 offset, U16 i) {
+    PANIC_IF(offset + 2 > buf->length, "Writing beyond the end of the buffer");
+    toBE16(buf->start + offset, i);
+}
+void bufSetBE24(Buffer* buf, U64 offset, U32 i) {
+    PANIC_IF(offset + 3 > buf->length, "Writing beyond the end of the buffer");
+    toBE24(buf->start + offset, i);
+}
+void bufSetBE32(Buffer* buf, U64 offset, U32 i) {
+    PANIC_IF(offset + 4 > buf->length, "Writing beyond the end of the buffer");
+    toBE32(buf->start + offset, i);
+}
+void bufSetBE64(Buffer* buf, U64 offset, U64 i) {
+    PANIC_IF(offset + 8 > buf->length, "Writing beyond the end of the buffer");
+    toBE64(buf->start + offset, i);
 }
 
 Slice bufAsSlice(Buffer* buf) {
@@ -93,8 +142,4 @@ char* bufAsStr(Buffer* buf) {
     ensure(buf, 1);
     buf->start[buf->length] = '\0';
     return (char*)buf->start;
-}
-
-U8* bsStart(BufferSlice slice) {
-    return slice.buf->start + slice.offset;
 }

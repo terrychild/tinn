@@ -16,12 +16,6 @@ typedef struct {
     U8* start;
 } BufferSpace;
 
-typedef struct {
-    Buffer* buf;
-    U64 offset;
-    U64 length;
-} BufferSlice;
-
 Buffer* bufNew(Memory* mem, U64 size);
 void bufInit(Buffer* buf, Memory* mem, U64 size);
 void bufReset(Buffer* buf);
@@ -29,12 +23,19 @@ void bufReset(Buffer* buf);
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size);
 void bufConfirmWrite(Buffer* buf, U64 n);
 
-BufferSlice bufAppendBytes(Buffer* buf, const U8* data, U64 n);
-BufferSlice bufAppendSlice(Buffer* buf, const Slice slice);
-BufferSlice bufAppendMappedFile(Buffer* buf, const MappedFile* file);
-BufferSlice bufAppendStr(Buffer* buf, const char* format, ...);
+U64 bufReserve(Buffer* buf, U64 n);
 
-# define bufAppend(buf, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+void bufAppendBytes(Buffer* buf, const U8* data, U64 n);
+void bufAppendSlice(Buffer* buf, const Slice slice);
+void bufAppendMappedFile(Buffer* buf, const MappedFile* file);
+void bufAppendStr(Buffer* buf, const char* format, ...);
+void bufAppendBE8(Buffer* buf, U8 i);
+void bufAppendBE16(Buffer* buf, U16 i);
+void bufAppendBE24(Buffer* buf, U32 i);
+void bufAppendBE32(Buffer* buf, U32 i);
+void bufAppendBE64(Buffer* buf, U64 i);
+
+#define bufAppend(buf, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
     const U8*: bufAppendBytes, \
     U8*: bufAppendBytes, \
     const Slice: bufAppendSlice, \
@@ -45,9 +46,13 @@ BufferSlice bufAppendStr(Buffer* buf, const char* format, ...);
     char*: bufAppendStr \
 )(buf, __VA_ARGS__)
 
+void bufSetBE8(Buffer* buf, U64 offset, U8 i);
+void bufSetBE16(Buffer* buf, U64 offset, U16 i);
+void bufSetBE24(Buffer* buf, U64 offset, U32 i);
+void bufSetBE32(Buffer* buf, U64 offset, U32 i);
+void bufSetBE64(Buffer* buf, U64 offset, U64 i);
+
 Slice bufAsSlice(Buffer* buf);
 char* bufAsStr(Buffer* buf);
-
-U8* bsStart(BufferSlice slice);
 
 #endif

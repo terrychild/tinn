@@ -2,6 +2,10 @@
 #include "lib/log.h"
 #include "lib/cli.h"
 
+U8 fromBE8(const U8 bytes[1]) {
+    return bytes[0];
+}
+
 U16 fromBE16(const U8 bytes[2]) {
     U16 n = 0;
     for (int i=0; i<2; i++) {
@@ -34,6 +38,9 @@ U64 fromBE64(const U8 bytes[8]) {
     return n;
 }
 
+void toBE8(U8 dest[1], U8 n) {
+    dest[0] = n;
+}
 void toBE16(U8 dest[2], U16 n) {
     for (int i=1; i>=0; i--) {
         dest[i] = n & 0xFF;

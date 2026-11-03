@@ -1,8 +1,12 @@
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 #include "tls.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
+#include "lib/mem/buffer.h"
+#include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
 
@@ -127,18 +131,88 @@ static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescr
     connectionSend(connection, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)), level == FATAL);
 }
 
+static void decodeAlert(ServerConnection* connection, Reader reader) {
+    Alert alert;
+    alert.level = readBE8(&reader);
+    alert.description = readBE8(&reader);
+
+    WARN("TLS Alert: %d - %d", alert.level, alert.description);
+}
+
 // handshake
 typedef struct {
-    Alert alert;
-    Version version;
-    Slice server_name;
+    Slice client_random;
+    Slice legacy_session_id;
     CipherSuite cipher_suite;
+    Slice server_name;
+    Version version;
+    //cookies
     SignatureAlgorithm signature_algorithum;
     SignatureAlgorithm certificate_algorithum;
     NamedGroup group;
+
+    U8 server_random[32];
+
+    Alert alert;
     Slice key;
-    Slice random;
 } Settings;
+
+static void random(U8* buffer, U64 len) {
+	FILE* fd = fopen("/dev/urandom", "r");
+	if (fd == NULL) {
+		PANIC("Unable to open /dev/urandom");
+	}
+
+	U64 read = fread(buffer, 1, len, fd);
+    while(read < len) {
+        read += fread(buffer + read, 1, len - read, fd);
+    }
+
+	fclose(fd);
+}
+
+static void sendServerHello(ServerConnection* connection, Settings* settings) {
+    Buffer* buf = bufNew(connection->exchange_scope, KiB(4));
+
+    // record
+    bufAppendBE8(buf, HANDSHAKE);
+    bufAppendBE16(buf, 0x0303);
+    U64 record_size_offset = bufReserve(buf, 2);
+
+    // todo:handshake header
+    bufAppendBE8(buf, SERVER_HELLO);
+    U64 handshake_size_offset = bufReserve(buf, 3);
+
+    // server version
+    bufAppendBE16(buf, 0x0303);
+
+    // server random
+    random(settings->server_random, 32);
+    bufAppend(buf, settings->server_random, 32);
+    DEBUG("Server random");
+    hexDump(sliceNew(settings->server_random, 32));
+
+    // session id
+    bufAppendBE8(buf, settings->legacy_session_id.length);
+    //space.start[0] = settings->legacy_session_id.length & 0xFF;
+    bufAppend(buf, settings->legacy_session_id);
+
+    // cipher suite
+
+    // legacy compression method
+
+    // extensions
+
+
+    // updates sizes
+    bufSetBE24(buf, handshake_size_offset, buf->length - 4 - 5); // handshake header = 4, record header = 5
+    bufSetBE16(buf, record_size_offset, buf->length - 5);
+
+    // send
+    DEBUG("Response");
+    hexDump(bufAsSlice(buf));
+    connectionSend(connection, bufAsSlice(buf), false);
+}
 
 static void decodeSupportedVersions(Settings* settings, Reader reader) {
     U8 length = readBE8(&reader);
@@ -260,15 +334,15 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     }
 
     // random data
-    settings.random = readSlice(&reader, 32);
-    DEBUG("Random");
-    hexDump(settings.random);
+    settings.client_random = readSlice(&reader, 32);
+    DEBUG("Client random");
+    hexDump(settings.client_random);
 
     // legacy session id
     U8 legacy_session_length = readBE8(&reader);
-    //DEBUG("legacy session length: %d", legacy_session_length);
-    //hexDump(readSlice(reader, legacy_session_length));
-    readSkip(&reader, legacy_session_length);
+    settings.legacy_session_id = readSlice(&reader, legacy_session_length);
+    DEBUG("legacy session length: %d", legacy_session_length);
+    hexDump(settings.legacy_session_id);
 
     // cipher suites
     decodeCipherSuites(&settings, readReader(&reader, readBE16(&reader)));
@@ -388,6 +462,8 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     }
     DEBUG("Key");
     hexDump(settings.key);
+
+    sendServerHello(connection, &settings);
 }
 
 static void decodeHandshake(ServerConnection* connection, Reader reader) {
@@ -464,6 +540,9 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
     switch (type) {
         case HANDSHAKE:
             decodeHandshake(connection, record_reader);
+            break;
+        case ALERT:
+            decodeAlert(connection, record_reader);
             break;
         default:
             ERROR("TLS content type not implemented: %d", type);
