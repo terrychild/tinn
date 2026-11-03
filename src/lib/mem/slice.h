@@ -12,7 +12,13 @@ I8 sliceCmpStr(const Slice a, const char* b);
 bool sliceIs(const Slice a, const Slice b);
 bool sliceIsStr(const Slice a, const char* b);
 
-Slice slice(const Slice source, U64 start, U64 end);
+Slice sliceSlice(const Slice source, U64 start, U64 end);
+Slice sliceBuffer(Buffer* buf, U64 start, U64 end);
+#define slice(source, start, end) _Generic((source), \
+    const Slice: sliceSlice, \
+    Slice: sliceSlice, \
+    Buffer*: sliceBuffer \
+)(source, start, end)
 
 Slice sliceLeft(const Slice source, const Slice search);
 Slice sliceLeftStr(const Slice source, const char* search);
@@ -25,8 +31,8 @@ Slice sliceRightBackStr(const Slice source, const char* search);
 
 Slice sliceTrim(const Slice source);
 
-Slice sliceToLowerCase(Memory* mem, Slice source);
-Slice sliceToUpperCase(Memory* mem, Slice source);
+Slice sliceToLowerCase(Memory* mem, const Slice source);
+Slice sliceToUpperCase(Memory* mem, const Slice source);
 
 typedef struct {
     Slice slice;

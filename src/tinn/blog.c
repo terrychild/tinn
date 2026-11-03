@@ -22,7 +22,7 @@ static void readPosts(Blog* blog) {
         Buffer* temp_path = bufNew(blog->mem, 32);
         bufAppend(temp_path, "./blog/");
         bufAppend(temp_path, post->dir);
-        post->url = bufSlice(temp_path, 1, -1);
+        post->url = slice(temp_path, 1, -1);
 
         bufAppend(temp_path, "/.post.html");
         post->content = allocateFile(blog->mem, blog->polling, bufAsStr(temp_path));

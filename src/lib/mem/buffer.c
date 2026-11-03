@@ -37,40 +37,11 @@ static void ensure(Buffer* buf, U64 n) {
     }
 }
 
-void bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
-    ensure(buf, n);
-
-    memcpy(buf->start + buf->length, data, n);
-    buf->length += n;
-}
-void bufAppendSlice(Buffer* buf, const Slice slice) {
-    bufAppendBytes(buf, slice.start, slice.length);
-}
-void bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
-    if (file) {
-        bufAppendBytes(buf, file->start, file->length);
-    }
-}
-void bufAppendStr(Buffer* buf, const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    U64 n = vsnprintf(NULL, (U64)0, format, args);
-    va_end(args);
-
-    ensure(buf, n+1);
-
-    va_start(args, format);
-    vsnprintf((char*)buf->start + buf->length, n+1, format, args);
-    va_end(args);
-
-    buf->length += n;
-}
-
 BufferSpace bufReadyWrite(Buffer* buf, U64 min_size) {
     ensure(buf, min_size);
     return (BufferSpace) {
-        .length = buf->size - buf->length,
-        .start = buf->start + buf->length
+        .start = buf->start + buf->length,
+        .length = buf->size - buf->length
     };
 }
 void bufConfirmWrite(Buffer* buf, U64 n) {
@@ -78,27 +49,52 @@ void bufConfirmWrite(Buffer* buf, U64 n) {
     buf->length += n;
 }
 
-Slice bufSlice(Buffer* buf, U64 start, U64 end) {
-    if (start > buf->length) {
-        start = buf->length;
-    }
-    if (end > buf->length) {
-        end = buf->length;
-    }
-    return (Slice) {
-        .length = end - start,
-        .start = buf->start + start
-    };
+BufferSlice bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
+    ensure(buf, n);
+    U64 offset = buf->length;
+    buf->length += n;
+
+    memcpy(buf->start + offset, data, n);
+    return (BufferSlice) { buf, offset, n};
 }
+BufferSlice bufAppendSlice(Buffer* buf, const Slice slice) {
+    return bufAppendBytes(buf, slice.start, slice.length);
+}
+BufferSlice bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
+    if (file) {
+        return bufAppendBytes(buf, file->start, file->length);
+    }
+    return (BufferSlice) { buf, buf->length, 0};
+}
+BufferSlice bufAppendStr(Buffer* buf, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    U64 n = vsnprintf(NULL, (U64)0, format, args);
+    va_end(args);
+
+    ensure(buf, n+1);
+    U64 offset = buf->length;
+    buf->length += n;
+
+    va_start(args, format);
+    vsnprintf((char*)buf->start + offset, n+1, format, args);
+    va_end(args);
+
+    return (BufferSlice) { buf, offset, n};
+}
+
 Slice bufAsSlice(Buffer* buf) {
     return (Slice) {
         .length = buf->length,
         .start = buf->start
     };
 }
-
 char* bufAsStr(Buffer* buf) {
     ensure(buf, 1);
     buf->start[buf->length] = '\0';
     return (char*)buf->start;
+}
+
+U8* bsStart(BufferSlice slice) {
+    return slice.buf->start + slice.offset;
 }

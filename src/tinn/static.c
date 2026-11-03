@@ -93,7 +93,7 @@ bool staticContent(HttpServerExchange* exchange) {
         bufAppend(local_path, "/index.html");
         if (stat(local_path_str, &attrib) == 0) {
             if (S_ISREG(attrib.st_mode)) {
-                Slice new_path = bufSlice(local_path, 1, target->path.length + 2);
+                Slice new_path = slice(local_path, 1, target->path.length + 2);
 
                 DEBUG("Static: Found local directory, redirecting to %.*s", new_path.length, new_path.start);
 

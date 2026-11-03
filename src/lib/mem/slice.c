@@ -2,6 +2,7 @@
 
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
+#include "lib/mem/buffer.h"
 #include "lib/bytes.h"
 
 Slice sliceNew(const U8* start, U64 length) {
@@ -48,7 +49,7 @@ bool sliceIsStr(const Slice a, const char* b) {
     return sliceCmpStr(a, b) == 0;
 }
 
-Slice slice(Slice slice, U64 start, U64 end) {
+Slice sliceSlice(Slice slice, U64 start, U64 end) {
     if (start > slice.length) {
         start = slice.length;
     }
@@ -58,6 +59,18 @@ Slice slice(Slice slice, U64 start, U64 end) {
     return (Slice) {
         .length = end - start,
         .start = slice.start + start
+    };
+}
+Slice sliceBuffer(Buffer* buf, U64 start, U64 end) {
+    if (start > buf->length) {
+        start = buf->length;
+    }
+    if (end > buf->length) {
+        end = buf->length;
+    }
+    return (Slice) {
+        .length = end - start,
+        .start = buf->start + start
     };
 }
 
@@ -158,7 +171,7 @@ Slice sliceTrim(const Slice source) {
     return slice(source, start, end);
 }
 
-Slice sliceToLowerCase(Memory* mem, Slice source) {
+Slice sliceToLowerCase(Memory* mem, const Slice source) {
     U8* target = allocate(mem, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'A' && source.start[i] <= 'Z') {
@@ -169,7 +182,7 @@ Slice sliceToLowerCase(Memory* mem, Slice source) {
     }
     return sliceNew(target, source.length);
 }
-Slice sliceToUpperCase(Memory* mem, Slice source) {
+Slice sliceToUpperCase(Memory* mem, const Slice source) {
     U8* target = allocate(mem, source.length);
     for (U64 i=0; i<source.length; i++) {
         if (source.start[i] >= 'a' && source.start[i] <= 'z') {
