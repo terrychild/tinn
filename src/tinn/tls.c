@@ -9,6 +9,8 @@
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
+#include "lib/maths/bigint.h"
+#include "lib/crypto/curve25519.h"
 
 // TLS types and enums
 typedef enum:U16 {
@@ -179,7 +181,7 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
     bufAppendBE16(buf, 0x0303);
     U64 record_size_offset = bufReserve(buf, 2);
 
-    // todo:handshake header
+    // handshake header
     bufAppendBE8(buf, SERVER_HELLO);
     U64 handshake_size_offset = bufReserve(buf, 3);
 
@@ -194,19 +196,34 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
 
     // session id
     bufAppendBE8(buf, settings->legacy_session_id.length);
-    //space.start[0] = settings->legacy_session_id.length & 0xFF;
     bufAppend(buf, settings->legacy_session_id);
 
     // cipher suite
+    bufAppendBE16(buf, settings->cipher_suite);
 
     // legacy compression method
+    bufAppendBE8(buf, 0);
 
     // extensions
+    U64 extensions_size_offset = bufReserve(buf, 2);
 
+    // supported versions
+    bufAppendBE16(buf, SUPPORTED_VERSIONS);
+    bufAppendBE16(buf, 2);
+    bufAppendBE16(buf, settings->version);
+
+    // key share
+    bufAppendBE16(buf, KEY_SHARE);
+    bufAppendBE16(buf, 36); //TODO: calculate
+    bufAppendBE16(buf, X25519);
+    bufAppendBE16(buf, 32);
+    BigInt* key = curve25519Key(connection->exchange_scope, "4242424242424242424242424242424242424242424242424242424242424240"); //TODO: make random
+    bufAppend(buf, slice(biToBESlice(connection->exchange_scope, key), 0, 32));
 
     // updates sizes
-    bufSetBE24(buf, handshake_size_offset, buf->length - 4 - 5); // handshake header = 4, record header = 5
-    bufSetBE16(buf, record_size_offset, buf->length - 5);
+    bufSetBE16(buf, extensions_size_offset, buf->length - extensions_size_offset - 2);
+    bufSetBE24(buf, handshake_size_offset, buf->length - handshake_size_offset - 3);
+    bufSetBE16(buf, record_size_offset, buf->length - record_size_offset - 2);
 
     // send
     DEBUG("Response");
