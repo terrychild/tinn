@@ -16,27 +16,37 @@ struct BigInt {
 // === make new BigInt ===
 
 BigInt* biNew(Memory* mem);
-void biInit(BigInt* bi, Memory* mem, U64 size);
-BigInt* biClone(Memory* mem, const BigInt* source);
 
+BigInt* biFromBi(Memory* mem, const BigInt* source);
 BigInt* biFromInt(Memory* mem, I64 i);
-BigInt* biFromHex(Memory* mem, const char* hex);
+BigInt* biFromStr(Memory* mem, const char* str);
+
+#define biFrom(mem, source) _Generic((source), \
+        const BigInt*: biFromBi, \
+		BigInt*: biFromBi, \
+        const char*: biFromStr, \
+        char*: biFromStr, \
+        default: biFromInt  \
+    )(mem, source)
 
 // === input ===
 
 BigInt* biSetBi(BigInt* dest, const BigInt* source);
 BigInt* biSetInt(BigInt* bi, I64 i);
-BigInt* biSetHex(BigInt* bi, const char* hex);
+BigInt* biSetStr(BigInt* bi, const char* str);
+
 #define biSet(dest, source) _Generic((source), \
-		BigInt*: biSetBi, \
-        const BigInt*: biSetBi, \
-        const char*: biSetHex, \
+		const BigInt*: biSetBi, \
+        BigInt*: biSetBi, \
+        const char*: biSetStr, \
+        char*: biSetStr, \
         default: biSetInt  \
     )(dest, source)
 
 // === output ===
 
 Slice biToBESlice(Memory* mem, const BigInt* bi);
+char* biToHexStr(Memory* mem, const BigInt* bi);
 
 // === comparison ===
 

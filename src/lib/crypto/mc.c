@@ -10,11 +10,11 @@ typedef struct {
 
 MontgomeryCurve* mcNew(Memory* mem, const char* a, const char* b, const char* p, const char* x) {
     MontgomeryCurve* mc = allocate(mem, sizeof(MontgomeryCurve));
-    mc->a = biFromHex(mem, a);
-    mc->b = biFromHex(mem, b);
-    mc->p = biFromHex(mem, p);
+    mc->a = biFrom(mem, a);
+    mc->b = biFrom(mem, b);
+    mc->p = biFrom(mem, p);
     mc->a24 = biNew(mem);
-    mc->g = biFromHex(mem, x);
+    mc->g = biFrom(mem, x);
 
     biAdd(mc->a24, mc->a, 2);
     biDiv(mc->a24, 4);
@@ -62,8 +62,8 @@ static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
     ScratchMemory scratch = scratchMemory(mem);
 
     ProjectedPoint r0 = {
-        .x = biClone(scratch.mem, mc->g),
-        .z = biFromInt(scratch.mem, 1)
+        .x = biFrom(scratch.mem, point),
+        .z = biFrom(scratch.mem, 1)
     };
     ProjectedPoint r1 = {
         .x = biNew(scratch.mem),
@@ -72,15 +72,15 @@ static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
     dbl(scratch.mem, &r1, &r0, mc->a24, mc->p);
     for (U64 bit = k->length - 1; bit-- > 0; ) {
         if (biBit(k, bit) == 0) {
-            add(scratch.mem, &r1, &r0, &r1, mc->g, mc->p);
+            add(scratch.mem, &r1, &r0, &r1, point, mc->p);
             dbl(scratch.mem, &r0, &r0, mc->a24, mc->p);
         } else {
-            add(scratch.mem, &r0, &r0, &r1, mc->g, mc->p);
+            add(scratch.mem, &r0, &r0, &r1, point, mc->p);
             dbl(scratch.mem, &r1, &r1, mc->a24, mc->p);
         }
     }
 
-    BigInt* x = biMod(biMul(biClone(mem, r0.x), biMulInv(scratch.mem, r0.z, mc->p)), mc->p);
+    BigInt* x = biMod(biMul(biFrom(mem, r0.x), biMulInv(scratch.mem, r0.z, mc->p)), mc->p);
     scratchRelease(scratch);
     return x;
 }

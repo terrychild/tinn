@@ -13,20 +13,20 @@ static EllipticCurvePoint* newPoint(Memory* mem) {
 
 static EllipticCurvePoint* clonePoint(Memory* mem, const EllipticCurvePoint* source) {
     EllipticCurvePoint* dest = allocate(mem, sizeof(EllipticCurvePoint));
-    dest->x = biClone(mem, source->x);
-    dest->y = biClone(mem, source->y);
+    dest->x = biFrom(mem, source->x);
+    dest->y = biFrom(mem, source->y);
     dest->is_infinity = source->is_infinity;
     return dest;
 }
 
 EllipticCurve* ecNew(Memory* mem, const char* a, const char* b, const char* p, const char* x, const char* y) {
     EllipticCurve* ec = allocate(mem, sizeof(EllipticCurve));
-    ec->a = biFromHex(mem, a);
-    ec->b = biFromHex(mem, b);
-    ec->p = biFromHex(mem, p);
+    ec->a = biFrom(mem, a);
+    ec->b = biFrom(mem, b);
+    ec->p = biFrom(mem, p);
     ec->g = allocate(mem, sizeof(EllipticCurvePoint));
-    ec->g->x = biFromHex(mem, x);
-    ec->g->y = biFromHex(mem, y);
+    ec->g->x = biFrom(mem, x);
+    ec->g->y = biFrom(mem, y);
     return ec;
 }
 

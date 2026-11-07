@@ -9,6 +9,14 @@
 
 static const U64 left_bit_mask = 0x8000000000000000;
 
+// === declare some functions ===
+
+static void add(BigInt* dest, const BigInt* a, const BigInt* b);
+static void subtract(BigInt* dest, const BigInt* a, const BigInt* b);
+static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
+static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r);
+static void modulus(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
+
 // === size and length ===
 
 static void resize(BigInt* bi, U64 new_size, bool clear_extra) {
@@ -21,17 +29,11 @@ static void resize(BigInt* bi, U64 new_size, bool clear_extra) {
         }
     }
 }
-static void clear(BigInt* bi, U64 new_size) {
-    resize(bi, new_size, false);
-    for (U64 limb = 0; limb < bi->size; limb++) {
-        bi->limbs[limb] = 0;
-    }
-}
 
 static void updateLen(BigInt* bi) {
     for (U64 limb = bi->size; limb-- > 0; ) {
         if (bi->limbs[limb]) {
-            bi->length = (limb * 64) + 64 - stdc_leading_zeros(bi->limbs[limb]);
+            bi->length = (limb * 64) + 64 - stdc_leading_zeros_ull(bi->limbs[limb]);
             return;
         }
     }
@@ -57,40 +59,24 @@ static U64 maxNormalSize(const BigInt* a, const BigInt* b) {
 
 BigInt* biNew(Memory* mem) {
     BigInt* bi = allocate(mem, sizeof(BigInt));
-    biInit(bi, mem, 1);
-    return bi;
-}
-
-void biInit(BigInt* bi, Memory* mem, U64 size) {
-    PANIC_IF(size == 0, "BigInt size cannot be 0.");
-
     bi->mem = mem;
-    bi->size = size;
+    bi->size = 1;
     bi->length = 0;
     bi->negative = false;
     bi->limbs = allocate(mem, sizeof(bi->limbs) * bi->size);
+    return bi;
 }
 
-static void biInitInt(BigInt* bi, U64 limbs[], I64 i) {
-    limbs[0] = i<0 ? (U64)0-i : (U64)i;
-
-    bi->mem = NULL;
-    bi->size = 1;
-    bi->length = 64 - stdc_leading_zeros(limbs[0]);
-    bi->negative = i<0;
-    bi->limbs = limbs;
-}
-
-BigInt* biClone(Memory* mem, const BigInt* source) {
-    return biSet(biNew(mem), source);
+BigInt* biFromBi(Memory* mem, const BigInt* source) {
+    return biSetBi(biNew(mem), source);
 }
 
 BigInt* biFromInt(Memory* mem, I64 i) {
     return biSetInt(biNew(mem), i);
 }
 
-BigInt* biFromHex(Memory* mem, const char* hex) {
-    return biSetHex(biNew(mem), hex);
+BigInt* biFromStr(Memory* mem, const char* str) {
+    return biSetStr(biNew(mem), str);
 }
 
 // === input ===
@@ -119,8 +105,7 @@ BigInt* biSetInt(BigInt* bi, I64 i) {
     return bi;
 }
 
-BigInt* biSetHex(BigInt* bi, const char* hex) {
-    U64 nibbles = strlen(hex);
+static BigInt* biSetHexStr(BigInt* bi, const char* hex, U64 nibbles) {
     U64 len = (nibbles+15)/16;
 
     resize(bi, len, true);
@@ -139,9 +124,57 @@ BigInt* biSetHex(BigInt* bi, const char* hex) {
         }
     }
     bi->limbs[limb] = value;
-    bi->negative = false;
     updateLen(bi);
 
+    return bi;
+}
+
+static U8 readDecChar(char ch) {
+	if (ch < '0') {
+		ERROR("Invalid decimal char '%c'", ch);
+		return 0;
+	}
+	U8 value = ch - '0';
+	if (value > 9) {
+		ERROR("Invalid decimal char '%c'", ch);
+		return 0;
+	}
+	return value;
+}
+
+static BigInt* biSetDecStr(BigInt* bi, const char* dec, U64 digits) {
+    U64 len = ((digits * 3.3219) + 31) / 32;
+
+    resize(bi, len, true);
+
+    ScratchMemory scratch = scratchMemory(bi->mem);
+    BigInt* ten = biFromInt(scratch.mem, 10);
+    BigInt* unit = biNew(scratch.mem);
+
+    biSetInt(bi, 0);
+    for (U64 i=0; i<digits; i++) {
+        multiply(scratch.mem, bi, bi, ten);
+        add(bi, bi, biSetInt(unit, readDecChar(dec[i])));
+    }
+    scratchRelease(scratch);
+
+    return bi;
+}
+
+BigInt* biSetStr(BigInt* bi, const char* str) {
+    U64 chars = strlen(str);
+    if (chars == 0) {
+        return biSetInt(bi, 0);
+    }
+    U64 start = str[0] == '-' ? 1 : 0;
+    if (chars>start+2 && str[start] == '0' && str[start+1] == 'x') {
+        biSetHexStr(bi, str+start+2, chars-start-2);
+    } else {
+        biSetDecStr(bi, str+start, chars-start);
+    }
+    if (start == 1) {
+        bi->negative = true;
+    }
     return bi;
 }
 
@@ -175,6 +208,36 @@ Slice biToBESlice(Memory* mem, const BigInt* bi) {
     }
 
     return sliceNew(bytes, bytes_len);
+}
+
+char* biToHexStr(Memory* mem, const BigInt* bi) {
+    ScratchMemory scratch = scratchMemory(mem);
+    Slice hex = biToBESlice(scratch.mem, bi);
+
+    char* str = allocate(mem, (hex.length * 2) + 3);
+    str[0] = '0';
+    str[1] = 'x';
+    bool go = false;
+    U64 byte = 2;
+    for (U64 i = 0; i < hex.length; i++) {
+        if (!go && (hex.start[i] & 0xF0)) {
+            go = true;
+        }
+        if (go) {
+            str[byte++] = toHexChar((hex.start[i] & 0xF0) >> 4);
+        }
+        if (!go && (hex.start[i] & 0x0F)) {
+            go = true;
+        }
+        if (go) {
+            str[byte++] = toHexChar(hex.start[i] & 0x0F);
+        }
+    }
+    str[byte] = '\0';
+
+    scratchRelease(scratch);
+
+    return str;
 }
 
 // === comparison ===
@@ -318,14 +381,6 @@ void shiftRight(BigInt* bi, U64 count) {
     bi->length = bi->length - count;
 }
 
-// === lowest level math ===
-
-static void add(BigInt* dest, const BigInt* a, const BigInt* b);
-static void subtract(BigInt* dest, const BigInt* a, const BigInt* b);
-static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
-static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r);
-static void modulus(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b);
-
 // === addition ===
 
 static void add(BigInt* dest, const BigInt* a, const BigInt* b) {
@@ -356,8 +411,7 @@ static void add(BigInt* dest, const BigInt* a, const BigInt* b) {
     }
     updateLen(dest);
 }
-
-BigInt* biAdd_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+static void biAdd_impl(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
     if (a->negative == b->negative) {
         add(dest, a, b);
     } else {
@@ -369,61 +423,64 @@ BigInt* biAdd_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* 
         }
     }
     if (mod) {
-        ScratchMemory scratch = scratchMemory(dest->mem);
-        modulus(scratch.mem, dest, dest, mod);
-        scratchRelease(scratch);
+        modulus(scratch_mem, dest, dest, mod);
     } else if (biIsZero(dest)) {
         dest->negative = false;
     }
+}
+
+BigInt* biAdd_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biAdd_impl(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biAdd_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biAdd_bbb(dest, a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biAdd_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biAdd_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biAdd_bbb(dest, &a, b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biAdd_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biAdd_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biAdd_bbb(dest, &a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biAdd_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biAdd_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
     BigInt* dest = biNew(mem);
-    biAdd_bbb(dest, a, b, mod);
+    ScratchMemory scratch = scratchMemory(mem);
+    biAdd_impl(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biAdd_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biAdd_mbb(mem, a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biAdd_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biAdd_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biAdd_mbb(mem, &a, b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biAdd_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biAdd_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biAdd_mbb(mem, &a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biAdd_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === subtraction ===
@@ -453,8 +510,7 @@ static void subtract(BigInt* dest, const BigInt* a, const BigInt* b) {
     PANIC_IF(borrow>0, "Borrow left over!");
     updateLen(dest);
 }
-
-BigInt* biSub_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+static void biSub_impl(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
     if (a->negative != b->negative) {
         add(dest, a, b);
     } else {
@@ -466,70 +522,73 @@ BigInt* biSub_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* 
         }
     }
     if (mod) {
-        ScratchMemory scratch = scratchMemory(dest->mem);
-        modulus(scratch.mem, dest, dest, mod);
-        scratchRelease(scratch);
+        modulus(scratch_mem, dest, dest, mod);
     } else if (biIsZero(dest)) {
         dest->negative = false;
     }
+}
+
+BigInt* biSub_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biSub_impl(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biSub_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biSub_bbb(dest, a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biSub_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biSub_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biSub_bbb(dest, &a, b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biSub_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biSub_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biSub_bbb(dest, &a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biSub_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biSub_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
     BigInt* dest = biNew(mem);
-    biSub_bbb(dest, a, b, mod);
+    ScratchMemory scratch = scratchMemory(mem);
+    biSub_impl(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biSub_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biSub_mbb(mem, a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biSub_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biSub_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biSub_mbb(mem, &a, b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biSub_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biSub_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biSub_mbb(mem, &a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biSub_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === multiplication ===
 
 static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b) {
-    BigInt* temp_b = biClone(scratch_mem, a);
-    BigInt* temp_a = biClone(scratch_mem, b);
+    BigInt* temp_b = biFromBi(scratch_mem, b);
+    BigInt* temp_a = biFromBi(scratch_mem, a);
 
-    clear(dest, bitsToSize(a->length + b->length + 1));
+    biSetInt(dest, 0);
     dest->negative = a->negative != b->negative;
 
     U64 limb = 0;
@@ -549,71 +608,71 @@ static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const B
         }
     }
 }
-
-BigInt* biMul_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
-    ScratchMemory scratch = scratchMemory(dest->mem);
-
+static void biMul_impl(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
     if (biCmpAbs(a, b) >= 0) {
-		multiply(scratch.mem, dest, a, b);
+		multiply(scratch_mem, dest, a, b);
 	} else {
-        multiply(scratch.mem, dest, b, a);
+        multiply(scratch_mem, dest, b, a);
     }
 
     if (mod) {
-        modulus(scratch.mem, dest, dest, mod);
+        modulus(scratch_mem, dest, dest, mod);
     }
+}
 
+
+BigInt* biMul_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biMul_impl(scratch.mem, dest, a, b, mod);
     scratchRelease(scratch);
-
     return dest;
 }
 BigInt* biMul_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMul_bbb(dest, a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biMul_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMul_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMul_bbb(dest, &a, b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biMul_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMul_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMul_bbb(dest, &a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biMul_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biMul_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
     BigInt* dest = biNew(mem);
-    biMul_bbb(dest, a, b, mod);
+    ScratchMemory scratch = scratchMemory(mem);
+    biMul_impl(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biMul_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMul_mbb(mem, a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biMul_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMul_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMul_mbb(mem, &a, b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biMul_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMul_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMul_mbb(mem, &a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biMul_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === division ===
@@ -622,8 +681,8 @@ static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const Big
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
     biSet(r, a);
-    BigInt* orig_b = biClone(scratch_mem, b);
-    BigInt* temp_b = biClone(scratch_mem, b);
+    BigInt* orig_b = biFromBi(scratch_mem, b);
+    BigInt* temp_b = biFromBi(scratch_mem, b);
     BigInt* mask = biFromInt(scratch_mem, 1);
 
     biSetInt(dest, 0);
@@ -653,60 +712,62 @@ static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const Big
         shiftRight(mask, shift);
     }
 }
+static void biDiv_impl(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r) {
+    divide(scratch_mem, dest, a, b, r == NULL ? biNew(scratch_mem) : r);
+}
 
 BigInt* biDiv_bbb(BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r) {
     ScratchMemory scratch = scratchMemory(dest->mem);
-    divide(scratch.mem, dest, a, b, r == NULL ? biNew(scratch.mem) : r);
+    biDiv_impl(scratch.mem, dest, a, b, r);
     scratchRelease(scratch);
     return dest;
 }
 BigInt* biDiv_bbi(BigInt* dest, const BigInt* a, I64 b_int, BigInt* r) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biDiv_bbb(dest, a, &b, r);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biDiv_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), r);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biDiv_bib(BigInt* dest, I64 a_int, const BigInt* b, BigInt* r) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biDiv_bbb(dest, &a, b, r);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biDiv_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, r);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biDiv_bii(BigInt* dest, I64 a_int, I64 b_int, BigInt* r) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biDiv_bbb(dest, &a, &b, r);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    biDiv_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), r);
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biDiv_mbb(Memory* mem, const BigInt* a, const BigInt* b, BigInt* r) {
     BigInt* dest = biNew(mem);
-    biDiv_bbb(dest, a, b, r);
+    ScratchMemory scratch = scratchMemory(mem);
+    biDiv_impl(scratch.mem, dest, a, b, r);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biDiv_mbi(Memory* mem, const BigInt* a, I64 b_int, BigInt* r) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biDiv_mbb(mem, a, &b, r);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biDiv_impl(scratch.mem, dest, a, biFrom(scratch.mem, b_int), r);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biDiv_mib(Memory* mem, I64 a_int, const BigInt* b, BigInt* r) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biDiv_mbb(mem, &a, b, r);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biDiv_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), b, r);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biDiv_mii(Memory* mem, I64 a_int, I64 b_int, BigInt* r) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biDiv_mbb(mem, &a, &b, r);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    biDiv_impl(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), r);
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === modulus ===
@@ -715,8 +776,8 @@ void modulus(Memory* scratch_mem, BigInt* r, const BigInt* a, const BigInt* b) {
     PANIC_IF(biIsZero(b), "Divide by zero!");
 
     biSet(r, a);
-    BigInt* orig_b = biClone(scratch_mem, b);
-    BigInt* temp_b = biClone(scratch_mem, b);
+    BigInt* orig_b = biFromBi(scratch_mem, b);
+    BigInt* temp_b = biFromBi(scratch_mem, b);
     BigInt* mask = biFromInt(scratch_mem, 1);
 
     U64 shift = 0;
@@ -755,62 +816,59 @@ BigInt* biMod_bbb(BigInt* dest, const BigInt* a, const BigInt* b) {
     return dest;
 }
 BigInt* biMod_bbi(BigInt* dest, const BigInt* a, I64 b_int) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMod_bbb(dest, a, &b);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    modulus(scratch.mem, dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMod_bib(BigInt* dest, I64 a_int, const BigInt* b) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMod_bbb(dest, &a, b);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    modulus(scratch.mem, dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMod_bii(BigInt* dest, I64 a_int, I64 b_int) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMod_bbb(dest, &a, &b);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    modulus(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biMod_mbb(Memory* mem, const BigInt* a, const BigInt* b) {
     BigInt* dest = biNew(mem);
-    biMod_bbb(dest, a, b);
+    ScratchMemory scratch = scratchMemory(mem);
+    modulus(scratch.mem, dest, a, b);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biMod_mbi(Memory* mem, const BigInt* a, I64 b_int) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMod_mbb(mem, a, &b);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    modulus(scratch.mem, dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMod_mib(Memory* mem, I64 a_int, const BigInt* b) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMod_mbb(mem, &a, b);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    modulus(scratch.mem, dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMod_mii(Memory* mem, I64 a_int, I64 b_int) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biMod_mbb(mem, &a, &b);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    modulus(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === exponentiation ===
 
-BigInt* biPow_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
-    ScratchMemory scratch = scratchMemory(dest->mem);
-
+static void power(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
     biSet(dest, a);
-    BigInt* temp_a = biClone(scratch.mem, a);
-    BigInt* temp_b = biClone(scratch.mem, b);
+    BigInt* temp_a = biFromBi(scratch_mem, a);
+    BigInt* temp_b = biFromBi(scratch_mem, b);
 
     bool go = false;
     U64 limb = temp_b->size;
@@ -823,14 +881,14 @@ BigInt* biPow_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* 
                     go = true;
                 }
             } else {
-                multiply(scratch.mem, dest, dest, dest);
+                multiply(scratch_mem, dest, dest, dest);
                 if (mod) {
-                    modulus(scratch.mem, dest, dest, mod);
+                    modulus(scratch_mem, dest, dest, mod);
                 }
                 if (temp_b->limbs[limb] & mask) {
-                    multiply(scratch.mem, dest, dest, temp_a);
+                    multiply(scratch_mem, dest, dest, temp_a);
                     if (mod) {
-                        modulus(scratch.mem, dest, dest, mod);
+                        modulus(scratch_mem, dest, dest, mod);
                     }
                 }
             }
@@ -838,78 +896,78 @@ BigInt* biPow_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* 
         }
 
     } while (limb>0);
+}
 
+BigInt* biPow_bbb(BigInt* dest, const BigInt* a, const BigInt* b, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    power(scratch.mem, dest, a, b, mod);
     scratchRelease(scratch);
-
     return dest;
 }
 BigInt* biPow_bbi(BigInt* dest, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biPow_bbb(dest, a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    power(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biPow_bib(BigInt* dest, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biPow_bbb(dest, &a, b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    power(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biPow_bii(BigInt* dest, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biPow_bbb(dest, &a, &b, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    power(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biPow_mbb(Memory* mem, const BigInt* a, const BigInt* b, const BigInt* mod) {
     BigInt* dest = biNew(mem);
-    biPow_bbb(dest, a, b, mod);
+    ScratchMemory scratch = scratchMemory(mem);
+    power(scratch.mem, dest, a, b, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biPow_mbi(Memory* mem, const BigInt* a, I64 b_int, const BigInt* mod) {
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biPow_mbb(mem, a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    power(scratch.mem, dest, a, biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biPow_mib(Memory* mem, I64 a_int, const BigInt* b, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biPow_mbb(mem, &a, b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    power(scratch.mem, dest, biFrom(scratch.mem, a_int), b, mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biPow_mii(Memory* mem, I64 a_int, I64 b_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt b;
-    U64 b_limbs[1];
-    biInitInt(&b, b_limbs, b_int);
-    return biPow_mbb(mem, &a, &b, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    power(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 
 // === multiplicative inverse ===
 
-BigInt* biMulInv_bbb(BigInt* dest, const BigInt* a, const BigInt* mod) {
-    ScratchMemory scratch = scratchMemory(dest->mem);
+static void mulInv(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* mod) {
+    BigInt* old_t = biFromInt(scratch_mem, 0);
+    BigInt* t = biFromInt(scratch_mem, 1);
+    BigInt* new_t = biNew(scratch_mem);
 
-    BigInt* old_t = biFromInt(scratch.mem, 0);
-    BigInt* t = biFromInt(scratch.mem, 1);
-    BigInt* new_t = biNew(scratch.mem);
+    BigInt* old_r = biFromBi(scratch_mem, mod);
+    BigInt* r = biFromBi(scratch_mem, a);
+    BigInt* new_r = biNew(scratch_mem);
 
-    BigInt* old_r = biClone(scratch.mem, mod);
-    BigInt* r = biClone(scratch.mem, a);
-    BigInt* new_r = biNew(scratch.mem);
-
-    BigInt* q = biNew(scratch.mem);
+    BigInt* q = biNew(scratch_mem);
 
     while (!biIsZero(r)) {
-        divide(scratch.mem, q, old_r, r, new_r);
-        multiply(scratch.mem, new_t, q, t);
+        divide(scratch_mem, q, old_r, r, new_r);
+        multiply(scratch_mem, new_t, q, t);
         biSub_bbb(new_t, old_t, new_t, mod);
 
         biSet(old_t, t);
@@ -924,56 +982,58 @@ BigInt* biMulInv_bbb(BigInt* dest, const BigInt* a, const BigInt* mod) {
     if (dest->negative) {
         add(dest, dest, mod);
     }
+}
 
+BigInt* biMulInv_bbb(BigInt* dest, const BigInt* a, const BigInt* mod) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    mulInv(scratch.mem, dest, a, mod);
     scratchRelease(scratch);
-
     return dest;
 }
 BigInt* biMulInv_bbi(BigInt* dest, const BigInt* a, I64 mod_int) {
-    BigInt mod;
-    U64 mod_limbs[1];
-    biInitInt(&mod, mod_limbs, mod_int);
-    return biMulInv_bbb(dest, a, &mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    mulInv(scratch.mem, dest, a, biFrom(scratch.mem, mod_int));
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMulInv_bib(BigInt* dest, I64 a_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMulInv_bbb(dest, &a, mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    mulInv(scratch.mem, dest, biFrom(scratch.mem, a_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMulInv_bii(BigInt* dest, I64 a_int, I64 mod_int) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt mod;
-    U64 mod_limbs[1];
-    biInitInt(&mod, mod_limbs, mod_int);
-    return biMulInv_bbb(dest, &a, &mod);
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    mulInv(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, mod_int));
+    scratchRelease(scratch);
+    return dest;
 }
 
 BigInt* biMulInv_mbb(Memory* mem, const BigInt* a, const BigInt* mod) {
     BigInt* dest = biNew(mem);
-    biMulInv_bbb(dest, a, mod);
+    ScratchMemory scratch = scratchMemory(mem);
+    mulInv(scratch.mem, dest, a, mod);
+    scratchRelease(scratch);
     return dest;
 }
 BigInt* biMulInv_mbi(Memory* mem, const BigInt* a, I64 mod_int) {
-    BigInt mod;
-    U64 mod_limbs[1];
-    biInitInt(&mod, mod_limbs, mod_int);
-    return biMulInv_mbb(mem, a, &mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    mulInv(scratch.mem, dest, a, biFrom(scratch.mem, mod_int));
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMulInv_mib(Memory* mem, I64 a_int, const BigInt* mod) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    return biMulInv_mbb(mem, &a, mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    mulInv(scratch.mem, dest, biFrom(scratch.mem, a_int), mod);
+    scratchRelease(scratch);
+    return dest;
 }
 BigInt* biMulInv_mii(Memory* mem, I64 a_int, I64 mod_int) {
-    BigInt a;
-    U64 a_limbs[1];
-    biInitInt(&a, a_limbs, a_int);
-    BigInt mod;
-    U64 mod_limbs[1];
-    biInitInt(&mod, mod_limbs, mod_int);
-    return biMulInv_mbb(mem, &a, &mod);
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    mulInv(scratch.mem, dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, mod_int));
+    scratchRelease(scratch);
+    return dest;
 }

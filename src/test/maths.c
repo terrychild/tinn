@@ -24,34 +24,42 @@ void testMaths() {
     expect("cmp 29", biCmp(bi, 30), -1);
     expect("cmp 29", biCmp(bi, 28), 1);
 
-    biSetHex(bi, "FFFFFFFFFFFFFFFF");
+    expect("bi \"15\"", biFrom(mem, "15"), biFrom(mem, 15));
+    expect("bi \"-15\"", biFrom(mem, "-15"), biFrom(mem, -15));
+    expect("bi \"0xF\"", biFrom(mem, "0xF"), biFrom(mem, 15));
+    expect("bi \"-0xF\"", biFrom(mem, "-0xF"), biFrom(mem, -15));
+
+    expect("bi string", biToHexStr(mem, biSet(bi, "1024")), "0x400");
+
+    biSet(bi, "0xFFFFFFFFFFFFFFFF");
     expect("bi FF* (size)", bi->size, 1);
     biAdd(bi, 1);
     expect("bi FF* + 1 (size)", bi->size, 2);
-    expect("bi FF* + 1 (value)", bi, biFromHex(mem, "10000000000000000"));
+    expect("bi FF* + 1 (value)", bi, biFrom(mem, "0x10000000000000000"));
+    expect("bi FF* + 1 (string)", biToHexStr(mem, bi), "0x10000000000000000");
 
-    /*expect("shift right", biShiftRight(bi, 8), biFromHex(mem, "100000000000000"));
-    expect("shift left", biShiftLeft(bi, 8), biFromHex(mem, "10000000000000000"));
-    expect("shift left", biShiftLeft(bi, 1), biFromHex(mem, "20000000000000000"));*/
+    /*expect("shift right", biShiftRight(bi, 8), biFrom(mem, "0x100000000000000"));
+    expect("shift left", biShiftLeft(bi, 8), biFrom(mem, "0x10000000000000000"));
+    expect("shift left", biShiftLeft(bi, 1), biFrom(mem, "0x20000000000000000"));*/
 
     expect("8*8", biMul(bi, 8, 8), biFromInt(mem, 64));
     expect("square", biMul(bi, bi), biFromInt(mem, 4096));
     expect("square", biMul(bi, bi), biFromInt(mem, 16777216));
     expect("square", biMul(bi, bi), biFromInt(mem, 281474976710656));
-    expect("square", biMul(bi, bi), biFromHex(mem, "1000000000000000000000000"));
+    expect("square", biMul(bi, bi), biFrom(mem, "0x1000000000000000000000000"));
 
     BigInt* remainder = biNew(mem);
-    expect("/3", biDiv(bi, bi, 3, remainder), biFromHex(mem, "555555555555555555555555"));
+    expect("/3", biDiv(bi, bi, 3, remainder), biFrom(mem, "0x555555555555555555555555"));
     expect("remainder", remainder, biFromInt(mem, 1));
     expect("mod 1024", biMod(bi, 1024), biFromInt(mem, 341));
 
     expect("/4", biDiv(bi, 4), biFromInt(mem, 85));
 
     expect("2 pow 16", biPow(bi, 2, 16, NULL), biFromInt(mem, 65536));
-    expect("2 pow 16 pow 16", biPow(bi, 16), biFromHex(mem, "10000000000000000000000000000000000000000000000000000000000000000"));
+    expect("2 pow 16 pow 16", biPow(bi, 16), biFrom(mem, "0x10000000000000000000000000000000000000000000000000000000000000000"));
 
-    BigInt* bi_MAX = biFromHex(mem, "FFFFFFFFFFFFFFFF");
-    BigInt* bi_2MAX = biFromHex(mem, "1FFFFFFFFFFFFFFFE");
+    BigInt* bi_MAX = biFrom(mem, "0xFFFFFFFFFFFFFFFF");
+    BigInt* bi_2MAX = biFrom(mem, "0x1FFFFFFFFFFFFFFFE");
     expect("big first", biMul(mem, bi_MAX, 2, NULL), bi_2MAX);
     expect("big second", biMul(mem, biSetInt(bi, 2), bi_MAX, NULL), bi_2MAX);
 

@@ -68,7 +68,7 @@ void toBE64(U8 dest[8], U64 n) {
 
 U8 readHexChar(char nibble) {
 	if (nibble < '0') {
-		ERROR("Invalid hex char '%c'.\n", nibble);
+		ERROR("Invalid hex char '%c'.", nibble);
 		return 0;
 	}
 	U8 value;
@@ -80,10 +80,21 @@ U8 readHexChar(char nibble) {
 		value = nibble - '0';
 	}
 	if (value > 15) {
-		ERROR("Invalid hex char '%c'.\n", nibble);
+		ERROR("Invalid hex char '%c'.", nibble);
 		return 0;
 	}
 	return value;
+}
+
+char toHexChar(U8 nibble) {
+	if (nibble < 10) {
+		return nibble + '0';
+	}
+    if (nibble < 16) {
+        return nibble + 'A' - 1;
+    }
+    ERROR("Invalid hex value '%d'.", nibble);
+	return 'x';
 }
 
 void hexDump(Slice slice) {
