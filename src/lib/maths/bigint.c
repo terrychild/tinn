@@ -155,7 +155,7 @@ static U8 readDecChar(char ch) {
 }
 
 static BigInt* biSetDecStr(BigInt* bi, const char* dec, U64 digits) {
-    resize(bi, ((digits * 3.3219) + 31) / 32, true);
+    resize(bi, ((digits * 3.3219) + 7) / 8, true);
 
     ScratchMemory scratch = scratchMemory(bi->mem);
     BigInt* ten = biFromInt(scratch.mem, 10);
@@ -189,13 +189,13 @@ BigInt* biSetStr(BigInt* bi, const char* str) {
 }
 
 BigInt* biSetBE(BigInt* bi, const U8* bytes, U64 count) {
-    resize(bi, (count+31)/32, true);
+    resize(bi, (count+7)/8, true);
 
     U64 limb = 0;
     U64 bits = 0;
     U64 value = 0;
     for (U64 i = count; i-- > 0; ) {
-        value += (bytes[i]) << bits;
+        value += (U64)bytes[i] << bits;
         bits += 8;
 
         if (bits == 64) {
@@ -214,13 +214,13 @@ BigInt* biSetBESlice(BigInt* bi, const Slice slice) {
 }
 
 BigInt* biSetLE(BigInt* bi, const U8* bytes, U64 count) {
-    resize(bi, (count+31)/32, true);
+    resize(bi, (count+7)/8, true);
 
     U64 limb = 0;
     U64 bits = 0;
     U64 value = 0;
     for (U64 i = 0; i < count; i++) {
-        value += (bytes[i]) << bits;
+        value += (U64)bytes[i] << bits;
         bits += 8;
 
         if (bits == 64) {
@@ -488,6 +488,198 @@ BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, U64 count) {
 BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count) {
     BigInt* dest = biNew(mem);
     shiftRight(dest, source, count);
+    return dest;
+}
+
+// === bitwise and ===
+
+static void and(BigInt* dest, const BigInt* a, const BigInt* b) {
+    U64 size = maxNormalSize(a, b);
+    resize(dest, size, true);
+
+    for (U64 i=0; i < size; i++) {
+        dest->limbs[i] = (i < a->size ? a->limbs[i] : 0) & (i < b->size ? b->limbs[i] : 0);
+    }
+    updateLen(dest);
+}
+
+BigInt* biAnd_bbb(BigInt* dest, const BigInt* a, const BigInt* b) {
+    and(dest, a, b);
+    return dest;
+}
+BigInt* biAnd_bbi(BigInt* dest, const BigInt* a, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    and(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biAnd_bib(BigInt* dest, I64 a_int, const BigInt* b) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    and(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biAnd_bii(BigInt* dest, I64 a_int, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    and(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+
+BigInt* biAnd_mbb(Memory* mem, const BigInt* a, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    and(dest, a, b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biAnd_mbi(Memory* mem, const BigInt* a, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    and(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biAnd_mib(Memory* mem, I64 a_int, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    and(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biAnd_mii(Memory* mem, I64 a_int, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    and(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+
+// === bitwise or ===
+
+static void or(BigInt* dest, const BigInt* a, const BigInt* b) {
+    U64 size = maxNormalSize(a, b);
+    resize(dest, size, true);
+
+    for (U64 i=0; i < size; i++) {
+        dest->limbs[i] = (i < a->size ? a->limbs[i] : 0) | (i < b->size ? b->limbs[i] : 0);
+    }
+    updateLen(dest);
+}
+
+BigInt* biOr_bbb(BigInt* dest, const BigInt* a, const BigInt* b) {
+    or(dest, a, b);
+    return dest;
+}
+BigInt* biOr_bbi(BigInt* dest, const BigInt* a, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    or(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biOr_bib(BigInt* dest, I64 a_int, const BigInt* b) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    or(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biOr_bii(BigInt* dest, I64 a_int, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    or(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+
+BigInt* biOr_mbb(Memory* mem, const BigInt* a, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    or(dest, a, b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biOr_mbi(Memory* mem, const BigInt* a, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    or(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biOr_mib(Memory* mem, I64 a_int, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    or(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biOr_mii(Memory* mem, I64 a_int, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    or(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+
+// === bitwise xor ===
+
+static void xor(BigInt* dest, const BigInt* a, const BigInt* b) {
+    U64 size = maxNormalSize(a, b);
+    resize(dest, size, true);
+
+    for (U64 i=0; i < size; i++) {
+        dest->limbs[i] = (i < a->size ? a->limbs[i] : 0) ^ (i < b->size ? b->limbs[i] : 0);
+    }
+    updateLen(dest);
+}
+
+BigInt* biXor_bbb(BigInt* dest, const BigInt* a, const BigInt* b) {
+    xor(dest, a, b);
+    return dest;
+}
+BigInt* biXor_bbi(BigInt* dest, const BigInt* a, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    xor(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biXor_bib(BigInt* dest, I64 a_int, const BigInt* b) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    xor(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biXor_bii(BigInt* dest, I64 a_int, I64 b_int) {
+    ScratchMemory scratch = scratchMemory(dest->mem);
+    xor(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+
+BigInt* biXor_mbb(Memory* mem, const BigInt* a, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    xor(dest, a, b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biXor_mbi(Memory* mem, const BigInt* a, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    xor(dest, a, biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biXor_mib(Memory* mem, I64 a_int, const BigInt* b) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    xor(dest, biFrom(scratch.mem, a_int), b);
+    scratchRelease(scratch);
+    return dest;
+}
+BigInt* biXor_mii(Memory* mem, I64 a_int, I64 b_int) {
+    BigInt* dest = biNew(mem);
+    ScratchMemory scratch = scratchMemory(mem);
+    xor(dest, biFrom(scratch.mem, a_int), biFrom(scratch.mem, b_int));
+    scratchRelease(scratch);
     return dest;
 }
 

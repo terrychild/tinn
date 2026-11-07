@@ -76,6 +76,7 @@ int biCmpInt(const BigInt* a, I64 b);
 )(a, b)
 
 // === shift left ===
+
 BigInt* biShiftLeft_bb(BigInt* dest, const BigInt* source, U64 count);
 BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count);
 
@@ -90,6 +91,7 @@ BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count);
 #define biShiftLeft(...) CONCAT(biShiftLeft_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 // === shift right ===
+
 BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, U64 count);
 BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count);
 
@@ -102,6 +104,168 @@ BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count);
 #define biShiftRight_3(dest, source, count) biShiftRight_dispatch(dest, source, count)
 
 #define biShiftRight(...) CONCAT(biShiftRight_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
+
+// === bitwise and ===
+
+BigInt* biAnd_bbb(BigInt* dest, const BigInt* a, const BigInt* b);
+BigInt* biAnd_bbi(BigInt* dest, const BigInt* a, I64 b);
+BigInt* biAnd_bib(BigInt* dest, I64 a, const BigInt* b);
+BigInt* biAnd_bii(BigInt* dest, I64 a, I64 b);
+BigInt* biAnd_mbb(Memory* mem, const BigInt* a, const BigInt* b);
+BigInt* biAnd_mbi(Memory* mem, const BigInt* a, I64 b);
+BigInt* biAnd_mib(Memory* mem, I64 a, const BigInt* b);
+BigInt* biAnd_mii(Memory* mem, I64 a, I64 b);
+
+#define biAnd_dispatch(dest, a, b) _Generic((dest), \
+    BigInt*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biAnd_bbb, \
+            BigInt*: biAnd_bbb, \
+            default: biAnd_bbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biAnd_bbb, \
+            BigInt*: biAnd_bbb, \
+            default: biAnd_bbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biAnd_bib, \
+            BigInt*: biAnd_bib, \
+            default: biAnd_bii  \
+        )  \
+    ), \
+    Memory*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biAnd_mbb, \
+            BigInt*: biAnd_mbb, \
+            default: biAnd_mbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biAnd_mbb, \
+            BigInt*: biAnd_mbb, \
+            default: biAnd_mbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biAnd_mib, \
+            BigInt*: biAnd_mib, \
+            default: biAnd_mii  \
+        )  \
+    ) \
+)(dest, a, b)
+
+#define biAnd_2(a, b)       biAnd_dispatch(   a, a, b)
+#define biAnd_3(dest, a, b) biAnd_dispatch(dest, a, b)
+
+
+#define biAnd(...) CONCAT(biAnd_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
+
+// === bitwise or ===
+
+BigInt* biOr_bbb(BigInt* dest, const BigInt* a, const BigInt* b);
+BigInt* biOr_bbi(BigInt* dest, const BigInt* a, I64 b);
+BigInt* biOr_bib(BigInt* dest, I64 a, const BigInt* b);
+BigInt* biOr_bii(BigInt* dest, I64 a, I64 b);
+BigInt* biOr_mbb(Memory* mem, const BigInt* a, const BigInt* b);
+BigInt* biOr_mbi(Memory* mem, const BigInt* a, I64 b);
+BigInt* biOr_mib(Memory* mem, I64 a, const BigInt* b);
+BigInt* biOr_mii(Memory* mem, I64 a, I64 b);
+
+#define biOr_dispatch(dest, a, b) _Generic((dest), \
+    BigInt*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biOr_bbb, \
+            BigInt*: biOr_bbb, \
+            default: biOr_bbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biOr_bbb, \
+            BigInt*: biOr_bbb, \
+            default: biOr_bbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biOr_bib, \
+            BigInt*: biOr_bib, \
+            default: biOr_bii  \
+        )  \
+    ), \
+    Memory*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biOr_mbb, \
+            BigInt*: biOr_mbb, \
+            default: biOr_mbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biOr_mbb, \
+            BigInt*: biOr_mbb, \
+            default: biOr_mbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biOr_mib, \
+            BigInt*: biOr_mib, \
+            default: biOr_mii  \
+        )  \
+    ) \
+)(dest, a, b)
+
+#define biOr_2(a, b)       biOr_dispatch(   a, a, b)
+#define biOr_3(dest, a, b) biOr_dispatch(dest, a, b)
+
+
+#define biOr(...) CONCAT(biOr_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
+
+// === bitwise xor ===
+
+BigInt* biXor_bbb(BigInt* dest, const BigInt* a, const BigInt* b);
+BigInt* biXor_bbi(BigInt* dest, const BigInt* a, I64 b);
+BigInt* biXor_bib(BigInt* dest, I64 a, const BigInt* b);
+BigInt* biXor_bii(BigInt* dest, I64 a, I64 b);
+BigInt* biXor_mbb(Memory* mem, const BigInt* a, const BigInt* b);
+BigInt* biXor_mbi(Memory* mem, const BigInt* a, I64 b);
+BigInt* biXor_mib(Memory* mem, I64 a, const BigInt* b);
+BigInt* biXor_mii(Memory* mem, I64 a, I64 b);
+
+#define biXor_dispatch(dest, a, b) _Generic((dest), \
+    BigInt*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biXor_bbb, \
+            BigInt*: biXor_bbb, \
+            default: biXor_bbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biXor_bbb, \
+            BigInt*: biXor_bbb, \
+            default: biXor_bbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biXor_bib, \
+            BigInt*: biXor_bib, \
+            default: biXor_bii  \
+        )  \
+    ), \
+    Memory*: _Generic((a), \
+        const BigInt*: _Generic((b), \
+            const BigInt*: biXor_mbb, \
+            BigInt*: biXor_mbb, \
+            default: biXor_mbi  \
+        ), \
+        BigInt*: _Generic((b), \
+            const BigInt*: biXor_mbb, \
+            BigInt*: biXor_mbb, \
+            default: biXor_mbi  \
+        ), \
+        default: _Generic((b), \
+            const BigInt*: biXor_mib, \
+            BigInt*: biXor_mib, \
+            default: biXor_mii  \
+        )  \
+    ) \
+)(dest, a, b)
+
+#define biXor_2(a, b)       biXor_dispatch(   a, a, b)
+#define biXor_3(dest, a, b) biXor_dispatch(dest, a, b)
+
+
+#define biXor(...) CONCAT(biXor_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 // === addition ===
 

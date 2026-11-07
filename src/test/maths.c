@@ -75,6 +75,17 @@ void testMaths() {
     expect("remainder", remainder, biFromInt(mem, 26));
     PRINT(CC_BLUE, "          %lu\n", remainder->limbs[0]);
 
+    expect("0x3C & 0xF", biAnd(mem, 0x3C, 0xF), biFrom(mem, 0x0C));
+    expect("0x3C | 0xF", biOr(mem, 0x3C, 0xF), biFrom(mem, 0x3F));
+    expect("0x3C ^ 0xF", biXor(mem, 0x3C, 0xF), biFrom(mem, 0x33));
+    expect("'a' ^ 32", biXor(mem, 'a', 32), biFrom(mem, 'A'));
+    expect("'A' ^ 32", biXor(mem, 'A', 32), biFrom(mem, 'a'));
+
+    U8 le_key[] = {0x9f, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f, 0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf};
+    BigInt* key = biFromLE(mem, le_key, 32);
+    expect("little endian key", key, biFrom(mem, "0xafaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a9998979695949392919f"));
+    expect("clamped key", biAnd(key, biFrom(mem, "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8")), biFrom(mem, "0x2faeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a99989796959493929198"));
+
     memoryDebug(mem);
     scratchRelease(scratch);
 }
