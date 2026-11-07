@@ -24,7 +24,7 @@ add_library(lib
 
     crypto/ec.c
     crypto/mc.c
-    crypto/curve25519.c
+    crypto/x25519.c
 )
 
 target_include_directories(lib PRIVATE "${CMAKE_SOURCE_DIR}/src")

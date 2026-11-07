@@ -10,7 +10,7 @@
 #include "lib/bytes.h"
 #include "lib/log.h"
 #include "lib/maths/bigint.h"
-#include "lib/crypto/curve25519.h"
+#include "lib/crypto/x25519.h"
 
 // TLS types and enums
 typedef enum:U16 {
@@ -91,11 +91,11 @@ typedef enum:U8 {
 } HandshakeType;
 
 typedef enum:U16 {
-    AES_128_GCM_SHA256 = 0x1301,
+    AES_128_GCM_SHA256 = 0x1301/*,
     AES_256_GCM_SHA384 = 0x1302,
     CHACHA20_POLY1305_SHA256 = 0x1303,
     AES_128_CCM_SHA256 = 0x1304,
-    AES_128_CCM_8_SHA256 = 0x1305,
+    AES_128_CCM_8_SHA256 = 0x1305*/
 } CipherSuite;
 
 typedef enum:U16 {
@@ -217,7 +217,7 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
     bufAppendBE16(buf, 36); //TODO: calculate
     bufAppendBE16(buf, X25519);
     bufAppendBE16(buf, 32);
-    BigInt* key = curve25519Key(connection->exchange_scope, "4242424242424242424242424242424242424242424242424242424242424240"); //TODO: make random
+    BigInt* key = x25519PublicKey(connection->exchange_scope, biFrom(connection->exchange_scope, "0x4242424242424242424242424242424242424242424242424242424242424240")); //TODO: make random
     bufAppend(buf, slice(biToBESlice(connection->exchange_scope, key), 0, 32));
 
     // updates sizes

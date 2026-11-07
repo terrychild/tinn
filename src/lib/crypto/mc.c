@@ -58,7 +58,7 @@ static void add(Memory* scratch_mem, ProjectedPoint* r, const ProjectedPoint* r1
     biMul(r->z, r->z, x, p);
 }
 
-static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
+static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* scalar, const BigInt* point) {
     ScratchMemory scratch = scratchMemory(mem);
 
     ProjectedPoint r0 = {
@@ -70,8 +70,8 @@ static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
         .z = biNew(scratch.mem)
     };
     dbl(scratch.mem, &r1, &r0, mc->a24, mc->p);
-    for (U64 bit = k->length - 1; bit-- > 0; ) {
-        if (biBit(k, bit) == 0) {
+    for (U64 bit = scalar->length - 1; bit-- > 0; ) {
+        if (biBit(scalar, bit) == 0) {
             add(scratch.mem, &r1, &r0, &r1, point, mc->p);
             dbl(scratch.mem, &r0, &r0, mc->a24, mc->p);
         } else {
@@ -85,6 +85,9 @@ static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* k) {
     return x;
 }
 
-BigInt* mcKey(Memory* mem, const MontgomeryCurve* mc, const BigInt* n) {
-    return mul(mem, mc, n);
+BigInt* mcPublicKey(Memory* mem, const MontgomeryCurve* mc, const BigInt* private_key) {
+    return mul(mem, mc, private_key, mc->g);
+}
+BigInt* mc(Memory* mem, const MontgomeryCurve* mc, const BigInt* scalar, const BigInt* point) {
+    return mul(mem, mc, scalar, point);
 }
