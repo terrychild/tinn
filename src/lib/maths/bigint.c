@@ -79,6 +79,20 @@ BigInt* biFromStr(Memory* mem, const char* str) {
     return biSetStr(biNew(mem), str);
 }
 
+BigInt* biFromBE(Memory* mem, const U8* bytes, U64 count) {
+    return biSetBE(biNew(mem), bytes, count);
+}
+BigInt* biFromBESlice(Memory* mem, const Slice slice) {
+    return biSetBE(biNew(mem), slice.start, slice.length);
+}
+
+BigInt* biFromLE(Memory* mem, const U8* bytes, U64 count) {
+    return biSetLE(biNew(mem), bytes, count);
+}
+BigInt* biFromLESlice(Memory* mem, const Slice slice) {
+    return biSetLE(biNew(mem), slice.start, slice.length);
+}
+
 // === input ===
 
 BigInt* biSetBi(BigInt* dest, const BigInt* source) {
@@ -106,9 +120,7 @@ BigInt* biSetInt(BigInt* bi, I64 i) {
 }
 
 static BigInt* biSetHexStr(BigInt* bi, const char* hex, U64 nibbles) {
-    U64 len = (nibbles+15)/16;
-
-    resize(bi, len, true);
+    resize(bi, (nibbles+15)/16, true);
 
     U64 limb = 0;
     U64 bits = 0;
@@ -143,9 +155,7 @@ static U8 readDecChar(char ch) {
 }
 
 static BigInt* biSetDecStr(BigInt* bi, const char* dec, U64 digits) {
-    U64 len = ((digits * 3.3219) + 31) / 32;
-
-    resize(bi, len, true);
+    resize(bi, ((digits * 3.3219) + 31) / 32, true);
 
     ScratchMemory scratch = scratchMemory(bi->mem);
     BigInt* ten = biFromInt(scratch.mem, 10);
@@ -178,6 +188,56 @@ BigInt* biSetStr(BigInt* bi, const char* str) {
     return bi;
 }
 
+BigInt* biSetBE(BigInt* bi, const U8* bytes, U64 count) {
+    resize(bi, (count+31)/32, true);
+
+    U64 limb = 0;
+    U64 bits = 0;
+    U64 value = 0;
+    for (U64 i = count; i-- > 0; ) {
+        value += (bytes[i]) << bits;
+        bits += 8;
+
+        if (bits == 64) {
+            bi->limbs[limb++] = value;
+            bits = 0;
+            value = 0;
+        }
+    }
+    bi->limbs[limb] = value;
+    updateLen(bi);
+
+    return bi;
+}
+BigInt* biSetBESlice(BigInt* bi, const Slice slice) {
+    return biSetBE(bi, slice.start, slice.length);
+}
+
+BigInt* biSetLE(BigInt* bi, const U8* bytes, U64 count) {
+    resize(bi, (count+31)/32, true);
+
+    U64 limb = 0;
+    U64 bits = 0;
+    U64 value = 0;
+    for (U64 i = 0; i < count; i++) {
+        value += (bytes[i]) << bits;
+        bits += 8;
+
+        if (bits == 64) {
+            bi->limbs[limb++] = value;
+            bits = 0;
+            value = 0;
+        }
+    }
+    bi->limbs[limb] = value;
+    updateLen(bi);
+
+    return bi;
+}
+BigInt* biSetLESlice(BigInt* bi, const Slice slice) {
+    return biSetLE(bi, slice.start, slice.length);
+}
+
 // === output ===
 
 Slice biToBESlice(Memory* mem, const BigInt* bi) {
@@ -199,8 +259,36 @@ Slice biToBESlice(Memory* mem, const BigInt* bi) {
                 go = true;
             }
             if (go) {
-                bytes[i] = (bi->limbs[limb] & mask) >> bits;
-                i++;
+                bytes[i++] = (bi->limbs[limb] & mask) >> bits;
+            }
+            bits -= 8;
+            mask >>= 8;
+        }
+    }
+
+    return sliceNew(bytes, bytes_len);
+}
+
+Slice biToLESlice(Memory* mem, const BigInt* bi) {
+    if (bi->length == 0) {
+        return sliceNew(allocate(mem, 1), 1);
+    }
+
+    U64 bytes_len = ((bi->length - 1) / 8) + 1;
+
+    U8* bytes = allocate(mem, bytes_len);
+
+    U64 i = bytes_len;
+    bool go = false;
+    for (U64 limb = bi->size; limb-- > 0; ) {
+        U64 mask = 0xff00000000000000;
+        U64 bits = 56;
+        while (mask) {
+            if (!go && (bi->limbs[limb] & mask)) {
+                go = true;
+            }
+            if (go) {
+                bytes[--i] = (bi->limbs[limb] & mask) >> bits;
             }
             bits -= 8;
             mask >>= 8;
@@ -307,78 +395,100 @@ int biCmpInt(const BigInt* a, I64 b) {
     }
 }
 
-// === bit shifting ===
+// === shift left ===
 
-void shiftLeft(BigInt* bi, U64 count) {
-    if (biIsZero(bi)) {
+static void shiftLeft(BigInt* dest, const BigInt* source, U64 count) {
+    if (biIsZero(source)) {
         return;
     }
 
     U64 move = count / 64;
     U64 shift = count % 64;
     U64 unshift = 64 - shift;
-    U64 size = bitsToSize(bi->length + count);
+    U64 size = bitsToSize(source->length + count);
 
-    resize(bi, size, true);
+    resize(dest, size, true);
 
     U64 limb = size;
     if (shift) {
         while (limb-- > move + 1) {
-            bi->limbs[limb] = (bi->limbs[limb-move] << shift) | (bi->limbs[limb-move-1] >> unshift);
+            dest->limbs[limb] = (source->limbs[limb-move] << shift) | (source->limbs[limb-move-1] >> unshift);
         }
-        bi->limbs[limb] = (bi->limbs[limb-move] << shift);
+        dest->limbs[limb] = (source->limbs[limb-move] << shift);
     } else {
         while (limb > move) {
             limb--;
-            bi->limbs[limb] = bi->limbs[limb-move];
+            dest->limbs[limb] = source->limbs[limb-move];
         }
     }
     if (move) {
         while (limb-- > 0) {
-            bi->limbs[limb] = 0;
+            dest->limbs[limb] = 0;
         }
     }
 
-    bi->length = bi->length + count;
+    dest->length = source->length + count;
 }
 
-void shiftRight(BigInt* bi, U64 count) {
-    if (bi->length <= count) {
-        biSetInt(bi, 0);
+BigInt* biShiftLeft_bb(BigInt* dest, const BigInt* source, U64 count) {
+    shiftLeft(dest, source, count);
+    return dest;
+}
+BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count) {
+    BigInt* dest = biNew(mem);
+    shiftLeft(dest, source, count);
+    return dest;
+}
+
+// === shift right ===
+
+static void shiftRight(BigInt* dest, const BigInt* source, U64 count) {
+    if (source->length <= count) {
+        biSetInt(dest, 0);
         return;
     }
 
     U64 move = count / 64;
     U64 shift = count % 64;
     U64 unshift = 64 - shift;
-    U64 size = bitsToSize(bi->length - count);
+    U64 size = bitsToSize(source->length - count);
 
-    resize(bi, size, false);
+    resize(dest, size, false);
 
     U64 limb = 0;
     if (shift) {
         while (limb < size-1) {
-            bi->limbs[limb] = (bi->limbs[limb+move] >> shift) | (bi->limbs[limb+move+1] << unshift);
+            dest->limbs[limb] = (source->limbs[limb+move] >> shift) | (source->limbs[limb+move+1] << unshift);
             limb++;
         }
-        if (limb+move+1 < bi->size) {
-            bi->limbs[limb] = (bi->limbs[limb+move] >> shift) | (bi->limbs[limb+move+1] << unshift);
+        if (limb+move+1 < source->size) {
+            dest->limbs[limb] = (source->limbs[limb+move] >> shift) | (source->limbs[limb+move+1] << unshift);
         } else {
-            bi->limbs[limb] = (bi->limbs[limb+move] >> shift);
+            dest->limbs[limb] = (source->limbs[limb+move] >> shift);
         }
         limb++;
     } else {
         while (limb < size) {
-            bi->limbs[limb] = bi->limbs[limb+move];
+            dest->limbs[limb] = source->limbs[limb+move];
             limb++;
         }
     }
-    while (limb < bi->size) {
-        bi->limbs[limb] = 0;
+    while (limb < dest->size) {
+        dest->limbs[limb] = 0;
         limb++;
     }
 
-    bi->length = bi->length - count;
+    dest->length = source->length - count;
+}
+
+BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, U64 count) {
+    shiftRight(dest, source, count);
+    return dest;
+}
+BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count) {
+    BigInt* dest = biNew(mem);
+    shiftRight(dest, source, count);
+    return dest;
 }
 
 // === addition ===
@@ -596,7 +706,7 @@ static void multiply(Memory* scratch_mem, BigInt* dest, const BigInt* a, const B
     U64 shift = 0;
     while (limb < temp_b->size) {
         if (temp_b->limbs[limb] & mask) {
-            shiftLeft(temp_a, shift);
+            shiftLeft(temp_a, temp_a, shift);
             shift = 0;
             add(dest, dest, temp_a);
         }
@@ -692,12 +802,12 @@ static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const Big
     if (r->length > temp_b->length) {
         shift = r->length - b->length;
     }
-    shiftLeft(temp_b, shift);
+    shiftLeft(temp_b, temp_b, shift);
     if (biCmpAbs(temp_b, r) < 0) {
-        shiftLeft(temp_b, 1);
+        shiftLeft(temp_b, temp_b, 1);
         shift++;
     }
-    shiftLeft(mask, shift);
+    shiftLeft(mask, mask, shift);
 
     while (biCmpAbs(r, orig_b) >= 0) {
         if (biCmpAbs(r, temp_b) >= 0) {
@@ -708,8 +818,8 @@ static void divide(Memory* scratch_mem, BigInt* dest, const BigInt* a, const Big
         if (temp_b->length > r->length) {
             shift = temp_b->length - r->length;
         }
-        shiftRight(temp_b, shift);
-        shiftRight(mask, shift);
+        shiftRight(temp_b, temp_b, shift);
+        shiftRight(mask, mask, shift);
     }
 }
 static void biDiv_impl(Memory* scratch_mem, BigInt* dest, const BigInt* a, const BigInt* b, BigInt* r) {
@@ -784,12 +894,12 @@ void modulus(Memory* scratch_mem, BigInt* r, const BigInt* a, const BigInt* b) {
     if (r->length > temp_b->length) {
         shift = r->length - b->length;
     }
-    shiftLeft(temp_b, shift);
+    shiftLeft(temp_b, temp_b, shift);
     if (biCmpAbs(temp_b, r) < 0) {
-        shiftLeft(temp_b, 1);
+        shiftLeft(temp_b, temp_b, 1);
         shift++;
     }
-    shiftLeft(mask, shift);
+    shiftLeft(mask, mask, shift);
 
     while (biCmpAbs(r, orig_b) >= 0) {
         if (biCmpAbs(r, temp_b) >= 0) {
@@ -799,8 +909,8 @@ void modulus(Memory* scratch_mem, BigInt* r, const BigInt* a, const BigInt* b) {
         if (temp_b->length > r->length) {
             shift = temp_b->length - r->length;
         }
-        shiftRight(temp_b, shift);
-        shiftRight(mask, shift);
+        shiftRight(temp_b, temp_b, shift);
+        shiftRight(mask, mask, shift);
     }
 
     if (r->negative) {

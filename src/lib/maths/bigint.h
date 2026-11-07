@@ -20,32 +20,45 @@ BigInt* biNew(Memory* mem);
 BigInt* biFromBi(Memory* mem, const BigInt* source);
 BigInt* biFromInt(Memory* mem, I64 i);
 BigInt* biFromStr(Memory* mem, const char* str);
+BigInt* biFromBE(Memory* mem, const U8* bytes, U64 count);
+BigInt* biFromBESlice(Memory* mem, const Slice slice);
+BigInt* biFromLE(Memory* mem, const U8* bytes, U64 count);
+BigInt* biFromLESlice(Memory* mem, const Slice slice);
 
 #define biFrom(mem, source) _Generic((source), \
-        const BigInt*: biFromBi, \
-		BigInt*: biFromBi, \
-        const char*: biFromStr, \
-        char*: biFromStr, \
-        default: biFromInt  \
-    )(mem, source)
+    const BigInt*: biFromBi, \
+    BigInt*: biFromBi, \
+    const char*: biFromStr, \
+    char*: biFromStr, \
+    const Slice: biFromBESlice, \
+    Slice: biFromBESlice, \
+    default: biFromInt  \
+)(mem, source)
 
 // === input ===
 
 BigInt* biSetBi(BigInt* dest, const BigInt* source);
 BigInt* biSetInt(BigInt* bi, I64 i);
 BigInt* biSetStr(BigInt* bi, const char* str);
+BigInt* biSetBE(BigInt* bi, const U8* bytes, U64 count);
+BigInt* biSetBESlice(BigInt* bi, const Slice slice);
+BigInt* biSetLE(BigInt* bi, const U8* bytes, U64 count);
+BigInt* biSetLESlice(BigInt* bi, const Slice slice);
 
 #define biSet(dest, source) _Generic((source), \
-		const BigInt*: biSetBi, \
-        BigInt*: biSetBi, \
-        const char*: biSetStr, \
-        char*: biSetStr, \
-        default: biSetInt  \
-    )(dest, source)
+    const BigInt*: biSetBi, \
+    BigInt*: biSetBi, \
+    const char*: biSetStr, \
+    char*: biSetStr, \
+    const Slice: biSetBESlice, \
+    Slice: biSetBESlice, \
+    default: biSetInt  \
+)(dest, source)
 
 // === output ===
 
 Slice biToBESlice(Memory* mem, const BigInt* bi);
+Slice biToLESlice(Memory* mem, const BigInt* bi);
 char* biToHexStr(Memory* mem, const BigInt* bi);
 
 // === comparison ===
@@ -57,10 +70,38 @@ int biCmpAbs(const BigInt* a, const BigInt* b);
 int biCmpBi(const BigInt* a, const BigInt* b);
 int biCmpInt(const BigInt* a, I64 b);
 #define biCmp(a, b) _Generic((b), \
-		BigInt*: biCmpBi, \
-        const BigInt*: biCmpBi, \
-        default: biCmpInt  \
-    )(a, b)
+    BigInt*: biCmpBi, \
+    const BigInt*: biCmpBi, \
+    default: biCmpInt  \
+)(a, b)
+
+// === shift left ===
+BigInt* biShiftLeft_bb(BigInt* dest, const BigInt* source, U64 count);
+BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count);
+
+#define biShiftLeft_dispatch(dest, source, count) _Generic((dest), \
+    BigInt*: biShiftLeft_bb, \
+    Memory*: biShiftLeft_mb \
+)(dest, source, count)
+
+#define biShiftLeft_2(dest, count)         biShiftLeft_dispatch(dest, dest, count)
+#define biShiftLeft_3(dest, source, count) biShiftLeft_dispatch(dest, source, count)
+
+#define biShiftLeft(...) CONCAT(biShiftLeft_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
+
+// === shift right ===
+BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, U64 count);
+BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count);
+
+#define biShiftRight_dispatch(dest, source, count) _Generic((dest), \
+    BigInt*: biShiftRight_bb, \
+    Memory*: biShiftRight_mb \
+)(dest, source, count)
+
+#define biShiftRight_2(dest, count)         biShiftRight_dispatch(dest, dest, count)
+#define biShiftRight_3(dest, source, count) biShiftRight_dispatch(dest, source, count)
+
+#define biShiftRight(...) CONCAT(biShiftRight_, COUNT_ARGS(__VA_ARGS__))(__VA_ARGS__)
 
 // === addition ===
 

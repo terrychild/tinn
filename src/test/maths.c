@@ -31,6 +31,13 @@ void testMaths() {
 
     expect("bi string", biToHexStr(mem, biSet(bi, "1024")), "0x400");
 
+    U8 bytes[2] = {0x10, 0x20};
+    U8 leBytes[2] = {0x20, 0x10};
+    expect("Big Endian Bytes", biFromBE(mem, bytes, 2), biFrom(mem, 4128));
+    expect("Little Endian Bytes", biSetLE(bi, bytes, 2), biFrom(mem, 8208));
+    expect("To Big Endian Slice", biToBESlice(mem, bi), sliceNew(leBytes, 2));
+    expect("To Little Endian Slice", biToLESlice(mem, bi), sliceNew(bytes, 2));
+
     biSet(bi, "0xFFFFFFFFFFFFFFFF");
     expect("bi FF* (size)", bi->size, 1);
     biAdd(bi, 1);
@@ -38,9 +45,9 @@ void testMaths() {
     expect("bi FF* + 1 (value)", bi, biFrom(mem, "0x10000000000000000"));
     expect("bi FF* + 1 (string)", biToHexStr(mem, bi), "0x10000000000000000");
 
-    /*expect("shift right", biShiftRight(bi, 8), biFrom(mem, "0x100000000000000"));
+    expect("shift right", biShiftRight(bi, 8), biFrom(mem, "0x100000000000000"));
     expect("shift left", biShiftLeft(bi, 8), biFrom(mem, "0x10000000000000000"));
-    expect("shift left", biShiftLeft(bi, 1), biFrom(mem, "0x20000000000000000"));*/
+    expect("shift left", biShiftLeft(bi, 1), biFrom(mem, "0x20000000000000000"));
 
     expect("8*8", biMul(bi, 8, 8), biFromInt(mem, 64));
     expect("square", biMul(bi, bi), biFromInt(mem, 4096));
