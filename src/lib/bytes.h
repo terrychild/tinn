@@ -14,6 +14,7 @@ void toBE16(U8 dest[2], U16 n);
 void toBE24(U8 dest[3], U32 n);
 void toBE32(U8 dest[4], U32 n);
 void toBE64(U8 dest[8], U64 n);
+void toBE128(U8 dest[16], const BigInt* n);
 
 U8 readHexChar(char nibble);
 char toHexChar(U8 nibble);

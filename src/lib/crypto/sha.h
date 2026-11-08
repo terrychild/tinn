@@ -7,5 +7,7 @@ Slice sha1(Memory* mem, Slice source);
 
 Slice sha224(Memory* mem, Slice source);
 Slice sha256(Memory* mem, Slice source);
+Slice sha384(Memory* mem, Slice source);
+Slice sha512(Memory* mem, Slice source);
 
 #endif

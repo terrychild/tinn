@@ -1,5 +1,6 @@
 #include "lib/mem/memory.h"
 #include "lib/types.h"
+#include "lib/maths/bigint.h"
 #include "lib/log.h"
 #include "lib/cli.h"
 
@@ -60,6 +61,13 @@ void toBE64(U8 dest[8], U64 n) {
     for (int i=7; i>=0; i--) {
         dest[i] = n & 0xFF;
         n >>= 8;
+    }
+}
+void toBE128(U8 dest[16], const BigInt* n) {
+    U64 offset = 0;
+    for (int i=1; i>=0; i--) {
+        toBE64(dest + offset, i < n->size ? n->limbs[i] : 0);
+        offset += 8;
     }
 }
 

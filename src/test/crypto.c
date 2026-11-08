@@ -92,9 +92,18 @@ void testCrypto() {
 
     hash = sha256(mem, sliceFromStr("abc"));
     expect("SHA-256, abc", toHexStr(mem, hash), "0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
-
     hash = sha256(mem, sliceFromStr(""));
     expect("SHA-256, empty string", toHexStr(mem, hash), "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
+    hash = sha384(mem, sliceFromStr("abc"));
+    expect("SHA-384, abc", toHexStr(mem, hash), "0xcb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7");
+    hash = sha384(mem, sliceFromStr(""));
+    expect("SHA-384, empty string", toHexStr(mem, hash), "0x38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b");
+
+    hash = sha512(mem, sliceFromStr("abc"));
+    expect("SHA-512, abc", toHexStr(mem, hash), "0xddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f");
+    hash = sha512(mem, sliceFromStr(""));
+    expect("SHA-512, empty string", toHexStr(mem, hash), "0xcf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e");
 
     memoryDebug(mem);
     scratchRelease(scratch);

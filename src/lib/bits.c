@@ -5,14 +5,28 @@ U8 rotl8(U8 value, U64 count) {
 	count &= mask;
 	return (value << count) | (value >> (-count & mask));
 }
-
 U32 rotl32(U32 value, U64 count) {
 	const U64 mask = 8 * sizeof(value) - 1;
 	count &= mask;
 	return (value << count) | (value >> (-count & mask));
 }
+U64 rotl64(U64 value, U64 count) {
+	const U64 mask = 8 * sizeof(value) - 1;
+	count &= mask;
+	return (value << count) | (value >> (-count & mask));
+}
 
+U8 rotr8(U8 value, U64 count) {
+	const U64 mask = 8 * sizeof(value) - 1;
+	count &= mask;
+	return (value >> count) | (value << (-count & mask));
+}
 U32 rotr32(U32 value, U64 count) {
+	const U64 mask = 8 * sizeof(value) - 1;
+	count &= mask;
+	return (value >> count) | (value << (-count & mask));
+}
+U64 rotr64(U64 value, U64 count) {
 	const U64 mask = 8 * sizeof(value) - 1;
 	count &= mask;
 	return (value >> count) | (value << (-count & mask));
