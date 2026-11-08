@@ -4,8 +4,11 @@
 #include "lib/crypto/ec.h"
 #include "lib/crypto/mc.h"
 #include "lib/crypto/x25519.h"
+#include "lib/crypto/sha.h"
 #include "lib/mem/memory.h"
+#include "lib/mem/slice.h"
 #include "lib/cli.h"
+#include "lib/bytes.h"
 
 void testCrypto() {
     PRINT(CC_BLUE, "================\n Crypto tests\n================\n");
@@ -72,6 +75,13 @@ void testCrypto() {
 
     U8 shrared_secret_bytes[] = {0xdf, 0x4a, 0x29, 0x1b, 0xaa, 0x1e, 0xb7, 0xcf, 0xa6, 0x93, 0x4b, 0x29, 0xb4, 0x74, 0xba, 0xad, 0x26, 0x97, 0xe2, 0x9f, 0x1f, 0x92, 0x0d, 0xcc, 0x77, 0xc8, 0xa0, 0xa0, 0x88, 0x44, 0x76, 0x24};
     expect("shared secret", x25519(mem, server_private, client_public), biFromLE(mem, shrared_secret_bytes, 32));
+
+    Slice hash = sha1(mem, sliceFromStr("The quick brown fox jumps over the lazy dog"));
+    expect("SHA-1, lazy dog", toHexStr(mem, hash), "0x2fd4e1c67a2d28fced849ee1bb76e7391b93eb12");
+    hash = sha1(mem, sliceFromStr("The quick brown fox jumps over the lazy cog"));
+    expect("SHA-1, lazy cog", toHexStr(mem, hash), "0xde9f2c7fd25e1b3afad3e85a0bd17d9b100db4b3");
+    hash = sha1(mem, sliceFromStr(""));
+    expect("SHA-1, empty string", toHexStr(mem, hash), "0xda39a3ee5e6b4b0d3255bfef95601890afd80709");
 
     memoryDebug(mem);
     scratchRelease(scratch);

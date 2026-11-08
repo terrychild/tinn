@@ -1,6 +1,7 @@
 add_library(lib
     cli.c
     log.c
+    bits.c
     bytes.c
 
     mem/align.c
@@ -22,6 +23,7 @@ add_library(lib
 
     maths/bigint.c
 
+    crypto/sha.c
     crypto/ec.c
     crypto/mc.c
     crypto/x25519.c

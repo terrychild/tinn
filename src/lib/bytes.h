@@ -17,7 +17,7 @@ void toBE64(U8 dest[8], U64 n);
 
 U8 readHexChar(char nibble);
 char toHexChar(U8 nibble);
-
+char* toHexStr(Memory* mem, Slice slice);
 void hexDump(Slice slice);
 
 #endif

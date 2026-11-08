@@ -1,3 +1,4 @@
+#include "lib/mem/memory.h"
 #include "lib/types.h"
 #include "lib/log.h"
 #include "lib/cli.h"
@@ -5,7 +6,6 @@
 U8 fromBE8(const U8 bytes[1]) {
     return bytes[0];
 }
-
 U16 fromBE16(const U8 bytes[2]) {
     U16 n = 0;
     for (int i=0; i<2; i++) {
@@ -13,7 +13,6 @@ U16 fromBE16(const U8 bytes[2]) {
     }
     return n;
 }
-
 U32 fromBE24(const U8 bytes[3]) {
     U32 n = 0;
     for (int i=0; i<3; i++) {
@@ -21,7 +20,6 @@ U32 fromBE24(const U8 bytes[3]) {
     }
     return n;
 }
-
 U32 fromBE32(const U8 bytes[4]) {
     U32 n = 0;
     for (int i=0; i<4; i++) {
@@ -29,7 +27,6 @@ U32 fromBE32(const U8 bytes[4]) {
     }
     return n;
 }
-
 U64 fromBE64(const U8 bytes[8]) {
     U64 n = 0;
     for (int i=0; i<8; i++) {
@@ -88,21 +85,34 @@ U8 readHexChar(char nibble) {
 
 char toHexChar(U8 nibble) {
 	if (nibble < 10) {
-		return nibble + '0';
+        return nibble + '0';
 	}
     if (nibble < 16) {
-        return nibble + 'A' - 1;
+        return nibble + 'a' - 10;
     }
     ERROR("Invalid hex value '%d'.", nibble);
 	return 'x';
 }
 
+char* toHexStr(Memory* mem, Slice slice) {
+    char* str = allocate(mem, (slice.length * 2) + 3);
+    str[0] = '0';
+    str[1] = 'x';
+    U64 byte = 2;
+    for (U64 i = 0; i < slice.length; i++) {
+        str[byte++] = toHexChar((slice.start[i] & 0xF0) >> 4);
+        str[byte++] = toHexChar(slice.start[i] & 0x0F);
+    }
+    str[byte] = '\0';
+    return str;
+}
+
 void hexDump(Slice slice) {
     for (U64 i=0; i < slice.length; i+=16) {
-        PRINT(CC_WHITE, "%08lX  ", i);
+        PRINT(CC_WHITE, "%08lx  ", i);
         for (U64 j=0; j<16; j++) {
             if (i+j < slice.length) {
-                PRINT(CC_YELLOW, "%02X ", slice.start[i+j]);
+                PRINT(CC_YELLOW, "%02x ", slice.start[i+j]);
             } else {
                 PRINT(CC_BRIGHT_BLACK, ".. ");
             }
