@@ -155,7 +155,7 @@ static U8 readDecChar(char ch) {
 }
 
 static BigInt* biSetDecStr(BigInt* bi, const char* dec, U64 digits) {
-    resize(bi, ((digits * 3.3219) + 7) / 8, true);
+    resize(bi, ((digits * 3.3219) + 63) / 64, true);
 
     ScratchMemory scratch = scratchMemory(bi->mem);
     BigInt* ten = biFromInt(scratch.mem, 10);
