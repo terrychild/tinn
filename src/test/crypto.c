@@ -83,6 +83,19 @@ void testCrypto() {
     hash = sha1(mem, sliceFromStr(""));
     expect("SHA-1, empty string", toHexStr(mem, hash), "0xda39a3ee5e6b4b0d3255bfef95601890afd80709");
 
+    hash = sha224(mem, sliceFromStr("The quick brown fox jumps over the lazy dog"));
+    expect("SHA-224, lazy dog", toHexStr(mem, hash), "0x730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525");
+    hash = sha224(mem, sliceFromStr("The quick brown fox jumps over the lazy dog."));
+    expect("SHA-224, lazy dog.", toHexStr(mem, hash), "0x619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4c");
+    hash = sha224(mem, sliceFromStr(""));
+    expect("SHA-224, empty string", toHexStr(mem, hash), "0xd14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f");
+
+    hash = sha256(mem, sliceFromStr("abc"));
+    expect("SHA-256, abc", toHexStr(mem, hash), "0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+
+    hash = sha256(mem, sliceFromStr(""));
+    expect("SHA-256, empty string", toHexStr(mem, hash), "0xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+
     memoryDebug(mem);
     scratchRelease(scratch);
 }

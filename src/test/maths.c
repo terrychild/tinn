@@ -6,7 +6,7 @@
 #include "lib/maths/bigint.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
-#include "lib/bytes.h"
+#include "lib/bits.h"
 #include "lib/cli.h"
 
 void testMaths() {
@@ -85,6 +85,13 @@ void testMaths() {
     BigInt* key = biFromLE(mem, le_key, 32);
     expect("little endian key", key, biFrom(mem, "0xafaeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a9998979695949392919f"));
     expect("clamped key", biAnd(key, biFrom(mem, "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff8")), biFrom(mem, "0x2faeadacabaaa9a8a7a6a5a4a3a2a1a09f9e9d9c9b9a99989796959493929198"));
+
+
+    U32 rotate = 0x11;
+    expect("rotate left 1", rotl32(rotate, 1), 0x22);
+    expect("rotate right 1", rotr32(rotate, 1), 0x80000008);
+    expect("rotate right 4", rotr32(rotate, 4), 0x10000001);
+    expect("rotate right 8", rotr32(rotate, 8), 0x11000000);
 
     memoryDebug(mem);
     scratchRelease(scratch);
