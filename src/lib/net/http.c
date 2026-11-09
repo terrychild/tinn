@@ -1,14 +1,17 @@
+#include <stdlib.h>
 #include <string.h>
+#define __USE_XOPEN // required for strptime
+#include <time.h>
 
 #include "lib/net/http.h"
+#include "lib/net/url.h"
 #include "lib/macros.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/array.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
-#include "lib/log.h"
-
 #include "lib/bytes.h"
+#include "lib/log.h"
 
 static const char* status_text[] = {
     [HTTP_OK] = "OK",
@@ -24,6 +27,42 @@ static const char* status_text[] = {
     [HTTP_VERSION_NOT_SUPPORTED] = "HTTP Version Not Supported"
 };
 
+typedef enum {
+    RECEIVE_HEADER,
+    RECEIVE_CONTENT,
+    SEND_HEADER,
+    SEND_CONTENT,
+} ConnectionStatus;
+
+typedef struct {
+    Slice method;
+    URL* target;
+    Slice version;
+    Slice host;
+    Slice connection;
+    time_t if_modified_since;
+    U64 header_length;
+    U64 content_length;
+    Slice content;
+} Request;
+
+typedef struct {
+    HttpStatusCode status_code;
+    Array* headers;
+    Slice content_type;
+    U64 content_length;
+    Slice content;
+} Response;
+
+typedef struct HttpConnection {
+    ServerInterface server;
+    Memory* exchange_mem;
+    ConnectionStatus status;
+    Request request;
+    Response response;
+} Connection;
+
+// date formating
 static const size_t IMF_DATE_LEN = 30; // length of a date in Internet Messaging Format with null terminator
 static char* toImfDate(char* buf, size_t max_len, time_t seconds) {
 	strftime(buf, max_len, "%a, %d %b %Y %H:%M:%S GMT", gmtime(&seconds));
@@ -39,6 +78,7 @@ static time_t fromImfDate(const char* date, size_t len) {
 	return mktime(&tm);
 }
 
+// validators
 static Slice validateContentType(Slice content_type) {
 	if (content_type.length > 0) {
 		if (content_type.start[0] == '.') {
@@ -75,16 +115,16 @@ static Slice validateContentType(Slice content_type) {
 }
 
 // message generation
-static Slice generateResponseHeader(HttpServerExchange* exchange) {
-    Buffer* header = bufNew(exchange->scope, KiB(4));
+static Slice generateResponseHeader(HttpConnection* connection) {
+    Buffer* header = bufNew(connection->exchange_mem, KiB(4));
 
     // default status code
-    if (exchange->response->status_code == 0) {
-        exchange->response->status_code = exchange->response->content_length == 0 ? HTTP_NO_CONTENT : HTTP_OK;
+    if (connection->response.status_code == 0) {
+        connection->response.status_code = connection->response.content_length == 0 ? HTTP_NO_CONTENT : HTTP_OK;
     }
 
     // status line
-    bufAppend(header, "%s %d %s\r\n", exchange->response->version, exchange->response->status_code, status_text[exchange->response->status_code]);
+    bufAppend(header, "HTTP/1.1 %d %s\r\n", connection->response.status_code, status_text[connection->response.status_code]);
 
     // date header
 	bufAppend(header, "Date: ");
@@ -96,16 +136,16 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
 	bufAppend(header, "Server: Tinn\r\n");
 
 	// content headers
-    if (exchange->response->status_code != HTTP_NO_CONTENT && exchange->response->status_code != HTTP_NOT_MODIFIED) {
-        bufAppend(header, "Content-Length: %ld\r\n", exchange->response->content_length);
-        if (exchange->response->content_type.length > 0) {
-            bufAppend(header, "Content-Type: %.*s\r\n", exchange->response->content_type.length, exchange->response->content_type.start);
+    if (connection->response.status_code != HTTP_NO_CONTENT && connection->response.status_code != HTTP_NOT_MODIFIED) {
+        bufAppend(header, "Content-Length: %ld\r\n", connection->response.content_length);
+        if (connection->response.content_type.length > 0) {
+            bufAppend(header, "Content-Type: %.*s\r\n", connection->response.content_type.length, connection->response.content_type.start);
         }
     }
 
 	// other headers
-	for (size_t i=0; i<exchange->response->headers->count; i++) {
-        HttpHeader* kvp = (HttpHeader*)arrayGet(exchange->response->headers, i);
+	for (size_t i=0; i<connection->response.headers->count; i++) {
+        HttpHeader* kvp = (HttpHeader*)arrayGet(connection->response.headers, i);
 		bufAppend(header, "%.*s: %.*s\r\n", kvp->name.length, kvp->name.start, kvp->value.length, kvp->value.start);
 	}
 
@@ -115,48 +155,18 @@ static Slice generateResponseHeader(HttpServerExchange* exchange) {
     return bufAsSlice(header);
 }
 
-void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_code) {
-    exchange->response->status_code = status_code;
+void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code) {
+    connection->response.status_code = status_code;
 }
 
-void httpServerSetContentHeaders(HttpServerExchange* exchange, Slice content_type, U64 content_length) {
-    exchange->response->content_type = validateContentType(content_type);
-    exchange->response->content_length = content_length;
+void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, U64 content_length) {
+    connection->response.content_type = validateContentType(content_type);
+    connection->response.content_length = content_length;
 }
-void httpServerSetContent(HttpServerExchange* exchange, Slice content_type, Slice content) {
-    exchange->response->content_type = validateContentType(content_type);
-    exchange->response->content_length = content.length;
-    exchange->response->content = content;
-}
-
-void httpServerAddHeader(HttpServerExchange* exchange, Slice name, Slice value) {
-    HttpHeader* header = arrayAdd(exchange->response->headers);
-    header->name = name;
-    header->value = value;
-}
-void httpServerAddDateHeader(HttpServerExchange* exchange, Slice name, time_t seconds) {
-    char* buf = allocate(exchange->scope, IMF_DATE_LEN);
-    httpServerAddHeader(exchange, name, sliceFromStr(toImfDate(buf, IMF_DATE_LEN, seconds)));
-}
-
-void httpServerSend(HttpServerExchange* exchange) {
-    exchange->status = HTTP_SEND_HEADER;
-    connectionSend(exchange->connection, generateResponseHeader(exchange), false);
-}
-
-void httpServerSendRedirect(HttpServerExchange* exchange, Slice location) {
-    if (sliceIsStr(exchange->request->method, "GET")) {
-        httpServerSetStatus(exchange, HTTP_MOVED_PERMANENTLY);
-    } else {
-        httpServerSetStatus(exchange, HTTP_PERMANENT_REDIRECT);
-    }
-    httpServerAddHeader(exchange, sliceFromStr("Location"), location);
-    httpServerSend(exchange);
-}
-
-void httpServerSendNotModified(HttpServerExchange* exchange) {
-    httpServerSetStatus(exchange, HTTP_NOT_MODIFIED);
-    httpServerSend(exchange);
+void httpServerSetContent(HttpConnection* connection, Slice content_type, Slice content) {
+    connection->response.content_type = validateContentType(content_type);
+    connection->response.content_length = content.length;
+    connection->response.content = content;
 }
 
 #define ERROR_TEMPLATE \
@@ -183,136 +193,74 @@ void httpServerSendNotModified(HttpServerExchange* exchange) {
 	"</body>" \
 	"</html>"
 
-void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code) {
-    Buffer* content = bufNew(exchange->scope, KiB(4));
+void httpServerSendError(HttpConnection* connection, HttpStatusCode status_code) {
+    Buffer* content = bufNew(connection->exchange_mem, KiB(4));
     bufAppend(content, ERROR_TEMPLATE, status_code, status_text[status_code]);
 
-    httpServerSetStatus(exchange, status_code);
-    httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
-    httpServerSend(exchange);
+    httpServerSetStatus(connection, status_code);
+    httpServerSetContent(connection, sliceFromStr("html"), bufAsSlice(content));
+    httpServerSend(connection);
+}
+
+void httpServerSend(HttpConnection* connection) {
+    connection->status = SEND_HEADER;
+    serverSend(connection->server, generateResponseHeader(connection));
 }
 
 // events
-static void onConnect(ServerConnection* connection) {
-    HttpServer* http_server = (HttpServer*)connection->context;
-    HttpServerConnection* http_connection = allocate(connection->scope, sizeof(HttpServerConnection));
-    http_connection->server = http_server;
-    connection->context = http_connection;
-}
+static void onReceived(void* context, Slice data) {
+    Connection* connection = context;
+    httpServerSendError(connection, HTTP_NOT_IMPLEMENTED);
 
-static void onReceive(ServerConnection* connection, Slice data) {
-    HttpServerConnection* http_connection = (HttpServerConnection*)connection->context;
-    HttpServerExchange* exchange = http_connection->exchange;
-    if (!exchange) {
-        exchange = allocate(connection->exchange_scope, sizeof(ServerConnection));
-        exchange->connection = connection;
-        exchange->scope = connection->exchange_scope;
-        exchange->status = HTTP_RECEIVE_HEADER;
-        exchange->request = allocate(exchange->scope, sizeof(HttpServerRequest));
-        exchange->response = allocate(exchange->scope, sizeof(HttpServerResponse));
-        exchange->response->version = "HTTP/1.1";
-        exchange->response->headers = arrayNew(exchange->scope, sizeof(HttpHeader), 32);
-
-        http_connection->exchange = exchange;
-    }
-
-    if (exchange->status == HTTP_RECEIVE_HEADER) {
+    /*if (connection->status == RECEIVE_HEADER) {
         Slice header = sliceLeftStr(data, "\r\n\r\n");
         if (header.length > 0) {
-            Tokeniser lines = sliceTokeniserStr(header, "\r\n", false);
-
-            // request line
-            Slice request_line = nextToken(&lines);
-            Tokeniser words = sliceTokeniserStr(request_line, " ", false);
-            exchange->request->method = nextToken(&words);
-            exchange->request->target = urlFromOrigin(connection->exchange_scope, nextToken(&words));
-            exchange->request->version = nextToken(&words);
-
-            if (exchange->request->method.length == 0 || !exchange->request->target || exchange->request->version.length == 0) {
-                httpServerSendError(exchange, HTTP_BAD_REQUEST);
-            } else {
-                DEBUG("Request: %.*s %.*s?%.*s",
-                    exchange->request->method.length, exchange->request->method.start,
-                    exchange->request->target->path.length, exchange->request->target->path.start,
-                    exchange->request->target->query.length, exchange->request->target->query.start
-                );
-                /*for (U64 i=0; i<exchange->request->target->path_segments->count; i++) {
-                    Slice* segment = (Slice*)arrayGet(exchange->request->target->path_segments, i);
-                    DEBUG("Path segment (%lu): %.*s", segment->length, segment->length, segment->start);
-                }*/
-
-                // headers
-                Slice line = nextToken(&lines);
-                while (line.start) {
-                    Slice name = sliceToLowerCase(exchange->scope, sliceLeftStr(line, ":"));
-                    Slice value = sliceTrim(sliceRightStr(line, ":"));
-                    //DEBUG("%.*s: %.*s", name.length, name.start, value.length, value.start);
-
-                    if (sliceIsStr(name, "host")) {
-						exchange->request->host = value;
-					} else if (sliceIsStr(name, "connection")) {
-						exchange->request->connection = value;
-					} else if (sliceIsStr(name, "if-modified-since")) {
-						exchange->request->if_modified_since = fromImfDate((const char*)value.start, value.length);
-					}
-
-                    line = nextToken(&lines);
-                }
-
-                if (exchange->request->connection.length==0) {
-					if (sliceIsStr(exchange->request->version, "HTTP/1.0")) {
-						exchange->request->connection = sliceFromStr("close");
-					} else {
-						exchange->request->connection = sliceFromStr("keep-alive");
-					}
-				}
-
-                // respond
-                if (http_connection->server->onRequest) {
-                    http_connection->server->onRequest(exchange, http_connection->server->context);
-                } else {
-                    httpServerSetStatus(exchange, HTTP_NO_CONTENT);
-                    httpServerSend(exchange);
-                }
-            }
         }
-
-    } else if (exchange->status == HTTP_RECEIVE_CONTENT) {
+    } else if (connection->status == RECEIVE_CONTENT) {
         // TODO: read content
-        httpServerSendError(exchange, HTTP_NOT_IMPLEMENTED);
+        httpServerSendError(connection, HTTP_NOT_IMPLEMENTED);
+    }*/
+}
+
+static void onSent(void* context) {
+    Connection* connection = context;
+    if (connection->status == SEND_HEADER && connection->response.content_length > 0 && !sliceIsStr(connection->request.method, "HEAD")) {
+        connection->status = SEND_CONTENT;
+        serverSend(connection->server, connection->response.content);
+    } else {
+        serverRead(connection->server, connection->request.header_length + connection->request.content_length);
+
+        memoryReset(connection->exchange_mem);
+        connection->status = RECEIVE_HEADER;
+        connection->request = (Request) {};
+        connection->response = (Response) {
+            .headers = arrayNew(connection->exchange_mem, sizeof(HttpHeader), 32)
+        };
+
+        //TODO: or close
     }
 }
 
-static void onSent(ServerConnection* connection, bool* and_close) {
-    HttpServerConnection* http_connection = (HttpServerConnection*)connection->context;
-    HttpServerExchange* exchange = http_connection->exchange;
-
-    if (exchange) {
-        if (exchange->status == HTTP_SEND_HEADER && exchange->response->content_length > 0 && !sliceIsStr(exchange->request->method, "HEAD")) {
-            exchange->status = HTTP_SEND_CONTENT;
-            connectionSend(connection, exchange->response->content, false);
-
-        } else {
-            if (sliceIsStr(exchange->request->connection, "close")) {
-                *and_close = true;
-            } else {
-                connectionSent(connection, and_close);
-                http_connection->exchange = NULL;
-            }
-        }
-    }
+static void onDisconnected(void* context) {
+    Connection* connection = context;
+    memoryRelease(connection->exchange_mem);
 }
 
-HttpServer* httpServer(Memory* mem, Polling* polling, const char* port) {
-    HttpServer* http_server = NULL;
-    Server* server = serverNew(mem, polling, port);
-    if (server) {
-        http_server = allocate(mem, sizeof(HttpServer));
+static ServerClientInterface onConnect(__attribute__((unused)) void* context, ServerInterface server) {
+    Connection* connection = allocate(server.mem, sizeof(connection));
+    connection->server = server;
+    connection->exchange_mem = memoryNew(MiB(100));
+    connection->status = RECEIVE_HEADER;
+    connection->response.headers = arrayNew(connection->exchange_mem, sizeof(HttpHeader), 32);
 
-        server->onConnect = onConnect;
-        server->onReceive = onReceive;
-        server->onSent = onSent;
-        server->context = http_server;
-    }
-    return http_server;
+    return (ServerClientInterface) {
+        .onReceived = onReceived,
+        .onSent = onSent,
+        .onDisconnected = onDisconnected,
+        .context = connection
+    };
+}
+
+Server* httpServer(Memory* mem, Polling* polling, const char* port) {
+    return serverNew(mem, polling, port, onConnect, NULL);
 }

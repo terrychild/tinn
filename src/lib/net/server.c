@@ -60,8 +60,9 @@ static ssize_t connectionSend(ServerConnection* connection) {
         if ((size_t)sent < connection->response.length) {
             connection->response.start += sent;
             connection->response.length -= sent;
-            pollingEvents(connection->server->polling, connection->socket, POLLOUT);
+            pollingEvents(connection->server->polling, connection->socket, POLLOUT);//TODO: make this and add and not a set?
         } else {
+            pollingEvents(connection->server->polling, connection->socket, POLLIN);
             serverClientSent(connection->interface);
         }
     } else {

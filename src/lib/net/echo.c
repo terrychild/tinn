@@ -1,7 +1,6 @@
 #include <stdlib.h>
 
 #include "lib/net/echo.h"
-#include "lib/macros.h"
 #include "lib/mem/memory.h"
 #include "lib/bytes.h"
 
@@ -16,7 +15,7 @@ static void echo(void* context, Slice data) {
     serverRead(connection->server, data.length);
 }
 
-static ServerClientInterface echoConnect(__attribute__((unused)) void* context, ServerInterface server) {
+static ServerClientInterface onConnect(__attribute__((unused)) void* context, ServerInterface server) {
     Connection* connection = allocate(server.mem, sizeof(connection));
     connection->server = server;
 
@@ -27,5 +26,5 @@ static ServerClientInterface echoConnect(__attribute__((unused)) void* context, 
 }
 
 Server* echoServer(Memory* mem, Polling* polling, const char* port) {
-    return serverNew(mem, polling, port, echoConnect, NULL);
+    return serverNew(mem, polling, port, onConnect, NULL);
 }

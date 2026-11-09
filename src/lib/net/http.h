@@ -1,14 +1,8 @@
 #ifndef LIB_NET_HTTP_H
 #define LIB_NET_HTTP_H
 
-#define __USE_XOPEN
-
-#include <time.h>
-
-#include "lib/types.h"
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
-#include "lib/net/url.h"
 
 typedef enum {
     HTTP_OK = 200,
@@ -24,68 +18,18 @@ typedef enum {
     HTTP_VERSION_NOT_SUPPORTED = 505
 } HttpStatusCode;
 
-typedef enum {
-    HTTP_RECEIVE_HEADER,
-    HTTP_RECEIVE_CONTENT,
-    HTTP_SEND_HEADER,
-    HTTP_SEND_CONTENT,
-} HttpServerConnectionStatus;
-
 typedef struct {
     Slice name;
     Slice value;
 } HttpHeader;
 
-typedef struct {
-    Slice method;
-    URL* target;
-    Slice version;
-    Slice host;
-    Slice connection;
-    time_t if_modified_since;
-    Slice content;
-} HttpServerRequest;
+typedef struct HttpConnection HttpConnection;
 
-typedef struct {
-    const char* version;
-    HttpStatusCode status_code;
-    Array* headers;
-    Slice content_type;
-    U64 content_length;
-    Slice content;
-} HttpServerResponse;
-
-typedef struct {
-    ServerConnection* connection;
-    Memory* scope;
-    HttpServerConnectionStatus status;
-    HttpServerRequest* request;
-    HttpServerResponse* response;
-} HttpServerExchange;
-
-typedef void (*HttpServerRequestFunc)(HttpServerExchange* exchange, void* context);
-
-typedef struct {
-    HttpServerRequestFunc onRequest;
-    void* context;
-} HttpServer;
-
-typedef struct {
-    HttpServer* server;
-    HttpServerExchange* exchange;
-} HttpServerConnection;
-
-HttpServer* httpServer(Memory* mem, Polling* polling, const char* port);
-
-void httpServerSetStatus(HttpServerExchange* exchange, HttpStatusCode status_code);
-void httpServerSetContentHeaders(HttpServerExchange* exchange, Slice content_type, U64 content_length);
-void httpServerSetContent(HttpServerExchange* exchange, Slice content_type, Slice content);
-void httpServerAddHeader(HttpServerExchange* exchange, Slice name, Slice value);
-void httpServerAddDateHeader(HttpServerExchange* exchange, Slice name, time_t seconds);
-
-void httpServerSend(HttpServerExchange* exchange);
-void httpServerSendRedirect(HttpServerExchange* exchange, Slice location);
-void httpServerSendNotModified(HttpServerExchange* exchange);
-void httpServerSendError(HttpServerExchange* exchange, HttpStatusCode status_code);
+Server* httpServer(Memory* mem, Polling* polling, const char* port);
+void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code);
+void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, U64 content_length);
+void httpServerSetContent(HttpConnection* connection, Slice content_type, Slice content);
+void httpServerSendError(HttpConnection* connection, HttpStatusCode status_code);
+void httpServerSend(HttpConnection* connection);
 
 #endif
