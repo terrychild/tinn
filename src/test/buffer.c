@@ -99,5 +99,11 @@ void testBuffer() {
     memoryDebug(mem);
     memoryReset(mem);
 
+    buf = bufNew(mem, 100);
+    bufAppend(buf, "Hello, World!");
+    expect("hi", bufAsStr(buf), "Hello, World!");
+    bufConsume(buf, 7);
+    expect("Consume", bufAsStr(buf), "World!");
+
     scratchRelease(scratch);
 }

@@ -19,8 +19,9 @@ void pollingInit(Polling* polling, Memory* mem, U64 capacity) {
 
     polling->pollfds = arrayNew(mem, sizeof(struct pollfd), capacity);
     polling->callbacks = arrayNew(mem, sizeof(PollingCallback), capacity);
-    polling->inotify = -1;
     polling->files = poolNew(mem, sizeof(PollingFileCallback), capacity);
+    polling->inotify = -1;
+    polling->looping = false;
 }
 
 void pollingAdd(Polling* polling, int fd, PollingCallback callback) {
@@ -35,8 +36,12 @@ void pollingRemove(Polling* polling, int fd) {
     for (U64 i = 0; i < polling->pollfds->count; i++) {
         struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
         if (pfd->fd == fd) {
-            arraySet(polling->pollfds, i, arrayPop(polling->pollfds));
-            arraySet(polling->callbacks, i, arrayPop(polling->callbacks));
+            if (polling->looping) {
+                pfd->events = 0;
+            } else {
+                arraySet(polling->pollfds, i, arrayPop(polling->pollfds));
+                arraySet(polling->callbacks, i, arrayPop(polling->callbacks));
+            }
             return;
         }
     }
@@ -57,19 +62,23 @@ void pollingPoll(Polling* polling) {
             PANIC("When polling");
         }
 
+        polling->looping = true;
         for (U64 i = 0; i < polling->pollfds->count; i++) {
             struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
             if (pfd->revents) {
                 PollingCallback* callback = (PollingCallback*)arrayGet(polling->callbacks, i);
                 callback->func(pfd, callback->context);
-
-                if (pfd->events == 0) {
-                    arraySet(polling->pollfds, i, arrayPop(polling->pollfds));
-                    arraySet(polling->callbacks, i, arrayPop(polling->callbacks));
-                    i--;
-                }
             }
         }
+        for (U64 i = 0; i < polling->pollfds->count; i++) {
+            struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
+            if (pfd->events == 0) {
+                arraySet(polling->pollfds, i, arrayPop(polling->pollfds));
+                arraySet(polling->callbacks, i, arrayPop(polling->callbacks));
+                i--;
+            }
+        }
+        polling->looping = false;
     }
 }
 

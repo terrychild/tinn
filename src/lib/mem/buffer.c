@@ -56,6 +56,15 @@ U64 bufReserve(Buffer* buf, U64 n) {
     buf->length += n;
     return offset;
 }
+void bufConsume(Buffer* buf, U64 n) {
+    if (n == buf->length) {
+        bufReset(buf);
+    } else if (n < buf->length) {
+        U64 new_len = buf->length - n;
+        memmove(buf->start, buf->start + n, new_len);
+        buf->length = new_len;
+    }
+}
 
 void bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
     ensure(buf, n);

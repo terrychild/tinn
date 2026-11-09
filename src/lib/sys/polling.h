@@ -22,8 +22,9 @@ typedef struct {
 typedef struct {
     Array* pollfds;
     Array* callbacks;
-    int inotify;
     Pool* files;
+    int inotify;
+    bool looping;
 } Polling;
 
 Polling* pollingNew(Memory* mem, U64 max_capacity);

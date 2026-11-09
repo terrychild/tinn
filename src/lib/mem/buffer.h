@@ -24,6 +24,7 @@ BufferSpace bufReadyWrite(Buffer* buf, U64 min_size);
 void bufConfirmWrite(Buffer* buf, U64 n);
 
 U64 bufReserve(Buffer* buf, U64 n);
+void bufConsume(Buffer* buf, U64 n);
 
 void bufAppendBytes(Buffer* buf, const U8* data, U64 n);
 void bufAppendSlice(Buffer* buf, const Slice slice);

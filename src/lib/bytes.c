@@ -65,7 +65,7 @@ void toBE64(U8 dest[8], U64 n) {
 }
 void toBE128(U8 dest[16], const BigInt* n) {
     U64 offset = 0;
-    for (int i=1; i>=0; i--) {
+    for (U64 i=1; i-- > 0; ) {
         toBE64(dest + offset, i < n->size ? n->limbs[i] : 0);
         offset += 8;
     }

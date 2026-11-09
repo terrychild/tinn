@@ -6,53 +6,61 @@
 #include "lib/types.h"
 #include "lib/sys/polling.h"
 
-typedef struct ServerConnection ServerConnection;
-typedef struct ServerExchange ServerExchange;
+typedef struct ServerClientInterface ServerClientInterface;
+typedef struct ServerInterface ServerInterface;
 
-typedef void (*ServerConnectFunc)(ServerConnection* connection);
-typedef void (*ServerDisconnectFunc)(ServerConnection* connection);
-typedef void (*ServerReceiveFunc)(ServerConnection* connection, Slice data);
-typedef void (*ServerSentFunc)(ServerConnection* connection, bool* and_close);
+typedef ServerClientInterface (*ServerConnectedFunc)(void* context, ServerInterface server);
+
+typedef void (*ServerReceivedFunc)(void* context, Slice data);
+typedef void (*ServerSentFunc)(void* context);
+typedef void (*ServerDisconnectedFunc)(void* context);
+
+struct ServerClientInterface {
+    ServerReceivedFunc onReceived;
+    ServerSentFunc onSent;
+    ServerDisconnectedFunc onDisconnected;
+    void* context;
+};
+
+void serverClientRecived(ServerClientInterface interface, Slice data);
+void serverClientSent(ServerClientInterface interface);
+void serverClientDisconnected(ServerClientInterface interface);
+
+typedef void (*ServerReadFunc)(void* context, U64 length);
+typedef void (*ServerSendFunc)(void* context, Slice message);
+typedef void (*ServerDisconnectFunc)(void* context);
+
+struct ServerInterface {
+    Memory* mem;
+    ServerReadFunc read;
+    ServerSendFunc send;
+    ServerDisconnectFunc disconnect;
+    void* context;
+};
+
+void serverRead(ServerInterface interface, U64 length);
+void serverSend(ServerInterface interface, Slice data);
+void serverDisconnect(ServerInterface interface);
 
 typedef struct {
-    Memory* scope;
     Polling* polling;
     int socket;
     Pool* connections;
     U64 connection_size;
-    U64 exchange_size;
-    ServerConnectFunc onConnect;
-    ServerDisconnectFunc onDisconnect;
-    ServerReceiveFunc onReceive;
-    ServerSentFunc onSent;
+    ServerConnectedFunc onConnect;
     void* context;
 } Server;
 
-struct ServerConnection {
+typedef struct {
     int socket;
     char address[INET6_ADDRSTRLEN];
     Server* server;
-    Memory* scope;
-    Memory* exchange_scope;
-    ServerExchange* exchange;
-    void* context;
-};
-
-struct ServerExchange {
-    ServerConnection* connection;
+    Memory* mem;
     Buffer* request;
     Slice response;
-};
+    ServerClientInterface interface;
+} ServerConnection;
 
-Server* serverNew(Memory* mem, Polling* polling, const char* port);
-bool serverInit(Server* server, Memory* mem, Polling* polling, const char* port);
-void serverClose(Server* server);
-
-ServerExchange* connectionStartExchange(ServerConnection* connection);
-void connectionEndExchange(ServerConnection* connection);
-
-void connectionReceive(ServerConnection* connection);
-void connectionSend(ServerConnection* connection, Slice message, bool close_after);
-void connectionSent(ServerConnection* connection, bool* and_close);
+Server* serverNew(Memory* mem, Polling* polling, const char* port, ServerConnectedFunc onConnect, void* context);
 
 #endif

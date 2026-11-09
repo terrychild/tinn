@@ -1,17 +1,31 @@
 #include <stdlib.h>
 
 #include "lib/net/echo.h"
+#include "lib/macros.h"
+#include "lib/mem/memory.h"
 #include "lib/bytes.h"
 
-static void echo(ServerConnection* connection, Slice data) {
+typedef struct {
+    ServerInterface server;
+} Connection;
+
+static void echo(void* context, Slice data) {
+    Connection* connection = context;
     hexDump(data);
-    connectionSend(connection, data, false);
+    serverSend(connection->server, data);
+    serverRead(connection->server, data.length);
+}
+
+static ServerClientInterface echoConnect(__attribute__((unused)) void* context, ServerInterface server) {
+    Connection* connection = allocate(server.mem, sizeof(connection));
+    connection->server = server;
+
+    return (ServerClientInterface) {
+        .onReceived = echo,
+        .context = connection
+    };
 }
 
 Server* echoServer(Memory* mem, Polling* polling, const char* port) {
-    Server* server = serverNew(mem, polling, port);
-    if (server) {
-        server->onReceive = echo;
-    }
-    return server;
+    return serverNew(mem, polling, port, echoConnect, NULL);
 }
