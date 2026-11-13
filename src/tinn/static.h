@@ -3,6 +3,6 @@
 
 #include "lib/net/http.h"
 
-bool staticContent(HttpServerExchange* exchange);
+bool staticContent(Memory* exchange_mem, HttpConnection* connection, HttpServerRequest* request, void* context);
 
 #endif

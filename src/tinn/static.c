@@ -11,10 +11,10 @@
 #include "lib/mem/slice.h"
 #include "lib/net/url.h"
 
-bool staticContent(HttpServerExchange* exchange) {
+bool staticContent(Memory* exchange_mem, HttpConnection* connection, HttpServerRequest* request, __attribute__((unused)) void* context) {
     // build a local path
-    URL* target = exchange->request->target;
-    Buffer* local_path = bufNew(exchange->scope, 1 + target->path.length + 11 + 1); // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
+    URL* target = request->target;
+    Buffer* local_path = bufNew(exchange_mem, 1 + target->path.length + 11 + 1); // 1 for leading dot, 11 for possible /index.html, 1 for null terminator
     bufAppend(local_path, ".");
     bufAppend(local_path, target->path);
 
@@ -39,22 +39,22 @@ bool staticContent(HttpServerExchange* exchange) {
 	}
 
     // check this is a GET or HEAD request
-    if (!sliceIsStr(exchange->request->method, "GET") && !sliceIsStr(exchange->request->method, "HEAD")) {
+    if (!sliceIsStr(request->method, "GET") && !sliceIsStr(request->method, "HEAD")) {
         DEBUG("Method not allowed");
-        httpServerAddHeader(exchange, sliceFromStr("Allow"), sliceFromStr("GET, HEAD"));
-        httpServerSendError(exchange, HTTP_METHOD_NOT_ALLOWED);
+        httpServerAddHeader(connection, sliceFromStr("Allow"), sliceFromStr("GET, HEAD"));
+        httpServerSendError(connection, HTTP_METHOD_NOT_ALLOWED);
         return true;
     }
 
     // is it a file or directory?
     if (S_ISREG(attrib.st_mode)) {
-        LOG("Static: Serving %.*s to %s", target->path.length, target->path.start, exchange->connection->address);
+        LOG("Static: Serving %.*s", target->path.length, target->path.start);
         DEBUG("Static: Local file path is %s", local_path_str + 1);
 
         // check modified date
-        if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= attrib.st_mtime) {
+        if (request->if_modified_since > 0 && request->if_modified_since >= attrib.st_mtime) {
             DEBUG("Static: Use cached version");
-            httpServerSendNotModified(exchange);
+            httpServerSendNotModified(connection);
             return true;
         }
 
@@ -72,19 +72,19 @@ bool staticContent(HttpServerExchange* exchange) {
         fseek(file, 0, SEEK_SET);
 
         // respond
-        httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-        httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), attrib.st_mtime);
+        httpServerAddHeader(connection, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
+        httpServerAddDateHeader(connection, sliceFromStr("Last-Modified"), attrib.st_mtime);
 
         Slice ext = sliceRightBackStr(last_segment, ".");
-        if (sliceIsStr(exchange->request->method, "HEAD")) {
-            httpServerSetContentHeaders(exchange, ext, length);
+        if (sliceIsStr(request->method, "HEAD")) {
+            httpServerSetContentHeaders(connection, ext, length);
         } else {
-            U8* file_content = allocate(exchange->scope, length);
+            U8* file_content = allocate(exchange_mem, length);
             fread(file_content, 1, length, file);
-            httpServerSetContent(exchange, ext, sliceNew(file_content, length));
+            httpServerSetContent(connection, ext, sliceNew(file_content, length));
         }
         fclose(file);
-        httpServerSend(exchange);
+        httpServerSend(connection);
 
         return true;
 
@@ -97,7 +97,7 @@ bool staticContent(HttpServerExchange* exchange) {
 
                 DEBUG("Static: Found local directory, redirecting to %.*s", new_path.length, new_path.start);
 
-                httpServerSendRedirect(exchange, new_path);
+                httpServerSendRedirect(connection, new_path);
                 return true;
             }
         }

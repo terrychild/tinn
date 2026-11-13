@@ -3,6 +3,7 @@
 
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
+#include "lib/net/url.h"
 
 typedef enum {
     HTTP_OK = 200,
@@ -23,13 +24,36 @@ typedef struct {
     Slice value;
 } HttpHeader;
 
+typedef struct {
+    Slice method;
+    URL* target;
+    Slice version;
+    Slice host;
+    Slice connection;
+    time_t if_modified_since;
+    U64 header_length;
+    U64 content_length;
+    Slice content;
+} HttpServerRequest;
+
 typedef struct HttpConnection HttpConnection;
 
-Server* httpServer(Memory* mem, Polling* polling, const char* port);
+typedef bool (*HttpServerListenerFunc)(Memory* exchange_mem, HttpConnection* connection, HttpServerRequest* request, void* context);
+
+typedef struct HttpServer HttpServer;
+
+HttpServer* httpServer(Memory* mem, Polling* polling, const char* port);
+void httpServerAddListener(HttpServer* server, HttpServerListenerFunc func, void* context);
+
 void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code);
 void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, U64 content_length);
 void httpServerSetContent(HttpConnection* connection, Slice content_type, Slice content);
-void httpServerSendError(HttpConnection* connection, HttpStatusCode status_code);
+void httpServerAddHeader(HttpConnection* connection, Slice name, Slice value);
+void httpServerAddDateHeader(HttpConnection* connection, Slice name, time_t seconds);
+
 void httpServerSend(HttpConnection* connection);
+void httpServerSendRedirect(HttpConnection* connection, Slice location);
+void httpServerSendNotModified(HttpConnection* connection);
+void httpServerSendError(HttpConnection* connection, HttpStatusCode status_code);
 
 #endif

@@ -13,20 +13,7 @@
 #include "static.h"
 #include "blog.h"
 
-#include "tls.h"
-
-void tinnWebServer(HttpServerExchange* exchange, void* context) {
-    Blog* blog = (Blog*)context;
-    if (blogContent(blog, exchange)) {
-        return;
-    }
-    if (staticContent(exchange)) {
-        return;
-    }
-
-    LOG("Web: %.*s not found for %s", exchange->request->target->path.length, exchange->request->target->path.start, exchange->connection->address);
-    httpServerSendError(exchange, HTTP_NOT_FOUND);
-}
+//#include "tls.h"
 
 int host(int argc, char* argv[]) {
     logOpen("./tinn.log");
@@ -56,13 +43,13 @@ int host(int argc, char* argv[]) {
     }
     HttpServer* http_server = httpServer(memory, polling, cliValue(argc, argv, "--port", "80"));
     if (http_server) {
-        http_server->onRequest = tinnWebServer;
-        http_server->context = blog;
+        httpServerAddListener(http_server, staticContent, NULL);
+        httpServerAddListener(http_server, blogContent, blog);
     } else {
         return EXIT_FAILURE;
     }
 
-    tlsTestServer(memory, polling, "8443");
+    ////tlsTestServer(memory, polling, "8443");
 
     // loop while there are things to poll
     LOG("Waiting for connections");

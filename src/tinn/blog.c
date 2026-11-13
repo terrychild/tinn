@@ -56,11 +56,11 @@ Blog* blogNew(Memory* mem, Polling* polling) {
     return blog;
 }
 
-static bool isGetOrHead(HttpServerExchange* exchange) {
-    if (!sliceIsStr(exchange->request->method, "GET") && !sliceIsStr(exchange->request->method, "HEAD")) {
+static bool isGetOrHead(HttpConnection* connection, HttpServerRequest* request) {
+    if (!sliceIsStr(request->method, "GET") && !sliceIsStr(request->method, "HEAD")) {
         DEBUG("Method not allowed");
-        httpServerAddHeader(exchange, sliceFromStr("Allow"), sliceFromStr("GET, HEAD"));
-        httpServerSendError(exchange, HTTP_METHOD_NOT_ALLOWED);
+        httpServerAddHeader(connection, sliceFromStr("Allow"), sliceFromStr("GET, HEAD"));
+        httpServerSendError(connection, HTTP_METHOD_NOT_ALLOWED);
         return false;
     }
     return true;
@@ -93,7 +93,9 @@ static time_t modDate(Blog* blog, bool posts) {
     return mod_date;
 }
 
-bool blogContent(Blog* blog, HttpServerExchange* exchange) {
+bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerRequest* request, void* context) {
+    Blog* blog = context;
+
     // check for changes
     if (blog->mod_date < blog->posts_file->mod_date) {
         for (U64 i=0; i<blog->posts->count; i++) {
@@ -104,22 +106,22 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
     }
 
     // start content
-    Buffer* content = bufNew(exchange->scope, KiB(4));
-    URL* target = exchange->request->target;
+    Buffer* content = bufNew(exchange_mem, KiB(4));
+    URL* target = request->target;
 
     // home page
     if (sliceIsStr(target->path, "/")) {
-        if (!isGetOrHead(exchange)) {
+        if (!isGetOrHead(connection, request)) {
             return true;
         }
 
-        LOG("Blog: Serving / to %s", exchange->connection->address);
+        LOG("Blog: Serving /");
 
         // check modified date
         const time_t mod_date = modDate(blog, true);
-        if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+        if (request->if_modified_since > 0 && request->if_modified_since >= mod_date) {
             DEBUG("Blog: Use cached version");
-            httpServerSendNotModified(exchange);
+            httpServerSendNotModified(connection);
             return true;
         }
 
@@ -135,26 +137,26 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
         bufAppend(content, blog->footer);
 
         // send
-        httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-        httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-        httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
-        httpServerSend(exchange);
+        httpServerAddHeader(connection, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
+        httpServerAddDateHeader(connection, sliceFromStr("Last-Modified"), mod_date);
+        httpServerSetContent(connection, sliceFromStr("html"), bufAsSlice(content));
+        httpServerSend(connection);
         return true;
     }
 
     // log page
     if (target->path_segments->count == 1 && sliceIsStr(*(Slice*)arrayGet(target->path_segments, 0), "log")) {
-        if (!isGetOrHead(exchange)) {
+        if (!isGetOrHead(connection, request)) {
             return true;
         }
 
-        LOG("Blog: Serving /log to %s", exchange->connection->address);
+        LOG("Blog: Serving /log");
 
         // check modified date
         const time_t mod_date = modDate(blog, true);
-        if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+        if (request->if_modified_since > 0 && request->if_modified_since >= mod_date) {
             DEBUG("Blog: Use cached version");
-            httpServerSendNotModified(exchange);
+            httpServerSendNotModified(connection);
             return true;
         }
 
@@ -171,27 +173,27 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
         bufAppend(content, blog->footer);
 
         // send
-        httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-        httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-        httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
-        httpServerSend(exchange);
+        httpServerAddHeader(connection, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
+        httpServerAddDateHeader(connection, sliceFromStr("Last-Modified"), mod_date);
+        httpServerSetContent(connection, sliceFromStr("html"), bufAsSlice(content));
+        httpServerSend(connection);
         return true;
     }
 
     // blog
     if (target->path_segments->count >= 1 && sliceIsStr(*(Slice*)arrayGet(target->path_segments, 0), "blog")) {
         if (target->path_segments->count == 1) {
-            if (!isGetOrHead(exchange)) {
+            if (!isGetOrHead(connection, request)) {
                 return true;
             }
 
-            LOG("Blog: Serving /blog to %s", exchange->connection->address);
+            LOG("Blog: Serving /blog");
 
             // check modified date
             const time_t mod_date = modDate(blog, false);
-            if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+            if (request->if_modified_since > 0 && request->if_modified_since >= mod_date) {
                 DEBUG("Blog: Use cached version");
-                httpServerSendNotModified(exchange);
+                httpServerSendNotModified(connection);
                 return true;
             }
 
@@ -217,10 +219,10 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             bufAppend(content, blog->footer);
 
             // send
-            httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-            httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-            httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
-            httpServerSend(exchange);
+            httpServerAddHeader(connection, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
+            httpServerAddDateHeader(connection, sliceFromStr("Last-Modified"), mod_date);
+            httpServerSetContent(connection, sliceFromStr("html"), bufAsSlice(content));
+            httpServerSend(connection);
             return true;
         }
 
@@ -229,13 +231,13 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
             for (U64 i=0; i<blog->posts->count; i++) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 if (sliceIs(*(Slice*)arrayGet(target->path_segments, 1), post->dir)) {
-                    LOG("Blog: Serving /blog/%.*s to %s", post->dir.length, post->dir.start, exchange->connection->address);
+                    LOG("Blog: Serving /blog/%.*s", post->dir.length, post->dir.start);
 
                     // check modified date
                     const time_t mod_date = maxTime(modDate(blog, false), post->content->mod_date);
-                    if (exchange->request->if_modified_since > 0 && exchange->request->if_modified_since >= mod_date) {
+                    if (request->if_modified_since > 0 && request->if_modified_since >= mod_date) {
                         DEBUG("Blog: Use cached version");
-                        httpServerSendNotModified(exchange);
+                        httpServerSendNotModified(connection);
                         return true;
                     }
 
@@ -260,10 +262,10 @@ bool blogContent(Blog* blog, HttpServerExchange* exchange) {
                     bufAppend(content, blog->footer);
 
                     // send
-                    httpServerAddHeader(exchange, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
-                    httpServerAddDateHeader(exchange, sliceFromStr("Last-Modified"), mod_date);
-                    httpServerSetContent(exchange, sliceFromStr("html"), bufAsSlice(content));
-                    httpServerSend(exchange);
+                    httpServerAddHeader(connection, sliceFromStr("Cache-Control"), sliceFromStr("no-cache"));
+                    httpServerAddDateHeader(connection, sliceFromStr("Last-Modified"), mod_date);
+                    httpServerSetContent(connection, sliceFromStr("html"), bufAsSlice(content));
+                    httpServerSend(connection);
                     return true;
                 }
             }

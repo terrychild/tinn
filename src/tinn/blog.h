@@ -27,6 +27,6 @@ typedef struct {
 } Blog;
 
 Blog* blogNew(Memory* mem, Polling* polling);
-bool blogContent(Blog* blog, HttpServerExchange* exchange);
+bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerRequest* request, void* context);
 
 #endif
