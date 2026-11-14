@@ -6,31 +6,31 @@
 #include "lib/types.h"
 #include "lib/sys/polling.h"
 
-typedef struct ServerClientInterface ServerClientInterface;
-typedef struct ServerInterface ServerInterface;
+typedef struct ServerInbound ServerInbound;
+typedef struct ServerOutbound ServerOutbound;
 
-typedef ServerClientInterface (*ServerConnectedFunc)(void* context, ServerInterface server);
+typedef ServerInbound (*ServerConnectedFunc)(void* context, ServerOutbound server);
 
 typedef void (*ServerReceivedFunc)(void* context, Slice data);
 typedef void (*ServerSentFunc)(void* context);
 typedef void (*ServerDisconnectedFunc)(void* context);
 
-struct ServerClientInterface {
+struct ServerInbound {
     ServerReceivedFunc onReceived;
     ServerSentFunc onSent;
     ServerDisconnectedFunc onDisconnected;
     void* context;
 };
 
-void serverClientRecived(ServerClientInterface interface, Slice data);
-void serverClientSent(ServerClientInterface interface);
-void serverClientDisconnected(ServerClientInterface interface);
+void serverClientRecived(ServerInbound interface, Slice data);
+void serverClientSent(ServerInbound interface);
+void serverClientDisconnected(ServerInbound interface);
 
 typedef void (*ServerReadFunc)(void* context, U64 length);
 typedef void (*ServerSendFunc)(void* context, Slice message);
 typedef void (*ServerDisconnectFunc)(void* context);
 
-struct ServerInterface {
+struct ServerOutbound {
     Memory* mem;
     ServerReadFunc read;
     ServerSendFunc send;
@@ -38,9 +38,9 @@ struct ServerInterface {
     void* context;
 };
 
-void serverRead(ServerInterface interface, U64 length);
-void serverSend(ServerInterface interface, Slice data);
-void serverDisconnect(ServerInterface interface);
+void serverRead(ServerOutbound interface, U64 length);
+void serverSend(ServerOutbound interface, Slice data);
+void serverDisconnect(ServerOutbound interface);
 
 typedef struct {
     Polling* polling;
@@ -58,7 +58,7 @@ typedef struct {
     Memory* mem;
     Buffer* request;
     Slice response;
-    ServerClientInterface interface;
+    ServerInbound interface;
 } ServerConnection;
 
 Server* serverNew(Memory* mem, Polling* polling, const char* port, ServerConnectedFunc onConnect, void* context);

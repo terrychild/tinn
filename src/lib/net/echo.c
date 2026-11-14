@@ -5,7 +5,7 @@
 #include "lib/bytes.h"
 
 typedef struct {
-    ServerInterface server;
+    ServerOutbound server;
 } Connection;
 
 static void echo(void* context, Slice data) {
@@ -15,11 +15,11 @@ static void echo(void* context, Slice data) {
     serverRead(connection->server, data.length);
 }
 
-static ServerClientInterface onConnect(__attribute__((unused)) void* context, ServerInterface server) {
+static ServerInbound onConnect(__attribute__((unused)) void* context, ServerOutbound server) {
     Connection* connection = allocate(server.mem, sizeof(connection));
     connection->server = server;
 
-    return (ServerClientInterface) {
+    return (ServerInbound) {
         .onReceived = echo,
         .context = connection
     };

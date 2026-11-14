@@ -43,7 +43,7 @@ typedef struct {
 } Response;
 
 typedef struct HttpConnection {
-    ServerInterface server;
+    ServerOutbound server;
     Memory* exchange_mem;
     Array* listeners;
     ConnectionStatus status;
@@ -325,7 +325,7 @@ static void onDisconnected(void* context) {
     memoryRelease(connection->exchange_mem);
 }
 
-static ServerClientInterface onConnect(void* context, ServerInterface server) {
+static ServerInbound onConnect(void* context, ServerOutbound server) {
     HttpServer* http_server = context;
 
     Connection* connection = allocate(server.mem, sizeof(connection));
@@ -335,7 +335,7 @@ static ServerClientInterface onConnect(void* context, ServerInterface server) {
     connection->status = RECEIVE_HEADER;
     connection->response.headers = arrayNew(connection->exchange_mem, sizeof(HttpHeader), 32);
 
-    return (ServerClientInterface) {
+    return (ServerInbound) {
         .onReceived = onReceived,
         .onSent = onSent,
         .onDisconnected = onDisconnected,

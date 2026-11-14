@@ -10,35 +10,35 @@
 #include "lib/log.h"
 
 // interface helpers
-void serverClientRecived(ServerClientInterface interface, Slice data) {
+void serverRecived(ServerInbound interface, Slice data) {
     if (interface.onReceived) {
         interface.onReceived(interface.context, data);
     }
 }
-void serverClientSent(ServerClientInterface interface) {
+void serverSent(ServerInbound interface) {
     if (interface.onSent) {
         interface.onSent(interface.context);
     }
 }
-void serverClientDisconnected(ServerClientInterface interface) {
+void serverDisconnected(ServerInbound interface) {
     if (interface.onDisconnected) {
         interface.onDisconnected(interface.context);
     }
 }
 
-void serverRead(ServerInterface interface, U64 length) {
+void serverRead(ServerOutbound interface, U64 length) {
     interface.read(interface.context, length);
 }
-void serverSend(ServerInterface interface, Slice data) {
+void serverSend(ServerOutbound interface, Slice data) {
     interface.send(interface.context, data);
 }
-void serverDisconnect(ServerInterface interface) {
+void serverDisconnect(ServerOutbound interface) {
     interface.disconnect(interface.context);
 }
 
 // connection events
 static void connectionClose(ServerConnection* connection, bool remove_from_pool) {
-    serverClientDisconnected(connection->interface);
+    serverDisconnected(connection->interface);
     pollingRemove(connection->server->polling, connection->socket);
     memoryRelease(connection->mem);
     close(connection->socket);
@@ -63,7 +63,7 @@ static ssize_t connectionSend(ServerConnection* connection) {
             pollingEvents(connection->server->polling, connection->socket, POLLOUT);//TODO: make this and add and not a set?
         } else {
             pollingEvents(connection->server->polling, connection->socket, POLLIN);
-            serverClientSent(connection->interface);
+            serverSent(connection->interface);
         }
     } else {
         ERROR("send error for %s (%d)", connection->address, connection->socket);
@@ -100,7 +100,7 @@ static void onConnectionEvent(struct pollfd* pfd, void* context) {
             if (recvied > 0) {
                 DEBUG("Recived: %ld bytes", recvied);
                 bufConfirmWrite(connection->request, recvied);
-                serverClientRecived(connection->interface, bufAsSlice(connection->request));
+                serverRecived(connection->interface, bufAsSlice(connection->request));
             } else {
                 if (recvied < 0) {
                     ERROR("recv error from %s (%d)", connection->address, pfd->fd);
@@ -134,7 +134,7 @@ static void onServerEvent(struct pollfd* pfd, void* context) {
         connection->mem = memoryNew(server->connection_size);
         connection->request = bufNew(connection->mem, KiB(4));
 
-        connection->interface = server->onConnect(server->context, (ServerInterface) {
+        connection->interface = server->onConnect(server->context, (ServerOutbound) {
             .mem = connection->mem,
             .read = onConnectionRead,
             .send = onConnectionSend,
