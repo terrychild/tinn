@@ -13,8 +13,6 @@
 #include "static.h"
 #include "blog.h"
 
-//#include "tls.h"
-
 int host(int argc, char* argv[]) {
     logOpen("./tinn.log");
     LOG("Tinn Web Server %s (%s)", VERSION, BUILD_DATE);
@@ -49,7 +47,8 @@ int host(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    ////tlsTestServer(memory, polling, "8443");
+    //tlsTestServer(memory, polling, "8443");
+    //tlsTest(memory);
 
     // loop while there are things to poll
     LOG("Waiting for connections");

@@ -16,9 +16,9 @@ typedef struct {
     void* context;
 } ServerInbound;
 
-void serverClientRecived(ServerInbound interface, Slice data);
-void serverClientSent(ServerInbound interface);
-void serverClientDisconnected(ServerInbound interface);
+void serverRecived(ServerInbound interface, Slice data);
+void serverSent(ServerInbound interface);
+void serverDisconnected(ServerInbound interface);
 
 // Outbound interface
 typedef void (*ServerReadFunc)(void* context, U64 length);

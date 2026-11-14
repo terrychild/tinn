@@ -18,8 +18,9 @@ add_library(lib
 
     net/server.c
     net/echo.c
-    net/http.c
     net/url.c
+    net/http.c
+    net/tls.c
 
     maths/bigint.c
 

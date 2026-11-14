@@ -29,13 +29,19 @@ void serverDisconnected(ServerInbound interface) {
 
 // Outbound interface
 void serverRead(ServerOutbound interface, U64 length) {
-    interface.read(interface.context, length);
+    if (interface.read) {
+        interface.read(interface.context, length);
+    }
 }
 void serverSend(ServerOutbound interface, Slice data) {
-    interface.send(interface.context, data);
+    if (interface.send) {
+        interface.send(interface.context, data);
+    }
 }
 void serverDisconnect(ServerOutbound interface) {
-    interface.disconnect(interface.context);
+    if (interface.disconnect) {
+        interface.disconnect(interface.context);
+    }
 }
 
 // Server interface
@@ -194,7 +200,7 @@ void serverClose(Server* server) {
 }
 
 // Server setup
-void addListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
+static void addListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
     Server* server = server_context;
     server->onConnect = onConnect;
     server->context = context;

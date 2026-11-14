@@ -16,7 +16,6 @@ add_executable(tinn
     help.c
     static.c
     blog.c
-    tls.c
 )
 
 add_dependencies(tinn generate_build_date)
