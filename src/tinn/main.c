@@ -37,11 +37,11 @@ int host(int argc, char* argv[]) {
 
     // servers
     if (cliArg(argc, argv, "--echo")) {
-        if (!echoServer(memory, polling, cliValue(argc, argv, "--echo", "7"))) {
+        if (!echoServer(serverNew(memory, polling, cliValue(argc, argv, "--echo", "7")))) {
             return EXIT_FAILURE;
         }
     }
-    HttpServer* http_server = httpServer(memory, polling, cliValue(argc, argv, "--port", "80"));
+    HttpServer* http_server = httpServer(memory, serverNew(memory, polling, cliValue(argc, argv, "--port", "80")));
     if (http_server) {
         httpServerAddListener(http_server, staticContent, NULL);
         httpServerAddListener(http_server, blogContent, blog);

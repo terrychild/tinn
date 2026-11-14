@@ -1,7 +1,7 @@
 #ifndef LIB_NET_HTTP_H
 #define LIB_NET_HTTP_H
 
-#include "lib/sys/polling.h"
+#include <time.h>
 #include "lib/net/server.h"
 #include "lib/net/url.h"
 
@@ -42,7 +42,7 @@ typedef bool (*HttpServerListenerFunc)(Memory* exchange_mem, HttpConnection* con
 
 typedef struct HttpServer HttpServer;
 
-HttpServer* httpServer(Memory* mem, Polling* polling, const char* port);
+HttpServer* httpServer(Memory* mem, ServerInterface server);
 void httpServerAddListener(HttpServer* server, HttpServerListenerFunc func, void* context);
 
 void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code);

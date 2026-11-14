@@ -343,12 +343,12 @@ static ServerInbound onConnect(void* context, ServerOutbound server) {
     };
 }
 
-HttpServer* httpServer(Memory* mem, Polling* polling, const char* port) {
+HttpServer* httpServer(Memory* mem, ServerInterface server) {
     HttpServer* http_server = allocate(mem, sizeof(HttpServer));
-    Server* server = serverNew(mem, polling, port, onConnect, http_server);
-    if (server) {
-        http_server->listeners = arrayNew(mem, sizeof(Listener), 1);
+    if (!serverAddListener(server, onConnect, http_server)) {
+        return NULL;
     }
+    http_server->listeners = arrayNew(mem, sizeof(Listener), 1);
     return http_server;
 }
 

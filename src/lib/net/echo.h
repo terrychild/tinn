@@ -1,9 +1,8 @@
 #ifndef LIB_NET_ECHO_H
 #define LIB_NET_ECHO_H
 
-#include "lib/sys/polling.h"
 #include "lib/net/server.h"
 
-Server* echoServer(Memory* mem, Polling* polling, const char* port);
+bool echoServer(ServerInterface server);
 
 #endif

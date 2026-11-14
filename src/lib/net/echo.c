@@ -25,6 +25,6 @@ static ServerInbound onConnect(__attribute__((unused)) void* context, ServerOutb
     };
 }
 
-Server* echoServer(Memory* mem, Polling* polling, const char* port) {
-    return serverNew(mem, polling, port, onConnect, NULL);
+bool echoServer(ServerInterface server) {
+    return serverAddListener(server, onConnect, NULL);
 }

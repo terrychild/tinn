@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <unistd.h>
+#include <netinet/in.h>
 
 #include "lib/net/server.h"
 #include "lib/macros.h"
@@ -9,7 +10,7 @@
 #include "lib/mem/buffer.h"
 #include "lib/log.h"
 
-// interface helpers
+// Inbound interface
 void serverRecived(ServerInbound interface, Slice data) {
     if (interface.onReceived) {
         interface.onReceived(interface.context, data);
@@ -26,6 +27,7 @@ void serverDisconnected(ServerInbound interface) {
     }
 }
 
+// Outbound interface
 void serverRead(ServerOutbound interface, U64 length) {
     interface.read(interface.context, length);
 }
@@ -36,8 +38,37 @@ void serverDisconnect(ServerOutbound interface) {
     interface.disconnect(interface.context);
 }
 
-// connection events
-static void connectionClose(ServerConnection* connection, bool remove_from_pool) {
+// Server interface
+bool serverAddListener(ServerInterface interface, ServerConnectedFunc onConnect, void* context) {
+    if (!interface.addListener) {
+        return false;
+    }
+    interface.addListener(interface.context, onConnect, context);
+    return true;
+}
+
+// Server state
+typedef struct {
+    Polling* polling;
+    int socket;
+    Pool* connections;
+    U64 connection_size;
+    ServerConnectedFunc onConnect;
+    void* context;
+} Server;
+
+typedef struct {
+    int socket;
+    char address[INET6_ADDRSTRLEN];
+    Server* server;
+    Memory* mem;
+    Buffer* request;
+    Slice response;
+    ServerInbound interface;
+} Connection;
+
+// Connection events
+static void connectionClose(Connection* connection, bool remove_from_pool) {
     serverDisconnected(connection->interface);
     pollingRemove(connection->server->polling, connection->socket);
     memoryRelease(connection->mem);
@@ -49,11 +80,11 @@ static void connectionClose(ServerConnection* connection, bool remove_from_pool)
 }
 
 static void onConnectionDisconnect(void* context) {
-    ServerConnection* connection = context;
+    Connection* connection = context;
     connectionClose(connection, true);
 }
 
-static ssize_t connectionSend(ServerConnection* connection) {
+static ssize_t connectionSend(Connection* connection) {
     ssize_t sent = send(connection->socket, connection->response.start, connection->response.length, MSG_DONTWAIT);
     if (sent >= 0) {
         DEBUG("Sent: %ld/%ld bytes", sent, connection->response.length);
@@ -72,7 +103,7 @@ static ssize_t connectionSend(ServerConnection* connection) {
 }
 
 static void onConnectionSend(void* context, Slice response) {
-    ServerConnection* connection = context;
+    Connection* connection = context;
     connection->response = response;
     if (connectionSend(connection) < 0) {
         connectionClose(connection, true);
@@ -80,12 +111,12 @@ static void onConnectionSend(void* context, Slice response) {
 }
 
 static void onConnectionRead(void* context, U64 length) {
-    ServerConnection* connection = context;
+    Connection* connection = context;
     bufConsume(connection->request, length);
 }
 
 static void onConnectionEvent(struct pollfd* pfd, void* context) {
-    ServerConnection* connection = context;
+    Connection* connection = context;
 
     if (pfd->revents & POLLHUP) {
         LOG("Connection from %s (%d) hung up", connection->address, pfd->fd);
@@ -116,7 +147,7 @@ static void onConnectionEvent(struct pollfd* pfd, void* context) {
     }
 }
 
-// server events
+// Server events
 static void onServerEvent(struct pollfd* pfd, void* context) {
     Server* server = context;
 
@@ -124,7 +155,7 @@ static void onServerEvent(struct pollfd* pfd, void* context) {
         PANIC("Error on server socket: %d", pfd->revents);
     }
 
-    ServerConnection* connection = poolAdd(server->connections);
+    Connection* connection = poolAdd(server->connections);
 
     connection->socket = acceptSocket(pfd->fd, connection->address);
     if (connection->socket < 0) {
@@ -155,22 +186,28 @@ void serverClose(Server* server) {
     DEBUG("Close server");
     PoolNode* node = server->connections->first;
     while (node != NULL) {
-        ServerConnection* connection = (ServerConnection*)node->data;
+        Connection* connection = (Connection*)node->data;
         connectionClose(connection, false);
         node = node->next;
     }
     pollingRemove(server->polling, server->socket);
 }
 
-// server setup
-Server* serverNew(Memory* mem, Polling* polling, const char* port, ServerConnectedFunc onConnect, void* context) {
+// Server setup
+void addListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
+    Server* server = server_context;
+    server->onConnect = onConnect;
+    server->context = context;
+}
+
+ServerInterface serverNew(Memory* mem, Polling* polling, const char* port) {
     Server* server = allocate(mem, sizeof(Server));
     server->polling = polling;
 
     DEBUG("Opening server socket on port %s", port);
     server->socket = listenToSocket(port);
     if (server->socket < 0) {
-        return NULL;
+        return (ServerInterface) {0};
     }
 
     pollingAdd(server->polling, server->socket, (PollingCallback) {
@@ -178,11 +215,14 @@ Server* serverNew(Memory* mem, Polling* polling, const char* port, ServerConnect
         .context = server
     });
 
-    server->connections = poolNew(mem, sizeof(ServerConnection), 256);
+    server->connections = poolNew(mem, sizeof(Connection), 256);
     server->connection_size = MiB(100);
 
-    server->onConnect = onConnect;
-    server->context = context;
+    server->onConnect = NULL;
+    server->context = NULL;
 
-    return server;
+    return (ServerInterface) {
+        .addListener = addListener,
+        .context = server,
+    };
 }
