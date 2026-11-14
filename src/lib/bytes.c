@@ -1,5 +1,5 @@
-#include "lib/mem/memory.h"
 #include "lib/types.h"
+#include "lib/mem/slice.h"
 #include "lib/maths/bigint.h"
 #include "lib/log.h"
 #include "lib/cli.h"
@@ -65,7 +65,7 @@ void toBE64(U8 dest[8], U64 n) {
 }
 void toBE128(U8 dest[16], const BigInt* n) {
     U64 offset = 0;
-    for (U64 i=1; i-- > 0; ) {
+    for (U64 i=2; i-- > 0; ) {
         toBE64(dest + offset, i < n->size ? n->limbs[i] : 0);
         offset += 8;
     }
@@ -100,19 +100,6 @@ char toHexChar(U8 nibble) {
     }
     ERROR("Invalid hex value '%d'.", nibble);
 	return 'x';
-}
-
-char* toHexStr(Memory* mem, Slice slice) {
-    char* str = allocate(mem, (slice.length * 2) + 3);
-    str[0] = '0';
-    str[1] = 'x';
-    U64 byte = 2;
-    for (U64 i = 0; i < slice.length; i++) {
-        str[byte++] = toHexChar((slice.start[i] & 0xF0) >> 4);
-        str[byte++] = toHexChar(slice.start[i] & 0x0F);
-    }
-    str[byte] = '\0';
-    return str;
 }
 
 void hexDump(Slice slice) {

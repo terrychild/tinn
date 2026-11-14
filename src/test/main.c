@@ -37,11 +37,17 @@ int main(int argc, char* argv[]) {
     if (all || strcmp(argv[1], "buffer") == 0) {
         testBuffer();
     }
+    if (all || strcmp(argv[1], "slice") == 0) {
+        testSlice();
+    }
     if (all || strcmp(argv[1], "maths") == 0) {
         testMaths();
     }
     if (all || strcmp(argv[1], "crypto") == 0) {
         testCrypto();
+    }
+    if (all || strcmp(argv[1], "tls") == 0) {
+        testTLS();
     }
 
     PRINT(CC_BLUE, "================\n Report\n================\n");

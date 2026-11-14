@@ -7,6 +7,9 @@ Slice sliceNew(const U8* start, U64 length);
 Slice sliceFromStr(const char* str);
 Slice sliceEmpty();
 
+Slice sliceFromHex(Memory* mem, const char* str);
+char* sliceToHex(Memory* mem, Slice slice);
+
 I8 sliceCmp(const Slice a, const Slice b);
 I8 sliceCmpStr(const Slice a, const char* b);
 bool sliceIs(const Slice a, const Slice b);

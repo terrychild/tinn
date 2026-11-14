@@ -30,6 +30,7 @@ void bufAppendBytes(Buffer* buf, const U8* data, U64 n);
 void bufAppendSlice(Buffer* buf, const Slice slice);
 void bufAppendMappedFile(Buffer* buf, const MappedFile* file);
 void bufAppendStr(Buffer* buf, const char* format, ...);
+void bufAppendHex(Buffer* buf, const char* hex);
 void bufAppendBE8(Buffer* buf, U8 i);
 void bufAppendBE16(Buffer* buf, U16 i);
 void bufAppendBE24(Buffer* buf, U32 i);

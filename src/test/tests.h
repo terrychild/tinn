@@ -10,7 +10,9 @@ void testMemory();
 void testArray();
 void testPool();
 void testBuffer();
+void testSlice();
 void testMaths();
 void testCrypto();
+void testTLS();
 
 #endif

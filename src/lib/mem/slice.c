@@ -24,6 +24,38 @@ Slice sliceEmpty() {
     };
 }
 
+
+Slice sliceFromHex(Memory* mem, const char* str) {
+    U64 nibbles = strlen(str);
+    U64 count = (nibbles + 1) / 2;
+    U8* bytes = allocate(mem, count);
+
+    U8 byte = 0;
+    U8 bits = 0;
+    for (U64 i = nibbles; i-- > 0; ) {
+        byte += (U8)readHexChar(str[i]) << bits;
+        bits += 4;
+
+        if (bits == 8) {
+            bytes[i / 2] = byte;
+            byte = 0;
+            bits = 0;
+        }
+    }
+
+    return sliceNew(bytes, count);
+}
+char* sliceToHex(Memory* mem, Slice slice) {
+    char* str = allocate(mem, (slice.length * 2) + 1);
+    U64 byte = 0;
+    for (U64 i = 0; i < slice.length; i++) {
+        str[byte++] = toHexChar((slice.start[i] & 0xF0) >> 4);
+        str[byte++] = toHexChar(slice.start[i] & 0x0F);
+    }
+    str[byte] = '\0';
+    return str;
+}
+
 I8 sliceCmp(const Slice a, const Slice b) {
     for (U64 i=0; i<a.length; i++) {
         if (i >= b.length) {

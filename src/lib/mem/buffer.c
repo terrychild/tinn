@@ -94,6 +94,26 @@ void bufAppendStr(Buffer* buf, const char* format, ...) {
     buf->length += n;
 }
 
+void bufAppendHex(Buffer* buf, const char* hex) {
+    U64 nibbles = strlen(hex);
+    U64 len = (nibbles + 1) / 2;
+    ensure(buf, len);
+
+    U8 byte = 0;
+    U8 bits = 0;
+    for (U64 i = nibbles; i-- > 0; ) {
+        byte += (U8)readHexChar(hex[i]) << bits;
+        bits += 4;
+
+        if (bits == 8) {
+            *(buf->start + buf->length + (i / 2)) = byte;
+            byte = 0;
+            bits = 0;
+        }
+    }
+    buf->length += len;
+}
+
 void bufAppendBE8(Buffer* buf, U8 i) {
     ensure(buf, 1);
     toBE8(buf->start + buf->length, i);
