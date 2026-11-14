@@ -25,24 +25,11 @@ Slice sliceEmpty() {
 }
 
 
-Slice sliceFromHex(Memory* mem, const char* str) {
-    U64 nibbles = strlen(str);
+Slice sliceFromHex(Memory* mem, const char* hex) {
+    U64 nibbles = strlen(hex);
     U64 count = (nibbles + 1) / 2;
     U8* bytes = allocate(mem, count);
-
-    U8 byte = 0;
-    U8 bits = 0;
-    for (U64 i = nibbles; i-- > 0; ) {
-        byte += (U8)readHexChar(str[i]) << bits;
-        bits += 4;
-
-        if (bits == 8) {
-            bytes[i / 2] = byte;
-            byte = 0;
-            bits = 0;
-        }
-    }
-
+    readHexStr(bytes, nibbles, hex);
     return sliceNew(bytes, count);
 }
 char* sliceToHex(Memory* mem, Slice slice) {

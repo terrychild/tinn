@@ -207,11 +207,7 @@ static void sendServerHello(Connection* conn) {
     bufAppendBE16(buf, 0x0303);
 
     // server random
-    /*TODO:random(settings->server_random, 32);
-    bufAppend(buf, settings->server_random, 32);
-    DEBUG("Server random");
-    hexDump(sliceNew(settings->server_random, 32));*/
-    bufAppendHex(buf, "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f");
+    bufAppend(buf, conn->handshake.server_random, 32);
 
     // session id
     bufAppendBE8(buf, conn->handshake.legacy_session_id.length);
@@ -492,6 +488,22 @@ static void decodeClientHello(Connection* conn, Reader reader) {
     }
     DEBUG("Key");
     hexDump(conn->handshake.key);
+
+    // generate keys
+
+    DEBUG("Server random");
+    //TODO:random(conn->handshake.server_random, 32);
+    readHexStr(conn->handshake.server_random, 64, "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f");
+
+    // key share
+    /*bufAppendBE16(buf, KEY_SHARE);
+    bufAppendBE16(buf, 36); //TODO: calculate
+    bufAppendBE16(buf, X25519);
+    bufAppendBE16(buf, 32);
+    BigInt* key = x25519PublicKey(conn->exchange_mem, biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"))); //TODO: make random
+    bufAppend(buf, slice(biToLESlice(conn->exchange_mem, key), 0, 32));*/
+
+
 
     sendServerHello(conn);
 }

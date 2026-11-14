@@ -90,6 +90,20 @@ U8 readHexChar(char nibble) {
 	}
 	return value;
 }
+void readHexStr(U8* dest, U64 nibbles, const char* hex) {
+    U8 byte = 0;
+    U8 bits = 0;
+    for (U64 i = nibbles; i-- > 0; ) {
+        byte += (U8)readHexChar(hex[i]) << bits;
+        bits += 4;
+
+        if (bits == 8) {
+            *(dest + (i / 2)) = byte;
+            byte = 0;
+            bits = 0;
+        }
+    }
+}
 
 char toHexChar(U8 nibble) {
 	if (nibble < 10) {

@@ -99,18 +99,7 @@ void bufAppendHex(Buffer* buf, const char* hex) {
     U64 len = (nibbles + 1) / 2;
     ensure(buf, len);
 
-    U8 byte = 0;
-    U8 bits = 0;
-    for (U64 i = nibbles; i-- > 0; ) {
-        byte += (U8)readHexChar(hex[i]) << bits;
-        bits += 4;
-
-        if (bits == 8) {
-            *(buf->start + buf->length + (i / 2)) = byte;
-            byte = 0;
-            bits = 0;
-        }
-    }
+    readHexStr(buf->start + buf->length, nibbles, hex);
     buf->length += len;
 }
 
