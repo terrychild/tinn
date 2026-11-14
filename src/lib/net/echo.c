@@ -16,7 +16,7 @@ static void echo(void* context, Slice data) {
 }
 
 static ServerInbound onConnect(__attribute__((unused)) void* context, ServerOutbound server) {
-    Connection* connection = allocate(server.mem, sizeof(connection));
+    Connection* connection = allocate(server.mem, sizeof(Connection));
     connection->server = server;
 
     return (ServerInbound) {

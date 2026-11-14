@@ -328,7 +328,7 @@ static void onDisconnected(void* context) {
 static ServerInbound onConnect(void* context, ServerOutbound server) {
     HttpServer* http_server = context;
 
-    Connection* connection = allocate(server.mem, sizeof(connection));
+    Connection* connection = allocate(server.mem, sizeof(Connection));
     connection->server = server;
     connection->exchange_mem = memoryNew(MiB(100));
     connection->listeners = http_server->listeners;

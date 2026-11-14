@@ -22,7 +22,7 @@ static void modulus(Memory* scratch_mem, BigInt* dest, const BigInt* a, const Bi
 static void resize(BigInt* bi, U64 new_size, bool clear_extra) {
     if (new_size > bi->size) {
         bi->size = new_size;
-        bi->limbs = reallocate(bi->mem, bi->limbs, sizeof(bi->limbs) * bi->size);
+        bi->limbs = reallocate(bi->mem, bi->limbs, sizeof(*bi->limbs) * bi->size);
     } else if (clear_extra && new_size < bi->size) {
         for (U64 limb = new_size; limb < bi->size; limb++) {
             bi->limbs[limb] = 0;
@@ -63,7 +63,7 @@ BigInt* biNew(Memory* mem) {
     bi->size = 1;
     bi->length = 0;
     bi->negative = false;
-    bi->limbs = allocate(mem, sizeof(bi->limbs) * bi->size);
+    bi->limbs = allocate(mem, sizeof(*bi->limbs) * bi->size);
     return bi;
 }
 
