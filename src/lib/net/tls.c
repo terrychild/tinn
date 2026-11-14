@@ -130,10 +130,12 @@ typedef struct {
     SignatureAlgorithm signature_algorithum;
     SignatureAlgorithm certificate_algorithum;
     NamedGroup group;
+    BigInt* client_public_key;
 
     U8 server_random[32];
-
-    Slice key;
+    BigInt* server_private_key;
+    BigInt* server_public_key;
+    Slice server_public_key_encoded;
 } Handshake;
 
 // Connection state
@@ -229,11 +231,10 @@ static void sendServerHello(Connection* conn) {
 
     // key share
     bufAppendBE16(buf, KEY_SHARE);
-    bufAppendBE16(buf, 36); //TODO: calculate
-    bufAppendBE16(buf, X25519);
-    bufAppendBE16(buf, 32);
-    BigInt* key = x25519PublicKey(conn->exchange_mem, biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"))); //TODO: make random
-    bufAppend(buf, slice(biToLESlice(conn->exchange_mem, key), 0, 32));
+    bufAppendBE16(buf, conn->handshake.server_public_key_encoded.length + 4);
+    bufAppendBE16(buf, conn->handshake.group);
+    bufAppendBE16(buf, conn->handshake.server_public_key_encoded.length);
+    bufAppend(buf, conn->handshake.server_public_key_encoded);
 
     // updates sizes
     bufSetBE16(buf, extensions_size_offset, buf->length - extensions_size_offset - 2);
@@ -338,7 +339,7 @@ static void decodeKeyShare(Connection* conn, Reader reader) {
 
     do {
         if (readBE16(&reader) == conn->handshake.group) {
-            conn->handshake.key = readSlice(&reader, readBE16(&reader));
+            conn->handshake.client_public_key = biFromLESlice(conn->exchange_mem, readSlice(&reader, readBE16(&reader)));
             return;
         }
     } while (!readerEOF(&reader));
@@ -480,30 +481,26 @@ static void decodeClientHello(Connection* conn, Reader reader) {
     if (conn->status == CLOSE) {
         return;
     }
-    if (conn->handshake.key.length == 0) {
+    if (conn->handshake.client_public_key == NULL) {
         ERROR("Unable to find a matching key");
         sendError(conn, MISSING_EXTENSION);
         return;
         // TODO: this should send a HelloRetryRequest insteadd
     }
     DEBUG("Key");
-    hexDump(conn->handshake.key);
+    hexDump(biToLESlice(conn->exchange_mem, conn->handshake.client_public_key));
 
-    // generate keys
-
-    DEBUG("Server random");
+    // server random
     //TODO:random(conn->handshake.server_random, 32);
     readHexStr(conn->handshake.server_random, 64, "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f");
+    DEBUG("Server random");
+    hexDump(sliceNew(conn->handshake.server_random, 32));
 
-    // key share
-    /*bufAppendBE16(buf, KEY_SHARE);
-    bufAppendBE16(buf, 36); //TODO: calculate
-    bufAppendBE16(buf, X25519);
-    bufAppendBE16(buf, 32);
-    BigInt* key = x25519PublicKey(conn->exchange_mem, biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"))); //TODO: make random
-    bufAppend(buf, slice(biToLESlice(conn->exchange_mem, key), 0, 32));*/
-
-
+    // generate keys //TODO: base it on conn->handshake.group
+    //TODO:conn->handshake.server_private_key = x25519PrivateKey(conn->exchange_mem);
+    conn->handshake.server_private_key = biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"));
+    conn->handshake.server_public_key = x25519PublicKey(conn->exchange_mem, conn->handshake.server_private_key);
+    conn->handshake.server_public_key_encoded = slice(biToLESlice(conn->exchange_mem, conn->handshake.server_public_key), 0, 32);
 
     sendServerHello(conn);
 }
