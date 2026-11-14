@@ -12,6 +12,8 @@
 #include "lib/maths/bigint.h"
 #include "lib/crypto/x25519.h"
 
+#include "test/expect.h"
+
 // TLS types and enums
 typedef enum:U16 {
     TLS_1_0 = 0x0301,
@@ -91,8 +93,8 @@ typedef enum:U8 {
 } HandshakeType;
 
 typedef enum:U16 {
-    AES_128_GCM_SHA256 = 0x1301/*,
-    AES_256_GCM_SHA384 = 0x1302,
+    /*AES_128_GCM_SHA256 = 0x1301,*/
+    AES_256_GCM_SHA384 = 0x1302/*,
     CHACHA20_POLY1305_SHA256 = 0x1303,
     AES_128_CCM_SHA256 = 0x1304,
     AES_128_CCM_8_SHA256 = 0x1305*/
@@ -120,8 +122,8 @@ typedef enum:U16 {
 } NamedGroup;
 
 // alerts
-static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescription description) {
-    Record* message = allocate(connection->exchange_scope, sizeof(Record) + sizeof(Alert));
+static Slice sendAlert(Memory* mem, AlertLevel level, AlertDescription description) {
+    Record* message = allocate(mem, sizeof(Record) + sizeof(Alert));
     message->type = ALERT;
     toBE16(message->legacy_version, 0x0303);
     toBE16(message->length, sizeof(Alert));
@@ -130,15 +132,18 @@ static void sendAlert(ServerConnection* connection, AlertLevel level, AlertDescr
     alert->level = level;
     alert->description = description;
 
-    connectionSend(connection, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)), level == FATAL);
+    //connectionSend(connection, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)), level == FATAL);
+    return sliceNew((U8*)message, sizeof(Record) + sizeof(Alert));
 }
 
-static void decodeAlert(ServerConnection* connection, Reader reader) {
+static Slice decodeAlert(Memory* mem, Reader reader) {
     Alert alert;
     alert.level = readBE8(&reader);
     alert.description = readBE8(&reader);
 
     WARN("TLS Alert: %d - %d", alert.level, alert.description);
+
+    return sliceEmpty();
 }
 
 // handshake
@@ -173,8 +178,8 @@ static void random(U8* buffer, U64 len) {
 	fclose(fd);
 }
 
-static void sendServerHello(ServerConnection* connection, Settings* settings) {
-    Buffer* buf = bufNew(connection->exchange_scope, KiB(4));
+static Slice sendServerHello(Memory* mem, Settings* settings) {
+    Buffer* buf = bufNew(mem, KiB(4));
 
     // record
     bufAppendBE8(buf, HANDSHAKE);
@@ -189,8 +194,9 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
     bufAppendBE16(buf, 0x0303);
 
     // server random
-    random(settings->server_random, 32);
-    bufAppend(buf, settings->server_random, 32);
+    //TODO:random(settings->server_random, 32);
+    //bufAppend(buf, settings->server_random, 32);
+    bufAppendHex(buf, "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f");
     DEBUG("Server random");
     hexDump(sliceNew(settings->server_random, 32));
 
@@ -217,8 +223,8 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
     bufAppendBE16(buf, 36); //TODO: calculate
     bufAppendBE16(buf, X25519);
     bufAppendBE16(buf, 32);
-    BigInt* key = x25519PublicKey(connection->exchange_scope, biFrom(connection->exchange_scope, "0x4242424242424242424242424242424242424242424242424242424242424240")); //TODO: make random
-    bufAppend(buf, slice(biToBESlice(connection->exchange_scope, key), 0, 32));
+    BigInt* key = x25519PublicKey(mem, biFromLESlice(mem, sliceFromHex(mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"))); //TODO: make random
+    bufAppend(buf, slice(biToLESlice(mem, key), 0, 32));
 
     // updates sizes
     bufSetBE16(buf, extensions_size_offset, buf->length - extensions_size_offset - 2);
@@ -226,9 +232,8 @@ static void sendServerHello(ServerConnection* connection, Settings* settings) {
     bufSetBE16(buf, record_size_offset, buf->length - record_size_offset - 2);
 
     // send
-    DEBUG("Response");
-    hexDump(bufAsSlice(buf));
-    connectionSend(connection, bufAsSlice(buf), false);
+    return bufAsSlice(buf);
+    //connectionSend(connection, bufAsSlice(buf), false);
 }
 
 static void decodeSupportedVersions(Settings* settings, Reader reader) {
@@ -280,7 +285,7 @@ static void decodeCipherSuites(Settings* settings, Reader reader) {
     while (!readerEOF(&reader)) {
         CipherSuite suite = readBE16(&reader);
         switch (suite) {
-            case AES_128_GCM_SHA256:
+            case AES_256_GCM_SHA384:
                 settings->cipher_suite = suite;
                 return;
         }
@@ -336,7 +341,7 @@ static void decodeKeyShare(Settings* settings, Reader reader) {
     } while (!readerEOF(&reader));
 }
 
-static void decodeClientHello(ServerConnection* connection, Reader reader) {
+static Slice decodeClientHello(Memory* mem, Reader reader) {
     DEBUG("TLS Handshake - Client Hello");
 
     Settings settings = {0};
@@ -346,8 +351,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     Version legacy_version = readBE16(&reader);
     DEBUG("legacy version: %04X", legacy_version);
     if (legacy_version != TLS_1_2) {
-        sendAlert(connection, FATAL, PROTOCOL_VERSION);
-        return;
+        return sendAlert(mem, FATAL, PROTOCOL_VERSION);
     }
 
     // random data
@@ -365,24 +369,22 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
     decodeCipherSuites(&settings, readReader(&reader, readBE16(&reader)));
     if (settings.cipher_suite == 0) {
         ERROR("Unable to find a matching cipher suite");
-        sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
-        return;
+        return sendAlert(mem, FATAL, HANDSHAKE_FAILURE);
     }
     DEBUG("selected cipher suite: %04X", settings.cipher_suite);
 
     // legacy compression methods
     if (readBE8(&reader) != 1 || readBE8(&reader) != 0) {
         ERROR("Invalid compression method");
-        sendAlert(connection, FATAL, ILLEGAL_PARAMETER);
-        return;
+        return sendAlert(mem, FATAL, ILLEGAL_PARAMETER);
     }
 
     // extensions
     U16 extensions_length = readBE16(&reader);
     if (readerRemaining(&reader) != extensions_length) {
         ERROR("Invalid client hello length");
-        sendAlert(connection, FATAL, DECODE_ERROR);
-        return;
+        return sendAlert(mem, FATAL, DECODE_ERROR);
+
     }
 
     while (!readerEOF(&reader)) {
@@ -405,8 +407,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
                 decodeSignatureAlgorithms(&settings, false, extension_reader);
                 if (settings.signature_algorithum == 0) {
                     ERROR("Unable to find a matching signature algorithum");
-                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
-                    return;
+                    return sendAlert(mem, FATAL, HANDSHAKE_FAILURE);
                 }
                 DEBUG("selected signature algorithum: %04X", settings.signature_algorithum);
                 break;
@@ -415,8 +416,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
                 decodeSignatureAlgorithms(&settings, true, extension_reader);
                 if (settings.certificate_algorithum == 0) {
                     ERROR("Unable to find a matching certificate algorithum");
-                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
-                    return;
+                    return sendAlert(mem, FATAL, HANDSHAKE_FAILURE);
                 }
                 DEBUG("selected certificate algorithum: %04X", settings.certificate_algorithum);
                 break;
@@ -425,8 +425,7 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
                 decodeSupportedGroups(&settings, extension_reader);
                 if (settings.group == 0) {
                     ERROR("Unable to find a matching named group");
-                    sendAlert(connection, FATAL, HANDSHAKE_FAILURE);
-                    return;
+                    return sendAlert(mem, FATAL, HANDSHAKE_FAILURE);
                 }
                 DEBUG("selected group: %04X", settings.group);
                 break;
@@ -440,64 +439,56 @@ static void decodeClientHello(ServerConnection* connection, Reader reader) {
         }
 
         if (settings.alert.level > 0) {
-            sendAlert(connection, settings.alert.level, settings.alert.description);
-            return;
+            return sendAlert(mem, settings.alert.level, settings.alert.description);
         }
     }
 
     // validate extensions
     if (settings.version != TLS_1_3) {
         ERROR("Missing supported versions extension");
-        sendAlert(connection, FATAL, PROTOCOL_VERSION);
-        return;
+        return sendAlert(mem, FATAL, PROTOCOL_VERSION);
     }
     if (settings.signature_algorithum == 0) {
         ERROR("Missing signature algorithum");
-        sendAlert(connection, FATAL, MISSING_EXTENSION);
-        return;
+        return sendAlert(mem, FATAL, MISSING_EXTENSION);
     }
     if (settings.certificate_algorithum == 0) {
         settings.certificate_algorithum = settings.signature_algorithum;
     }
     if (settings.group == 0) {
         ERROR("Missing supported groups");
-        sendAlert(connection, FATAL, MISSING_EXTENSION);
-        return;
+        return sendAlert(mem, FATAL, MISSING_EXTENSION);
     }
     if (key_share.slice.length == 0) {
         ERROR("Missing key share");
-        sendAlert(connection, FATAL, MISSING_EXTENSION);
+        return sendAlert(mem, FATAL, MISSING_EXTENSION);
         // TODO: this should send a HelloRetryRequest insteadd
-        return;
     }
     decodeKeyShare(&settings, key_share);
     if (settings.key.length == 0) {
         ERROR("Unable to find a matching key");
-        sendAlert(connection, FATAL, MISSING_EXTENSION);
+        return sendAlert(mem, FATAL, MISSING_EXTENSION);
         // TODO: this should send a HelloRetryRequest insteadd
-        return;
     }
     DEBUG("Key");
     hexDump(settings.key);
 
-    sendServerHello(connection, &settings);
+    return sendServerHello(mem, &settings);
 }
 
-static void decodeHandshake(ServerConnection* connection, Reader reader) {
+static Slice decodeHandshake(Memory* mem, Reader reader) {
     do {
         HandshakeType type = readBE8(&reader);
         U32 length = readBE24(&reader);
         if (length > readerRemaining(&reader)) {
             ERROR("Invlaid handshake message length");
-            sendAlert(connection, FATAL, DECODE_ERROR);
-            return;
+            return sendAlert(mem, FATAL, DECODE_ERROR);
         }
         Reader handshake_reader = readReader(&reader, length);
 
         switch (type) {
             case CLIENT_HELLO:
-                decodeClientHello(connection, handshake_reader);
-                break;
+                return decodeClientHello(mem, handshake_reader);
             case SERVER_HELLO:
             case NEW_SESSION_TICKET:
             case END_OF_EARLY_DATA:
@@ -509,21 +500,19 @@ static void decodeHandshake(ServerConnection* connection, Reader reader) {
             case KEY_UPDATE:
             case MESSAGE_HASH:
                 ERROR("TLS handshake type not implemented: %d", type);
-                sendAlert(connection, FATAL, INTERNAL_ERROR);
-                break;
+                return sendAlert(mem, FATAL, INTERNAL_ERROR);
             default:
                 DEBUG("Unknown TLS handshake type: %d", type);
-                sendAlert(connection, FATAL, UNEXPECTED_MESSAGE);
-                return;
+                return sendAlert(mem, FATAL, UNEXPECTED_MESSAGE);
         }
     } while (!readerEOF(&reader));
 }
 
 // record processing
-static void decodeRecord(ServerConnection* connection, Slice data) {
+static Slice decodeRecord(Memory* mem, Slice data) {
     if (data.length < 5) {
         WARN("TLS message is shorter than a complete header, waiting...");
-        return;
+        return sliceEmpty();
     }
 
     Reader reader = sliceReader(data);
@@ -536,8 +525,7 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
             break;
         default:
             DEBUG("Unknown TLS content type: %d", type);
-            sendAlert(connection, FATAL, UNEXPECTED_MESSAGE);
-            return;
+            return sendAlert(mem, FATAL, UNEXPECTED_MESSAGE);
     }
 
     DEBUG("Record legacy version: %04X", readBE16(&reader));
@@ -545,34 +533,27 @@ static void decodeRecord(ServerConnection* connection, Slice data) {
     U16 length = readBE16(&reader);
     if (length > (2 << 14)) {
         DEBUG("TLS fragment length exceeds 2^14 bytes.");
-        sendAlert(connection, FATAL, RECORD_OVERFLOW);
-        return;
+        return sendAlert(mem, FATAL, RECORD_OVERFLOW);
     }
     if (length > readerRemaining(&reader)) {
         WARN("TLS message is shorter than fragment length, waiting...");
-        return;
+        return sliceEmpty();
     }
 
     Reader record_reader = readReader(&reader, length);
     switch (type) {
         case HANDSHAKE:
-            decodeHandshake(connection, record_reader);
-            break;
+            return decodeHandshake(mem, record_reader);
         case ALERT:
-            decodeAlert(connection, record_reader);
-            break;
+            return decodeAlert(mem, record_reader);
         default:
             ERROR("TLS content type not implemented: %d", type);
-            sendAlert(connection, FATAL, INTERNAL_ERROR);
-            return;
+            return sendAlert(mem, FATAL, INTERNAL_ERROR);
     }
 }
 
 // the server
-Server* tlsTestServer(Memory* mem, Polling* polling, const char* port) {
-    Server* server = serverNew(mem, polling, port);
-    if (server) {
-        server->onReceive = decodeRecord;
-    }
-    return server;
+void tlsTest(Memory* mem) {
+    Slice response = decodeRecord(mem, sliceFromHex(mem, "16030100f8010000f40303000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff000813021303130100ff010000a30000001800160000136578616d706c652e756c666865696d2e6e6574000b000403000102000a00160014001d0017001e0019001801000101010201030104002300000016000000170000000d001e001c040305030603080708080809080a080b080408050806040105010601002b0003020304002d00020101003300260024001d0020358072d6365880d1aeea329adf9121383851ed21a28e3b75e965d0d2cd166254"));
+    expect("Response", response, sliceFromHex(mem, "160303007a020000760303707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f20e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff130200002e002b0002030400330024001d00209fd7ad6dcff4298dd3f96d5b1b2af910a0535b1488d7f8fabb349a982880b615"));
 }

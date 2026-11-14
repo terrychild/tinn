@@ -4,6 +4,6 @@
 #include "lib/sys/polling.h"
 #include "lib/net/server.h"
 
-Server* tlsTestServer(Memory* mem, Polling* polling, const char* port);
+void tlsTest(Memory* mem);
 
 #endif

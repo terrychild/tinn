@@ -345,7 +345,7 @@ static ServerInbound onConnect(void* context, ServerOutbound server) {
 
 HttpServer* httpServer(Memory* mem, ServerInterface server) {
     HttpServer* http_server = allocate(mem, sizeof(HttpServer));
-    if (!serverAddListener(server, onConnect, http_server)) {
+    if (!serverSetListener(server, onConnect, http_server)) {
         return NULL;
     }
     http_server->listeners = arrayNew(mem, sizeof(Listener), 1);

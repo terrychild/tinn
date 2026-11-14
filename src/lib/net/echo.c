@@ -26,5 +26,5 @@ static ServerInbound onConnect(__attribute__((unused)) void* context, ServerOutb
 }
 
 bool echoServer(ServerInterface server) {
-    return serverAddListener(server, onConnect, NULL);
+    return serverSetListener(server, onConnect, NULL);
 }

@@ -209,5 +209,5 @@ static ServerInbound onConnect(__attribute__((unused)) void* context, ServerOutb
 }
 
 bool tlsServer(Memory* mem, ServerInterface server) {
-    return serverAddListener(server, onConnect, NULL);
+    return serverSetListener(server, onConnect, NULL);
 }

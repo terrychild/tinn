@@ -42,11 +42,11 @@ typedef ServerInbound (*ServerConnectedFunc)(void* context, ServerOutbound serve
 typedef void (*ServerListenFunc)(void* server_context, ServerConnectedFunc onConnect, void* context);
 
 typedef struct {
-    ServerListenFunc addListener;
+    ServerListenFunc setListener;
     void* context;
 } ServerInterface;
 
-bool serverAddListener(ServerInterface server, ServerConnectedFunc onConnect, void* context);
+bool serverSetListener(ServerInterface server, ServerConnectedFunc onConnect, void* context);
 
 // New server
 ServerInterface serverNew(Memory* mem, Polling* polling, const char* port);

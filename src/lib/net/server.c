@@ -45,11 +45,11 @@ void serverDisconnect(ServerOutbound interface) {
 }
 
 // Server interface
-bool serverAddListener(ServerInterface interface, ServerConnectedFunc onConnect, void* context) {
-    if (!interface.addListener) {
+bool serverSetListener(ServerInterface interface, ServerConnectedFunc onConnect, void* context) {
+    if (!interface.setListener) {
         return false;
     }
-    interface.addListener(interface.context, onConnect, context);
+    interface.setListener(interface.context, onConnect, context);
     return true;
 }
 
@@ -200,7 +200,7 @@ void serverClose(Server* server) {
 }
 
 // Server setup
-static void addListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
+static void setListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
     Server* server = server_context;
     server->onConnect = onConnect;
     server->context = context;
@@ -228,7 +228,7 @@ ServerInterface serverNew(Memory* mem, Polling* polling, const char* port) {
     server->context = NULL;
 
     return (ServerInterface) {
-        .addListener = addListener,
+        .setListener = setListener,
         .context = server,
     };
 }
