@@ -6,8 +6,11 @@
 #include "lib/mem/memory.h"
 #include "lib/mem/arena.h"
 #include "lib/cli.h"
+#include "lib/log.h"
 
 int main(int argc, char* argv[]) {
+    logLevel = LL_DEBUG;
+
     bool all = true;
     if (argc >= 2) {
         all = false;

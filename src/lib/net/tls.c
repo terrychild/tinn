@@ -4,9 +4,12 @@
 #include "lib/mem/memory.h"
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
+#include "lib/crypto/x25519.h"
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
+
+#include "lib/maths/bigint.h"
 
 // TLS enums
 typedef enum:U16 {
@@ -58,20 +61,80 @@ typedef enum:U8 {
     CERTIFICATE_REQUIRED = 116,
     GENERAL_ERROR = 117,
     NO_APPLICATION_PROTOCOL = 120,
+    OK = 255,
 } AlertDescription;
+
+typedef enum:U8 {
+    CLIENT_HELLO = 1,
+    SERVER_HELLO = 2,
+    NEW_SESSION_TICKET = 4,
+    END_OF_EARLY_DATA = 5,
+    ENCRYPTED_EXTENSIONS = 8,
+    CERTIFICATE = 11,
+    CERTIFICATE_REQUEST = 13,
+    CERTIFICATE_VERIFY = 15,
+    FINISHED = 20,
+    KEY_UPDATE = 24,
+    MESSAGE_HASH = 254
+} HandshakeType;
+
+typedef enum:U16 {
+    /*AES_128_GCM_SHA256 = 0x1301,*/
+    AES_256_GCM_SHA384 = 0x1302/*,
+    CHACHA20_POLY1305_SHA256 = 0x1303,
+    AES_128_CCM_SHA256 = 0x1304,
+    AES_128_CCM_8_SHA256 = 0x1305*/
+} CipherSuite;
+
+typedef enum:U16 {
+    SERVER_NAME = 0,
+    SUPPORTED_GROUPS = 10,
+    SIGNATURE_ALGORITHMS = 13,
+    SUPPORTED_VERSIONS = 43,
+    COOKIE = 44,
+    SIGNATURE_ALGORITHMS_CERT = 50,
+    KEY_SHARE = 51
+} ExtensionType;
+
+typedef enum:U16 {
+    RSA_PKCS1_SHA256 = 0x0401,
+    ECDSA_SECP256R1_SHA256 = 0x0403,
+    RSA_PSS_RSAE_SHA256 = 0x0804
+} SignatureAlgorithm;
+
+typedef enum:U16 {
+    SECP256R1 = 0x0017,
+    X25519 = 0x001D
+} NamedGroup;
 
 // TLS stucts
 typedef struct {
-    U8 type;
-    U8 legacy_version[2];
-    U8 length[2];
+    ContentType type;
+    Version legacy_version;
+    U16 length;
     U8 fragment[];
 } Record;
 
 typedef struct {
-    U8 level;
-    U8 description;
+    AlertLevel level;
+    AlertDescription description;
 } Alert;
+
+typedef struct {
+    Slice client_random;
+    Slice legacy_session_id;
+    CipherSuite cipher_suite;
+    Slice server_name;
+    Version version;
+    //cookies
+    SignatureAlgorithm signature_algorithum;
+    SignatureAlgorithm certificate_algorithum;
+    NamedGroup group;
+
+    U8 server_random[32];
+
+    Slice key;
+} Handshake;
 
 // Connection state
 typedef enum {
@@ -85,34 +148,33 @@ typedef struct {
     ServerOutbound server;
     Memory* exchange_mem;
     ConnectionStatus status;
+    Handshake handshake;
 } Connection;
 
 // Alerts
 static void sendError(Connection* conn, AlertDescription description) {
-    Record* message = allocate(conn->exchange_mem, sizeof(Record) + sizeof(Alert));
-    message->type = ALERT;
-    toBE16(message->legacy_version, TLS_1_2);
-    toBE16(message->length, sizeof(Alert));
+    Buffer* buf = bufNew(conn->exchange_mem, sizeof(Record) + sizeof(Alert));
+    bufAppendBE8(buf, ALERT);
+    bufAppendBE16(buf, TLS_1_2);
+    bufAppendBE16(buf, sizeof(Alert));
 
-    Alert* alert = (Alert*)message->fragment;
-    alert->level = FATAL;
-    alert->description = description;
+    bufAppendBE8(buf, FATAL);
+    bufAppendBE8(buf, description);
 
     conn->status = CLOSE;
-    serverSend(conn->server, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)));
+    serverSend(conn->server, bufAsSlice(buf));
 }
 
 static void sendClose(Connection* conn) {
-    Record* message = allocate(conn->exchange_mem, sizeof(Record) + sizeof(Alert));
-    message->type = ALERT;
-    toBE16(message->legacy_version, TLS_1_2);
-    toBE16(message->length, sizeof(Alert));
+    Buffer* buf = bufNew(conn->exchange_mem, sizeof(Record) + sizeof(Alert));
+    bufAppendBE8(buf, ALERT);
+    bufAppendBE16(buf, TLS_1_2);
+    bufAppendBE16(buf, sizeof(Alert));
 
-    Alert* alert = (Alert*)message->fragment;
-    alert->level = WARNING;
-    alert->description = CLOSE_NOTIFY;
+    bufAppendBE8(buf, WARNING);
+    bufAppendBE8(buf, CLOSE_NOTIFY);
 
-    serverSend(conn->server, sliceNew((U8*)message, sizeof(Record) + sizeof(Alert)));
+    serverSend(conn->server, bufAsSlice(buf));
 }
 
 static void decodeAlert(Connection* conn, Reader reader) {
@@ -128,6 +190,398 @@ static void decodeAlert(Connection* conn, Reader reader) {
     }
 }
 
+// TLS Handshake
+static void sendServerHello(Connection* conn) {
+    Buffer* buf = bufNew(conn->exchange_mem, KiB(4));
+
+    // record
+    bufAppendBE8(buf, HANDSHAKE);
+    bufAppendBE16(buf, 0x0303);
+    U64 record_size_offset = bufReserve(buf, 2);
+
+    // handshake header
+    bufAppendBE8(buf, SERVER_HELLO);
+    U64 handshake_size_offset = bufReserve(buf, 3);
+
+    // server version
+    bufAppendBE16(buf, 0x0303);
+
+    // server random
+    /*TODO:random(settings->server_random, 32);
+    bufAppend(buf, settings->server_random, 32);
+    DEBUG("Server random");
+    hexDump(sliceNew(settings->server_random, 32));*/
+    bufAppendHex(buf, "707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f");
+
+    // session id
+    bufAppendBE8(buf, conn->handshake.legacy_session_id.length);
+    bufAppend(buf, conn->handshake.legacy_session_id);
+
+    // cipher suite
+    bufAppendBE16(buf, conn->handshake.cipher_suite);
+
+    // legacy compression method
+    bufAppendBE8(buf, 0);
+
+    // extensions
+    U64 extensions_size_offset = bufReserve(buf, 2);
+
+    // supported versions
+    bufAppendBE16(buf, SUPPORTED_VERSIONS);
+    bufAppendBE16(buf, 2);
+    bufAppendBE16(buf, conn->handshake.version);
+
+    // key share
+    bufAppendBE16(buf, KEY_SHARE);
+    bufAppendBE16(buf, 36); //TODO: calculate
+    bufAppendBE16(buf, X25519);
+    bufAppendBE16(buf, 32);
+    BigInt* key = x25519PublicKey(conn->exchange_mem, biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"))); //TODO: make random
+    bufAppend(buf, slice(biToLESlice(conn->exchange_mem, key), 0, 32));
+
+    // updates sizes
+    bufSetBE16(buf, extensions_size_offset, buf->length - extensions_size_offset - 2);
+    bufSetBE24(buf, handshake_size_offset, buf->length - handshake_size_offset - 3);
+    bufSetBE16(buf, record_size_offset, buf->length - record_size_offset - 2);
+
+    // send
+    serverSend(conn->server, bufAsSlice(buf));
+}
+
+static void decodeSupportedVersions(Connection* conn, Reader reader) {
+    U8 length = readBE8(&reader);
+    for (U8 i=0; i<length; i+=2) {
+        Version version = readBE16(&reader);
+        if (version == TLS_1_3) {
+            conn->handshake.version = version;
+            DEBUG("TLS version: %04X", version);
+            return;
+        }
+    }
+    sendError(conn, PROTOCOL_VERSION);
+}
+
+static void decodeCipherSuites(Connection* conn, Reader reader) {
+    while (!readerEOF(&reader)) {
+        CipherSuite suite = readBE16(&reader);
+        switch (suite) {
+            case AES_256_GCM_SHA384:
+                conn->handshake.cipher_suite = suite;
+                return;
+        }
+        DEBUG("unknown cipher suite: %04X", suite);
+    }
+}
+
+static void decodeServerName(Connection* conn, Reader reader) {
+    if (readBE16(&reader) != readerRemaining(&reader)) {
+        ERROR("TLS Server Name - More than one specified");
+        sendError(conn, ILLEGAL_PARAMETER);
+        return;
+    }
+
+    if (readBE8(&reader) != 0) {
+        ERROR("TLS Server Name - Invalid type");
+        sendError(conn, ILLEGAL_PARAMETER);
+        return;
+    }
+
+    U16 length = readBE16(&reader);
+    if (length != readerRemaining(&reader)) {
+        ERROR("TLS Server Name - Invalid length");
+        sendError(conn, DECODE_ERROR);
+        return;
+    }
+
+    conn->handshake.server_name = readSlice(&reader, length);
+    DEBUG("TLS Server Name: %.*s", length, conn->handshake.server_name.start);
+}
+
+static void decodeCookie(Connection* conn, Reader reader) {
+    DEBUG("TLS cookie length: %d", readBE16(&reader));
+}
+
+static void decodeSignatureAlgorithms(Connection* conn, bool cert, Reader reader) {
+    U16 length = readBE16(&reader);
+    for (U16 i=0; i<length; i+=2) {
+        SignatureAlgorithm algorithum = readBE16(&reader);
+        switch (algorithum) {
+            case RSA_PKCS1_SHA256:
+            case ECDSA_SECP256R1_SHA256:
+            case RSA_PSS_RSAE_SHA256:
+                if (cert) {
+                    conn->handshake.certificate_algorithum = algorithum;
+                } else {
+                    conn->handshake.signature_algorithum = algorithum;
+                }
+                return;
+        }
+        DEBUG("unknown signature algorithum: %04X", algorithum);
+    }
+}
+
+static void decodeSupportedGroups(Connection* conn, Reader reader) {
+    U16 length = readBE16(&reader);
+    for (U16 i=0; i<length; i+=2) {
+        NamedGroup group = readBE16(&reader);
+        switch (group) {
+            case X25519:
+                conn->handshake.group = group;
+                return;
+        }
+        DEBUG("unknown group: %04X", group);
+    }
+}
+
+static void decodeKeyShare(Connection* conn, Reader reader) {
+    if (readBE16(&reader) != readerRemaining(&reader)) {
+        ERROR("TLS Key Share - Invalid length");
+        sendError(conn, DECODE_ERROR);
+        return;
+    }
+
+    do {
+        if (readBE16(&reader) == conn->handshake.group) {
+            conn->handshake.key = readSlice(&reader, readBE16(&reader));
+            return;
+        }
+    } while (!readerEOF(&reader));
+}
+
+static void decodeClientHello(Connection* conn, Reader reader) {
+    DEBUG("TLS Handshake - Client Hello");
+
+    // legacy version
+    Version legacy_version = readBE16(&reader);
+    DEBUG("legacy version: %04X", legacy_version);
+    if (legacy_version != TLS_1_2) {
+        sendError(conn, PROTOCOL_VERSION);
+        return;
+    }
+
+    // random data
+    conn->handshake.client_random = readSlice(&reader, 32);
+    DEBUG("Client random");
+    hexDump(conn->handshake.client_random);
+
+    // legacy session id
+    U8 legacy_session_length = readBE8(&reader);
+    conn->handshake.legacy_session_id = readSlice(&reader, legacy_session_length);
+    DEBUG("legacy session length: %d", legacy_session_length);
+    hexDump(conn->handshake.legacy_session_id);
+
+    // cipher suites
+    decodeCipherSuites(conn, readReader(&reader, readBE16(&reader)));
+    if (conn->handshake.cipher_suite == 0) {
+        ERROR("Unable to find a matching cipher suite");
+        sendError(conn, HANDSHAKE_FAILURE);
+        return;
+    }
+    DEBUG("selected cipher suite: %04X", conn->handshake.cipher_suite);
+
+    // legacy compression methods
+    if (readBE8(&reader) != 1 || readBE8(&reader) != 0) {
+        ERROR("Invalid compression method");
+        sendError(conn, ILLEGAL_PARAMETER);
+        return;
+    }
+
+    // extensions
+    Reader key_share = {0};
+
+    U16 extensions_length = readBE16(&reader);
+    if (readerRemaining(&reader) != extensions_length) {
+        ERROR("Invalid client hello length");
+        sendError(conn, DECODE_ERROR);
+        return;
+    }
+
+    while (!readerEOF(&reader)) {
+        U16 extension_type = readBE16(&reader);
+        Reader extension_reader = readReader(&reader, readBE16(&reader));
+        switch (extension_type) {
+            case SERVER_NAME:
+                decodeServerName(conn, extension_reader);
+                break;
+
+            case SUPPORTED_VERSIONS:
+                decodeSupportedVersions(conn, extension_reader);
+                break;
+
+            case COOKIE:
+                decodeCookie(conn, extension_reader);
+                break;
+
+            case SIGNATURE_ALGORITHMS:
+                decodeSignatureAlgorithms(conn, false, extension_reader);
+                if (conn->handshake.signature_algorithum == 0) {
+                    ERROR("Unable to find a matching signature algorithum");
+                    sendError(conn, HANDSHAKE_FAILURE);
+                    return;
+                }
+                DEBUG("selected signature algorithum: %04X", conn->handshake.signature_algorithum);
+                break;
+
+            case SIGNATURE_ALGORITHMS_CERT:
+                decodeSignatureAlgorithms(conn, true, extension_reader);
+                if (conn->handshake.certificate_algorithum == 0) {
+                    ERROR("Unable to find a matching certificate algorithum");
+                    sendError(conn, HANDSHAKE_FAILURE);
+                    return;
+                }
+                DEBUG("selected certificate algorithum: %04X", conn->handshake.certificate_algorithum);
+                break;
+
+            case SUPPORTED_GROUPS:
+                decodeSupportedGroups(conn, extension_reader);
+                if (conn->handshake.group == 0) {
+                    ERROR("Unable to find a matching named group");
+                    sendError(conn, HANDSHAKE_FAILURE);
+                    return;
+                }
+                DEBUG("selected group: %04X", conn->handshake.group);
+                break;
+
+            case KEY_SHARE:
+                key_share = extension_reader;
+                break;
+
+            default:
+                DEBUG("Unknown extension: %d", extension_type);
+        }
+
+        if (conn->status == CLOSE) {
+            return;
+        }
+    }
+
+    // validate extensions
+    if (conn->handshake.version != TLS_1_3) {
+        ERROR("Missing supported versions extension");
+        sendError(conn, PROTOCOL_VERSION);
+        return;
+    }
+    if (conn->handshake.signature_algorithum == 0) {
+        ERROR("Missing signature algorithum");
+        sendError(conn, MISSING_EXTENSION);
+        return;
+    }
+    if (conn->handshake.certificate_algorithum == 0) {
+        conn->handshake.certificate_algorithum = conn->handshake.signature_algorithum;
+    }
+    if (conn->handshake.group == 0) {
+        ERROR("Missing supported groups");
+        sendError(conn, MISSING_EXTENSION);
+        return;
+    }
+    if (key_share.slice.length == 0) {
+        ERROR("Missing key share");
+        sendError(conn, MISSING_EXTENSION);
+        return;
+        // TODO: this should send a HelloRetryRequest insteadd
+    }
+    decodeKeyShare(conn, key_share);
+    if (conn->status == CLOSE) {
+        return;
+    }
+    if (conn->handshake.key.length == 0) {
+        ERROR("Unable to find a matching key");
+        sendError(conn, MISSING_EXTENSION);
+        return;
+        // TODO: this should send a HelloRetryRequest insteadd
+    }
+    DEBUG("Key");
+    hexDump(conn->handshake.key);
+
+    sendServerHello(conn);
+}
+
+static void decodeHandshake(Connection* conn, Reader reader) {
+    do {
+        HandshakeType type = readBE8(&reader);
+        U32 length = readBE24(&reader);
+        if (length > readerRemaining(&reader)) {
+            ERROR("Invlaid handshake message length");
+            sendError(conn, DECODE_ERROR);
+            return;
+        }
+        Reader handshake_reader = readReader(&reader, length);
+
+        switch (type) {
+            case CLIENT_HELLO:
+                decodeClientHello(conn, handshake_reader);
+                return;
+            case SERVER_HELLO:
+            case NEW_SESSION_TICKET:
+            case END_OF_EARLY_DATA:
+            case ENCRYPTED_EXTENSIONS:
+            case CERTIFICATE:
+            case CERTIFICATE_REQUEST:
+            case CERTIFICATE_VERIFY:
+            case FINISHED:
+            case KEY_UPDATE:
+            case MESSAGE_HASH:
+                ERROR("TLS handshake type not implemented: %d", type);
+                sendError(conn, INTERNAL_ERROR);
+                return;
+            default:
+                DEBUG("Unknown TLS handshake type: %d", type);
+                sendError(conn, UNEXPECTED_MESSAGE);
+                return;
+        }
+    } while (!readerEOF(&reader));
+}
+
+// TLS Records
+static void decodeRecord(Connection* conn, Slice data) {
+    if (data.length < 5) {
+        WARN("TLS message is shorter than a complete header, waiting...");
+        return;
+    }
+
+    Reader reader = sliceReader(data);
+    Record record;
+    record.type = readBE8(&reader);
+    switch (record.type) {
+        case ALERT:
+        case APPLICATION_DATA:
+        case CHANGE_CIPHER_SPEC:
+        case HANDSHAKE:
+            break;
+        default:
+            DEBUG("Unknown TLS content type: %d", record.type);
+            sendError(conn, UNEXPECTED_MESSAGE);
+            return;
+    }
+
+    record.legacy_version = readBE16(&reader);
+    DEBUG("Record legacy version: %04X", record.legacy_version);
+
+    record.length = readBE16(&reader);
+    if (record.length > (2 << 14)) {
+        DEBUG("TLS fragment length exceeds 2^14 bytes.");
+        sendError(conn, RECORD_OVERFLOW);
+        return;
+    }
+    if (record.length > readerRemaining(&reader)) {
+        WARN("TLS message is shorter than fragment length, waiting...");
+    }
+
+    Reader record_reader = readReader(&reader, record.length);
+    switch (record.type) {
+        case HANDSHAKE:
+            decodeHandshake(conn, record_reader);
+            return;
+        case ALERT:
+            decodeAlert(conn, record_reader);
+            return;
+        default:
+            ERROR("TLS content type not implemented: %d", record.type);
+            sendError(conn, INTERNAL_ERROR);
+            return;
+    }
+}
+
 // Events
 static void onReceived(void* context, Slice data) {
     Connection* conn = context;
@@ -136,50 +590,7 @@ static void onReceived(void* context, Slice data) {
         return; // ingnore input.
     }
 
-    if (data.length < 5) {
-        WARN("TLS message is shorter than a complete header, waiting...");
-        return;
-    }
-
-    Reader reader = sliceReader(data);
-    ContentType type = readBE8(&reader);
-    switch (type) {
-        case ALERT:
-        case APPLICATION_DATA:
-        case CHANGE_CIPHER_SPEC:
-        case HANDSHAKE:
-            break;
-        default:
-            DEBUG("Unknown TLS content type: %d", type);
-            sendError(conn, UNEXPECTED_MESSAGE);
-            return;
-    }
-
-    DEBUG("Record legacy version: %04X", readBE16(&reader));
-
-    U16 length = readBE16(&reader);
-    if (length > (2 << 14)) {
-        DEBUG("TLS fragment length exceeds 2^14 bytes.");
-        sendError(conn, RECORD_OVERFLOW);
-        return;
-    }
-    if (length > readerRemaining(&reader)) {
-        WARN("TLS message is shorter than fragment length, waiting...");
-    }
-
-    Reader record_reader = readReader(&reader, length);
-    switch (type) {
-        /*case HANDSHAKE:
-            decodeHandshake(conn, record_reader);
-            return;*/
-        case ALERT:
-            decodeAlert(conn, record_reader);
-            return;
-        default:
-            ERROR("TLS content type not implemented: %d", type);
-            sendError(conn, INTERNAL_ERROR);
-            return;
-    }
+    decodeRecord(conn, data);
 }
 
 static void onSent(void* context) {
