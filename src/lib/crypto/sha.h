@@ -39,5 +39,9 @@ Slice sha512_Slice(Memory* mem, Slice source);
     Slice*: sha512_Slices \
 )(mem, __VA_ARGS__)
 
+Slice hmacSha224(Memory* mem, Slice key, Slice source);
+Slice hmacSha256(Memory* mem, Slice key, Slice source);
+Slice hmacSha384(Memory* mem, Slice key, Slice source);
+Slice hmacSha512(Memory* mem, Slice key, Slice source);
 
 #endif

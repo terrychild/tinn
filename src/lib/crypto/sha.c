@@ -9,10 +9,11 @@
 #include "lib/maths/minmax.h"
 #include "lib/maths/bigint.h"
 
-typedef void (*compression_32)(U32*, U8*);
-typedef void (*compression_64)(U64*, U8*);
+typedef void (*Compression_32)(U32*, U8*);
+typedef void (*Compression_64)(U64*, U8*);
+typedef Slice (*Sha)(Memory* mem, Slice* source, U64 source_count);
 
-static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, compression_32 compression) {
+static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, Compression_32 compression) {
     ScratchMemory scratch = scratchMemory(NULL);
     U8* block = allocate(scratch.mem, block_len);
 
@@ -55,7 +56,7 @@ static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, com
     scratchRelease(scratch);
 }
 
-static void md_64(U64* hash, Slice* source, U64 source_count, U64 block_len, compression_64 compression) {
+static void md_64(U64* hash, Slice* source, U64 source_count, U64 block_len, Compression_64 compression) {
     ScratchMemory scratch = scratchMemory(NULL);
     U8* block = allocate(scratch.mem, block_len);
 
@@ -358,4 +359,31 @@ Slice sha512_Slices(Memory* mem, Slice* source, U64 source_count) {
 }
 Slice sha512_Slice(Memory* mem, Slice source) {
     return sha512_Slices(mem, &source, 1);
+}
+
+static Slice hmacSha(Memory* mem, Slice key, Slice source, U64 block_len, Sha sha) {
+    if (key.length > block_len) {
+        key = sha(mem, &key, 1);
+    }
+    U8 ikey[block_len];
+    U8 okey[block_len];
+    for (U64 i=0; i<block_len; i++) {
+        ikey[i] = i < key.length ? key.start[i] ^ 0x36 : 0x36;
+        okey[i] = i < key.length ? key.start[i] ^ 0x5c : 0x5c;
+    }
+    Slice ihash = sha(mem, ((Slice[]){sliceNew(ikey, block_len), source}), 2);
+    return sha(mem, ((Slice[]){sliceNew(okey, block_len), ihash}), 2);
+}
+
+Slice hmacSha224(Memory* mem, Slice key, Slice source) {
+    return hmacSha(mem, key, source, 64, sha224_Slices);
+}
+Slice hmacSha256(Memory* mem, Slice key, Slice source) {
+    return hmacSha(mem, key, source, 64, sha256_Slices);
+}
+Slice hmacSha384(Memory* mem, Slice key, Slice source) {
+    return hmacSha(mem, key, source, 128, sha384_Slices);
+}
+Slice hmacSha512(Memory* mem, Slice key, Slice source) {
+    return hmacSha(mem, key, source, 128, sha512_Slices);
 }
