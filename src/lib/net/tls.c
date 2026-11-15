@@ -5,11 +5,31 @@
 #include "lib/mem/buffer.h"
 #include "lib/mem/slice.h"
 #include "lib/crypto/x25519.h"
+#include "lib/crypto/sha.h"
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
 
+#include <string.h>
 #include "lib/maths/bigint.h"
+
+static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label, const Slice context, U64 length) {
+    ScratchMemory scratch = scratchMemory(mem);
+
+    Buffer* buf = bufNew(scratch.mem, length + 256);
+    bufAppendBE16(buf, length);
+    bufAppendBE8(buf, 6+strlen(label));
+    bufAppend(buf, "tls13 %s", label);
+    bufAppendBE8(buf, context.length);
+    bufAppend(buf, context);
+    bufAppendBE8(buf, 1);
+
+    Slice key_material = hmacSha384(mem, secret, bufAsSlice(buf));
+
+    scratchRelease(scratch);
+
+    return key_material;
+}
 
 // TLS enums
 typedef enum:U16 {
@@ -136,6 +156,7 @@ typedef struct {
     BigInt* server_private_key;
     BigInt* server_public_key;
     Slice server_public_key_encoded;
+    BigInt* shared_secret;
 } Handshake;
 
 // Connection state
@@ -179,7 +200,9 @@ static void sendClose(Connection* conn) {
     serverSend(conn->server, bufAsSlice(buf));
 }
 
-static void decodeAlert(Connection* conn, Reader reader) {
+static void decodeAlert(Connection* conn, Slice fragment) {
+    Reader reader = sliceReader(fragment);
+
     Alert alert;
     alert.level = readBE8(&reader);
     alert.description = readBE8(&reader);
@@ -193,7 +216,7 @@ static void decodeAlert(Connection* conn, Reader reader) {
 }
 
 // TLS Handshake
-static void sendServerHello(Connection* conn) {
+static Slice sendServerHello(Connection* conn) {
     Buffer* buf = bufNew(conn->exchange_mem, KiB(4));
 
     // record
@@ -243,6 +266,7 @@ static void sendServerHello(Connection* conn) {
 
     // send
     serverSend(conn->server, bufAsSlice(buf));
+    return slice(buf, 5, -1);
 }
 
 static void decodeSupportedVersions(Connection* conn, Reader reader) {
@@ -340,12 +364,14 @@ static void decodeKeyShare(Connection* conn, Reader reader) {
     do {
         if (readBE16(&reader) == conn->handshake.group) {
             conn->handshake.client_public_key = biFromLESlice(conn->exchange_mem, readSlice(&reader, readBE16(&reader)));
+            DEBUG("Client key");
+            hexDump(biToLESlice(conn->exchange_mem, conn->handshake.client_public_key));
             return;
         }
     } while (!readerEOF(&reader));
 }
 
-static void decodeClientHello(Connection* conn, Reader reader) {
+static void decodeClientHello(Connection* conn, Slice client_hello, Reader reader) {
     DEBUG("TLS Handshake - Client Hello");
 
     // legacy version
@@ -501,24 +527,55 @@ static void decodeClientHello(Connection* conn, Reader reader) {
     conn->handshake.server_private_key = biFromLESlice(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"));
     conn->handshake.server_public_key = x25519PublicKey(conn->exchange_mem, conn->handshake.server_private_key);
     conn->handshake.server_public_key_encoded = slice(biToLESlice(conn->exchange_mem, conn->handshake.server_public_key), 0, 32);
+    conn->handshake.shared_secret = x25519(conn->exchange_mem, conn->handshake.server_private_key, conn->handshake.client_public_key);
+    DEBUG("Shared secret");
+    hexDump(biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
 
-    sendServerHello(conn);
+    Slice server_hello = sendServerHello(conn);
+
+    // Hello hash
+    DEBUG("client hello");
+    hexDump(client_hello);
+    DEBUG("server hello");
+    hexDump(server_hello);
+    Slice hello_hash = sha384(conn->exchange_mem, ((Slice[]){client_hello, server_hello}), 2);
+    DEBUG("Hello hash");
+    hexDump(hello_hash);
+
+    U8 zero_key[48] = {0};
+    Slice early_secret = hmacSha384(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "00"), sliceNew(zero_key, 48));
+    DEBUG("early_secret");
+    hexDump(early_secret);
+
+    Slice empty_hash = sha384(conn->exchange_mem, sliceFromStr(""));
+    DEBUG("empty_hash");
+    hexDump(empty_hash);
+
+    Slice derived_secret = hkdfExpandLabel(conn->exchange_mem, early_secret, "derived", empty_hash, 48);
+    DEBUG("derived_secret");
+    hexDump(derived_secret);
+
+    Slice handshake_secret = hmacSha384(conn->exchange_mem, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
+    DEBUG("handshake secret");
+    hexDump(handshake_secret);
 }
 
-static void decodeHandshake(Connection* conn, Reader reader) {
+static void decodeHandshake(Connection* conn, Slice fragment) {
+    Reader reader = sliceReader(fragment);
     do {
         HandshakeType type = readBE8(&reader);
         U32 length = readBE24(&reader);
         if (length > readerRemaining(&reader)) {
+            //TODO: deal with headers that span multiple records
             ERROR("Invlaid handshake message length");
             sendError(conn, DECODE_ERROR);
             return;
         }
-        Reader handshake_reader = readReader(&reader, length);
+        Reader message_reader = readReader(&reader, length);
 
         switch (type) {
             case CLIENT_HELLO:
-                decodeClientHello(conn, handshake_reader);
+                decodeClientHello(conn, fragment, message_reader);
                 return;
             case SERVER_HELLO:
             case NEW_SESSION_TICKET:
@@ -576,13 +633,13 @@ static void decodeRecord(Connection* conn, Slice data) {
         WARN("TLS message is shorter than fragment length, waiting...");
     }
 
-    Reader record_reader = readReader(&reader, record.length);
+    Slice fragment = readSlice(&reader, record.length);
     switch (record.type) {
         case HANDSHAKE:
-            decodeHandshake(conn, record_reader);
+            decodeHandshake(conn, fragment);
             return;
         case ALERT:
-            decodeAlert(conn, record_reader);
+            decodeAlert(conn, fragment);
             return;
         default:
             ERROR("TLS content type not implemented: %d", record.type);
