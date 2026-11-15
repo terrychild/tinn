@@ -22,6 +22,7 @@ add_library(lib
     net/http.c
     net/tls.c
 
+    maths/minmax.c
     maths/bigint.c
 
     crypto/sha.c
