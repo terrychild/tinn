@@ -63,7 +63,7 @@ char* biToHexStr(Memory* mem, const BigInt* bi);
 
 // === comparison ===
 
-bool biBit(const BigInt* bi, U64 bit);
+bool biBit(const BigInt* bi, Size bit);
 bool biIsZero(const BigInt* bi);
 int biCmpAbs(const BigInt* a, const BigInt* b);
 
