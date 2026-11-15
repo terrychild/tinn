@@ -362,8 +362,10 @@ Slice sha512_Slice(Memory* mem, Slice source) {
 }
 
 static Slice hmacSha(Memory* mem, Slice key, Slice source, U64 block_len, Sha sha) {
+    ScratchMemory scratch = scratchMemory(mem);
+
     if (key.length > block_len) {
-        key = sha(mem, &key, 1);
+        key = sha(scratch.mem, &key, 1);
     }
     U8 ikey[block_len];
     U8 okey[block_len];
@@ -371,8 +373,12 @@ static Slice hmacSha(Memory* mem, Slice key, Slice source, U64 block_len, Sha sh
         ikey[i] = i < key.length ? key.start[i] ^ 0x36 : 0x36;
         okey[i] = i < key.length ? key.start[i] ^ 0x5c : 0x5c;
     }
-    Slice ihash = sha(mem, ((Slice[]){sliceNew(ikey, block_len), source}), 2);
-    return sha(mem, ((Slice[]){sliceNew(okey, block_len), ihash}), 2);
+    Slice ihash = sha(scratch.mem, ((Slice[]){sliceNew(ikey, block_len), source}), 2);
+    Slice ohash = sha(mem, ((Slice[]){sliceNew(okey, block_len), ihash}), 2);
+
+    scratchRelease(scratch);
+
+    return ohash;
 }
 
 Slice hmacSha224(Memory* mem, Slice key, Slice source) {
