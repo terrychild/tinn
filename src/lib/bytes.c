@@ -64,8 +64,8 @@ void toBE64(U8 dest[8], U64 n) {
     }
 }
 void toBE128(U8 dest[16], const BigInt* n) {
-    U64 offset = 0;
-    for (U64 i=2; i-- > 0; ) {
+    uint offset = 0;
+    for (uint i=2; i-- > 0; ) {
         toBE64(dest + offset, i < n->size ? n->limbs[i] : 0);
         offset += 8;
     }
@@ -90,10 +90,10 @@ U8 readHexChar(char nibble) {
 	}
 	return value;
 }
-void readHexStr(U8* dest, U64 nibbles, const char* hex) {
+void readHexStr(U8* dest, Size nibbles, const char* hex) {
     U8 byte = 0;
     U8 bits = 0;
-    for (U64 i = nibbles; i-- > 0; ) {
+    for (Size i = nibbles; i-- > 0; ) {
         byte += (U8)readHexChar(hex[i]) << bits;
         bits += 4;
 
@@ -117,9 +117,9 @@ char toHexChar(U8 nibble) {
 }
 
 void hexDump(Slice slice) {
-    for (U64 i=0; i < slice.length; i+=16) {
+    for (Size i=0; i < slice.length; i+=16) {
         PRINT(CC_WHITE, "%08lx  ", i);
-        for (U64 j=0; j<16; j++) {
+        for (int j=0; j<16; j++) {
             if (i+j < slice.length) {
                 PRINT(CC_YELLOW, "%02x ", slice.start[i+j]);
             } else {
@@ -131,7 +131,7 @@ void hexDump(Slice slice) {
         }
         PRINT(CC_NULL, " ");
 
-        for (U64 j=0; j<16; j++) {
+        for (int j=0; j<16; j++) {
             if (i+j < slice.length && slice.start[i+j] > 32 && slice.start[i+j] < 127) {
                 PRINT(CC_CYAN, "%c", slice.start[i+j]);
             } else {

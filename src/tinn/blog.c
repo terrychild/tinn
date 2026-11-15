@@ -85,7 +85,7 @@ static time_t modDate(Blog* blog, bool posts) {
     mod_date = maxTime(mod_date, blog->footer->mod_date);
 
     if (posts) {
-        for (U64 i=0; i<blog->posts->count; i++) {
+        for (Size i=0; i<blog->posts->count; i++) {
             mod_date = maxTime(mod_date, ((BlogPost*)arrayGet(blog->posts, i))->content->mod_date);
         }
     }
@@ -98,7 +98,7 @@ bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerReq
 
     // check for changes
     if (blog->mod_date < blog->posts_file->mod_date) {
-        for (U64 i=0; i<blog->posts->count; i++) {
+        for (Size i=0; i<blog->posts->count; i++) {
             deallocateFile(blog->mem, ((BlogPost*)arrayGet(blog->posts, i))->content);
         }
         arrayReset(blog->posts);
@@ -128,7 +128,7 @@ bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerReq
         // generate content
         bufAppend(content, blog->header1);
         bufAppend(content, blog->header2);
-        for (U64 i=0; i<blog->posts->count; i++) {
+        for (Size i=0; i<blog->posts->count; i++) {
             if (i > 0) {
                 bufAppend(content, "<hr>\n");
             }
@@ -163,7 +163,7 @@ bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerReq
         // generate content
         bufAppend(content, blog->header1);
         bufAppend(content, blog->header2);
-        for (U64 i = blog->posts->count; i-- > 0; ) {
+        for (Size i = blog->posts->count; i-- > 0; ) {
             if (i < blog->posts->count - 1) {
                 bufAppend(content, "<hr>\n");
             }
@@ -205,7 +205,7 @@ bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerReq
             bufAppend(content, "<p>If you, like me, sometimes want to read an entire blog in chronological order without any unnecessary navigating and/or scrolling back and forth, you can do that <a href=\"/log\">here</a>.</p>\n");
 
             Slice last_date = sliceEmpty();
-            for (U64 i=0; i<blog->posts->count; i++) {
+            for (Size i=0; i<blog->posts->count; i++) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 Slice date = sliceRightStr(post->date, " ");
                 if (!sliceIs(last_date, date)) {
@@ -228,7 +228,7 @@ bool blogContent(Memory* exchange_mem, HttpConnection* connection, HttpServerReq
 
         // blog post
         if (target->path_segments->count == 2) {
-            for (U64 i=0; i<blog->posts->count; i++) {
+            for (Size i=0; i<blog->posts->count; i++) {
                 BlogPost* post = (BlogPost*)arrayGet(blog->posts, i);
                 if (sliceIs(*(Slice*)arrayGet(target->path_segments, 1), post->dir)) {
                     LOG("Blog: Serving /blog/%.*s", post->dir.length, post->dir.start);

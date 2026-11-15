@@ -17,7 +17,7 @@ void toBE64(U8 dest[8], U64 n);
 void toBE128(U8 dest[16], const BigInt* n);
 
 U8 readHexChar(char nibble);
-void readHexStr(U8* dest, U64 nibbles, const char* hex);
+void readHexStr(U8* dest, Size nibbles, const char* hex);
 char toHexChar(U8 nibble);
 void hexDump(Slice slice);
 

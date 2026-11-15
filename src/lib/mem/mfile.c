@@ -24,7 +24,7 @@ static bool mapFile(MappedFile* file, bool update) {
     }
 
     if (update) {
-        if (file->mod_date == stats.st_mtime && file->length == (U64)stats.st_size) {
+        if (file->mod_date == stats.st_mtime && file->length == (Size)stats.st_size) {
             DEBUG("no update require");
             close(fd);
             return true;

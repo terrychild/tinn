@@ -3,7 +3,7 @@
 
 #include "lib/types.h"
 
-Slice sliceNew(const U8* start, U64 length);
+Slice sliceNew(const U8* start, Size length);
 Slice sliceFromStr(const char* str);
 Slice sliceEmpty();
 
@@ -15,8 +15,8 @@ I8 sliceCmpStr(const Slice a, const char* b);
 bool sliceIs(const Slice a, const Slice b);
 bool sliceIsStr(const Slice a, const char* b);
 
-Slice sliceSlice(const Slice source, U64 start, U64 end);
-Slice sliceBuffer(Buffer* buf, U64 start, U64 end);
+Slice sliceSlice(const Slice source, Size start, Size end);
+Slice sliceBuffer(Buffer* buf, Size start, Size end);
 #define slice(source, start, end) _Generic((source), \
     const Slice: sliceSlice, \
     Slice: sliceSlice, \
@@ -52,12 +52,12 @@ typedef struct {
 } Reader;
 
 Reader sliceReader(const Slice source);
-U64 readerRemaining(Reader* reader);
+Size readerRemaining(Reader* reader);
 bool readerEOF(Reader* reader);
 
-void readSkip(Reader* reader, U64 length);
-Slice readSlice(Reader* reader, U64 length);
-Reader readReader(Reader* reader, U64 length);
+void readSkip(Reader* reader, Size length);
+Slice readSlice(Reader* reader, Size length);
+Reader readReader(Reader* reader, Size length);
 U8 readBE8(Reader* reader);
 U16 readBE16(Reader* reader);
 U32 readBE24(Reader* reader);

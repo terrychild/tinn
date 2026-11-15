@@ -12,7 +12,7 @@
 #include "lib/cli.h"
 
 // children
-Memory* allocateChild(Memory* mem, U64 size) {
+Memory* allocateChild(Memory* mem, Size size) {
     if (!mem->children) {
         mem->children = poolNew(mem, sizeof(Memory), 8);
     }
@@ -50,13 +50,13 @@ void deallocateFile(Memory* mem, MappedFile* file) {
 }
 
 // normal allocation
-void* allocate(Memory* mem, U64 size) {
+void* allocate(Memory* mem, Size size) {
     ArenaAllocation arena_allocation = arenaAllocate(mem->arena, sizeof(Allocation) + size);
     mem->last_allocation = (Allocation*)arena_allocation.start;
     mem->last_allocation->size = arena_allocation.size - sizeof(Allocation);
     return mem->last_allocation->data;
 }
-void* reallocate(Memory* mem, void* original, U64 size) {
+void* reallocate(Memory* mem, void* original, Size size) {
     Allocation* original_allocation = (Allocation*)((U8*)original - sizeof(Allocation));
     if (original_allocation == mem->last_allocation) {
         ArenaAllocation arena_allocation = arenaAllocate(mem->arena, size - original_allocation->size);
@@ -69,7 +69,7 @@ void* reallocate(Memory* mem, void* original, U64 size) {
 }
 
 // Allocator
-Memory* memoryNew(U64 size) {
+Memory* memoryNew(Size size) {
     Arena* arena = arenaNew(size);
     Memory* mem = arenaAllocate(arena, sizeof(Memory)).start;
     memoryInit(mem, arena);
@@ -100,8 +100,8 @@ void memoryReset(Memory* mem) {
     }
 
     // reset arena
-    const U64 AREAN_SIZE = alignToWord(sizeof(Arena));
-    const U64 ALLOCATOR_SIZE = alignToWord(sizeof(Memory));
+    const Size AREAN_SIZE = alignToWord(sizeof(Arena));
+    const Size ALLOCATOR_SIZE = alignToWord(sizeof(Memory));
 
     if ((U8*)mem->arena == mem->arena->start) {
         if ((U8*)mem == mem->arena->start + AREAN_SIZE) {
@@ -133,14 +133,14 @@ Memory* programMemory() {
 }
 
 ScratchMemory scratchMemory(Memory* current) {
-    U64 scratch_count = sizeof(scratch_memory)/sizeof(scratch_memory[0]);
+    Size scratch_count = sizeof(scratch_memory)/sizeof(scratch_memory[0]);
     if (!scratch_memory[0]) {
-        for (U64 i=0; i<scratch_count; i++) {
+        for (Size i=0; i<scratch_count; i++) {
             scratch_memory[i] = memoryNew(MiB(512));
         }
     }
 
-    for (U64 i=0; i<scratch_count; i++) {
+    for (Size i=0; i<scratch_count; i++) {
         if (scratch_memory[i] != current) {
             return (ScratchMemory) {
                 .mem = scratch_memory[i],

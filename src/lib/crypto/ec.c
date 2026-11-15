@@ -81,7 +81,7 @@ static EllipticCurvePoint* mul(Memory* mem, const EllipticCurve* ec, const Ellip
     ScratchMemory scratch = scratchMemory(mem);
 
     EllipticCurvePoint* t = clonePoint(scratch.mem, p);
-    for (U64 bit = n->length - 1; bit-- > 0; ) {
+    for (Size bit = n->length - 1; bit-- > 0; ) {
         t = add(scratch.mem, ec, t, t);
         if (biBit(n, bit)) {
             t = add(scratch.mem, ec, t, p);

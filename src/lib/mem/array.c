@@ -6,12 +6,12 @@
 #include "lib/mem/array.h"
 #include "lib/mem/arena.h"
 
-Array* arrayNew(Memory* mem, U64 item_size, U64 capacity) {
+Array* arrayNew(Memory* mem, Size item_size, Size capacity) {
     Array* array = allocate(mem, sizeof(Array));
     arrayInit(array, mem, item_size, capacity);
     return array;
 }
-void arrayInit(Array* array, Memory* mem, U64 item_size, U64 capacity) {
+void arrayInit(Array* array, Memory* mem, Size item_size, Size capacity) {
     assert(capacity > 0);
 
     array->mem = mem;
@@ -27,7 +27,7 @@ void arrayReset(Array* array) {
 static void* add(Array* array) {
     if (array->count == array->capacity) {
         array->capacity *= 2;
-        U64 size = array->capacity * array->item_size;
+        Size size = array->capacity * array->item_size;
         array->start = reallocate(array->mem, array->start, size);
     }
 
@@ -61,21 +61,21 @@ void* arrayPeek(Array* array) {
     return NULL;
 }
 
-void arraySet(Array* array, U64 index, const void* item) {
+void arraySet(Array* array, Size index, const void* item) {
     if (index < array->count) {
         U8* address = array->start + (index * array->item_size);
         memcpy(address, item, array->item_size);
     }
 }
 
-void* arrayGet(Array* array, U64 index) {
+void* arrayGet(Array* array, Size index) {
     if (index < array->count) {
         return array->start + (index * array->item_size);
     }
     return NULL;
 }
 
-void arrayRemove(Array* array, U64 index) {
+void arrayRemove(Array* array, Size index) {
     if (index < array->count) {
         array->count--;
         if (index < array->count) {

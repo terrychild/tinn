@@ -3,8 +3,8 @@
 
 #include <lib/types.h>
 
-U64 align(U64 ptr, U64 multiple);
-U64 alignToPage(U64 ptr);
-U64 alignToWord(U64 ptr);
+Size align(Size ptr, Size multiple);
+Size alignToPage(Size ptr);
+Size alignToWord(Size ptr);
 
 #endif

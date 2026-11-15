@@ -31,8 +31,8 @@ typedef struct {
     Slice host;
     Slice connection;
     time_t if_modified_since;
-    U64 header_length;
-    U64 content_length;
+    Size header_length;
+    Size content_length;
     Slice content;
 } HttpServerRequest;
 
@@ -46,7 +46,7 @@ HttpServer* httpServer(Memory* mem, ServerInterface server);
 void httpServerAddListener(HttpServer* server, HttpServerListenerFunc func, void* context);
 
 void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code);
-void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, U64 content_length);
+void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, Size content_length);
 void httpServerSetContent(HttpConnection* connection, Slice content_type, Slice content);
 void httpServerAddHeader(HttpConnection* connection, Slice name, Slice value);
 void httpServerAddDateHeader(HttpConnection* connection, Slice name, time_t seconds);

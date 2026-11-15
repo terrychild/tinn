@@ -28,7 +28,7 @@ void serverDisconnected(ServerInbound interface) {
 }
 
 // Outbound interface
-void serverRead(ServerOutbound interface, U64 length) {
+void serverRead(ServerOutbound interface, Size length) {
     if (interface.read) {
         interface.read(interface.context, length);
     }
@@ -58,7 +58,7 @@ typedef struct {
     Polling* polling;
     int socket;
     Pool* connections;
-    U64 connection_size;
+    Size connection_size;
     ServerConnectedFunc onConnect;
     void* context;
 } Server;
@@ -116,7 +116,7 @@ static void onConnectionSend(void* context, Slice response) {
     }
 }
 
-static void onConnectionRead(void* context, U64 length) {
+static void onConnectionRead(void* context, Size length) {
     Connection* connection = context;
     bufConsume(connection->request, length);
 }

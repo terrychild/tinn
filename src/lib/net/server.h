@@ -21,7 +21,7 @@ void serverSent(ServerInbound interface);
 void serverDisconnected(ServerInbound interface);
 
 // Outbound interface
-typedef void (*ServerReadFunc)(void* context, U64 length);
+typedef void (*ServerReadFunc)(void* context, Size length);
 typedef void (*ServerSendFunc)(void* context, Slice message);
 typedef void (*ServerDisconnectFunc)(void* context);
 
@@ -33,7 +33,7 @@ typedef struct {
     void* context;
 } ServerOutbound;
 
-void serverRead(ServerOutbound interface, U64 length);
+void serverRead(ServerOutbound interface, Size length);
 void serverSend(ServerOutbound interface, Slice data);
 void serverDisconnect(ServerOutbound interface);
 

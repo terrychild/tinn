@@ -14,7 +14,7 @@ enum parse_state {
 
 static const char* valid_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~%!$&'()*+,;=:@";
 
-static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool is_last) {
+static void addPathSegment(URL* url, Slice source, Size start, Size end, bool is_last) {
     if (end >= start) {
         Slice segment = slice(source, start, end);
         if (sliceIsStr(segment, ".")) {
@@ -35,9 +35,9 @@ static void addPathSegment(URL* url, Slice source, U64 start, U64 end, bool is_l
         }
     }
 }
-static void addPath(Memory* mem, URL* url, U64 length) {
+static void addPath(Memory* mem, URL* url, Size length) {
     Buffer* path = bufNew(mem, length);
-    for (U64 i=0; i<url->path_segments->count; i++) {
+    for (Size i=0; i<url->path_segments->count; i++) {
         bufAppend(path, "/");
         bufAppend(path, *(Slice*)arrayGet(url->path_segments, i));
     }
@@ -55,9 +55,9 @@ URL* urlFromOrigin(Memory* mem, Slice source) {
 
     // scan the URL looking for segments (directories), the start of the query and invalid characters
     enum parse_state state = PARSE_PATH;
-    U64 component_start = 0;
-    U64 segment_start = 1;
-	for (U64 i=1; i<source.length; i++) {
+    Size component_start = 0;
+    Size segment_start = 1;
+	for (Size i=1; i<source.length; i++) {
 		switch (source.start[i]) {
 			case '/':
 				if (state == PARSE_PATH) {

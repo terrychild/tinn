@@ -11,8 +11,8 @@ struct MappedFile {
     const char* path;
     int wd;
     time_t mod_date;
-    U64 size;
-    U64 length;
+    Size size;
+    Size length;
     U8* start;
 };
 

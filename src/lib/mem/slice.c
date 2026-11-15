@@ -5,7 +5,7 @@
 #include "lib/mem/buffer.h"
 #include "lib/bytes.h"
 
-Slice sliceNew(const U8* start, U64 length) {
+Slice sliceNew(const U8* start, Size length) {
     return (Slice) {
         .length = length,
         .start = start
@@ -26,16 +26,16 @@ Slice sliceEmpty() {
 
 
 Slice sliceFromHex(Memory* mem, const char* hex) {
-    U64 nibbles = strlen(hex);
-    U64 count = (nibbles + 1) / 2;
+    Size nibbles = strlen(hex);
+    Size count = (nibbles + 1) / 2;
     U8* bytes = allocate(mem, count);
     readHexStr(bytes, nibbles, hex);
     return sliceNew(bytes, count);
 }
 char* sliceToHex(Memory* mem, Slice slice) {
     char* str = allocate(mem, (slice.length * 2) + 1);
-    U64 byte = 0;
-    for (U64 i = 0; i < slice.length; i++) {
+    Size byte = 0;
+    for (Size i = 0; i < slice.length; i++) {
         str[byte++] = toHexChar((slice.start[i] & 0xF0) >> 4);
         str[byte++] = toHexChar(slice.start[i] & 0x0F);
     }
@@ -44,7 +44,7 @@ char* sliceToHex(Memory* mem, Slice slice) {
 }
 
 I8 sliceCmp(const Slice a, const Slice b) {
-    for (U64 i=0; i<a.length; i++) {
+    for (Size i=0; i<a.length; i++) {
         if (i >= b.length) {
             return 1;
         }
@@ -68,7 +68,7 @@ bool sliceIsStr(const Slice a, const char* b) {
     return sliceCmpStr(a, b) == 0;
 }
 
-Slice sliceSlice(Slice slice, U64 start, U64 end) {
+Slice sliceSlice(Slice slice, Size start, Size end) {
     if (start > slice.length) {
         start = slice.length;
     }
@@ -80,7 +80,7 @@ Slice sliceSlice(Slice slice, U64 start, U64 end) {
         .start = slice.start + start
     };
 }
-Slice sliceBuffer(Buffer* buf, U64 start, U64 end) {
+Slice sliceBuffer(Buffer* buf, Size start, Size end) {
     if (start > buf->length) {
         start = buf->length;
     }
@@ -93,7 +93,7 @@ Slice sliceBuffer(Buffer* buf, U64 start, U64 end) {
     };
 }
 
-static void find(const Slice source, const Slice search, U64 start, U64 end, int direction, bool* found, U64* pos) {
+static void find(const Slice source, const Slice search, Size start, Size end, int direction, bool* found, Size* pos) {
     if (source.length == 0 || source.length < search.length) {
         *found = false;
         return;
@@ -103,7 +103,7 @@ static void find(const Slice source, const Slice search, U64 start, U64 end, int
         *pos = start;
         return;
     }
-    U64 i = start;
+    Size i = start;
     while(true) {
         if (sliceCmp(slice(source, i, i + search.length), search)==0) {
             *found = true;
@@ -117,16 +117,16 @@ static void find(const Slice source, const Slice search, U64 start, U64 end, int
         i += direction;
     }
 }
-static void findFirst(const Slice source, const Slice search, bool* found, U64* pos) {
+static void findFirst(const Slice source, const Slice search, bool* found, Size* pos) {
     find(source, search, 0, source.length - search.length, 1, found, pos);
 }
-static void findLast(const Slice source, const Slice search, bool* found, U64* pos) {
+static void findLast(const Slice source, const Slice search, bool* found, Size* pos) {
     find(source, search, source.length - search.length, 0, -1, found, pos);
 }
 
 static Slice left(const Slice source, const Slice search, bool backwards) {
     bool found;
-    U64 pos;
+    Size pos;
     if (backwards) {
         findLast(source, search, &found, &pos);
     } else {
@@ -153,7 +153,7 @@ Slice sliceLeftBackStr(const Slice source, const char* search) {
 
 static Slice right(const Slice source, const Slice search, bool backwards) {
     bool found;
-    U64 pos;
+    Size pos;
     if (backwards) {
         findLast(source, search, &found, &pos);
     } else {
@@ -179,11 +179,11 @@ Slice sliceRightBackStr(const Slice source, const char* search) {
 }
 
 Slice sliceTrim(const Slice source) {
-    U64 start = 0;
+    Size start = 0;
     while (start < source.length && (source.start[start] == ' ' || source.start[start] == '\t')) {
         start++;
     }
-    U64 end = source.length;
+    Size end = source.length;
     while (end > start && (source.start[end - 1] == ' ' || source.start[end - 1] == '\t')) {
         end--;
     }
@@ -192,7 +192,7 @@ Slice sliceTrim(const Slice source) {
 
 Slice sliceToLowerCase(Memory* mem, const Slice source) {
     U8* target = allocate(mem, source.length);
-    for (U64 i=0; i<source.length; i++) {
+    for (Size i=0; i<source.length; i++) {
         if (source.start[i] >= 'A' && source.start[i] <= 'Z') {
             target[i] = source.start[i] + 32;
         } else {
@@ -203,7 +203,7 @@ Slice sliceToLowerCase(Memory* mem, const Slice source) {
 }
 Slice sliceToUpperCase(Memory* mem, const Slice source) {
     U8* target = allocate(mem, source.length);
-    for (U64 i=0; i<source.length; i++) {
+    for (Size i=0; i<source.length; i++) {
         if (source.start[i] >= 'a' && source.start[i] <= 'z') {
             target[i] = source.start[i] - 32;
         } else {
@@ -229,10 +229,10 @@ Tokeniser sliceTokeniserStr(const Slice source, const char* delim, bool greedy) 
 }
 Slice nextToken(Tokeniser* tokeniser) {
     bool found;
-    U64 pos;
+    Size pos;
     findFirst(tokeniser->slice, tokeniser->delim, &found, &pos);
     if (found) {
-        U64 next_pos = pos + tokeniser->delim.length;
+        Size next_pos = pos + tokeniser->delim.length;
         if (tokeniser->greedy) {
             while (sliceIs(slice(tokeniser->slice, next_pos, next_pos + tokeniser->delim.length), tokeniser->delim)) {
                 next_pos += tokeniser->delim.length;
@@ -253,22 +253,22 @@ Reader sliceReader(const Slice source) {
         .slice = source
     };
 }
-U64 readerRemaining(Reader* reader) {
+Size readerRemaining(Reader* reader) {
     return reader->slice.length;
 }
 bool readerEOF(Reader* reader) {
     return reader->slice.length == 0;
 }
 
-void readSkip(Reader* reader, U64 length) {
+void readSkip(Reader* reader, Size length) {
     reader->slice = slice(reader->slice, length, -1);
 }
-Slice readSlice(Reader* reader, U64 length) {
+Slice readSlice(Reader* reader, Size length) {
     Slice rv = slice(reader->slice, 0, length);
     reader->slice = slice(reader->slice, length, -1);
     return rv;
 }
-Reader readReader(Reader* reader, U64 length) {
+Reader readReader(Reader* reader, Size length) {
     return sliceReader(readSlice(reader, length));
 }
 U8 readBE8(Reader* reader) {

@@ -5,7 +5,7 @@
 #include "lib/sys/polling.h"
 
 typedef struct {
-    U64 size;
+    Size size;
     U8 data[];
 } Allocation;
 
@@ -18,22 +18,22 @@ struct Memory {
 
 typedef struct {
     Memory* mem;
-    U64 allocated;
+    Size allocated;
 } ScratchMemory;
 
-Memory* memoryNew(U64 size);
+Memory* memoryNew(Size size);
 void memoryInit(Memory* mem, Arena* arena);
 void memoryReset(Memory* mem);
 void memoryRelease(Memory* mem);
 
-Memory* allocateChild(Memory* mem, U64 size);
+Memory* allocateChild(Memory* mem, Size size);
 void deallocateChild(Memory* mem, Memory* child);
 
 MappedFile* allocateFile(Memory* mem, Polling* polling, const char* path);
 void deallocateFile(Memory* mem, MappedFile* child);
 
-void* allocate(Memory* mem, U64 size);
-void* reallocate(Memory* mem, void* original, U64 size);
+void* allocate(Memory* mem, Size size);
+void* reallocate(Memory* mem, void* original, Size size);
 
 Memory* programMemory();
 ScratchMemory scratchMemory(Memory* current);

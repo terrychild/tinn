@@ -70,7 +70,7 @@ static BigInt* mul(Memory* mem, const MontgomeryCurve* mc, const BigInt* scalar,
         .z = biNew(scratch.mem)
     };
     dbl(scratch.mem, &r1, &r0, mc->a24, mc->p);
-    for (U64 bit = scalar->length - 1; bit-- > 0; ) {
+    for (Size bit = scalar->length - 1; bit-- > 0; ) {
         if (biBit(scalar, bit) == 0) {
             add(scratch.mem, &r1, &r0, &r1, point, mc->p);
             dbl(scratch.mem, &r0, &r0, mc->a24, mc->p);

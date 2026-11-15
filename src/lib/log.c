@@ -8,7 +8,7 @@
 #include "lib/log.h"
 #include "lib/cli.h"
 
-static const U64 MESSAGE_LEN = KiB(4);
+static const Size MESSAGE_LEN = KiB(4);
 static const char* logLevels[] = {
     [LL_DEBUG] = "DEBUG",
     [LL_INFO]  = "INFO",
@@ -22,7 +22,7 @@ static FILE* file = NULL;
 LogLevel logLevel = LL_INFO;
 
 static void formatMessage(char* message, bool inc_errno, const char* format, va_list args) {
-    U64 len = vsnprintf(message, MESSAGE_LEN, format, args);
+    Size len = vsnprintf(message, MESSAGE_LEN, format, args);
 
     if (inc_errno && errno != 0) {
         if (len < MESSAGE_LEN) {

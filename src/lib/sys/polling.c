@@ -9,12 +9,12 @@
 #include "lib/log.h"
 #include "lib/macros.h"
 
-Polling* pollingNew(Memory* mem, U64 capacity) {
+Polling* pollingNew(Memory* mem, Size capacity) {
     Polling* polling = allocate(mem, sizeof(*polling));
     pollingInit(polling, mem, capacity);
     return polling;
 }
-void pollingInit(Polling* polling, Memory* mem, U64 capacity) {
+void pollingInit(Polling* polling, Memory* mem, Size capacity) {
     assert(capacity > 0);
 
     polling->pollfds = arrayNew(mem, sizeof(struct pollfd), capacity);
@@ -33,7 +33,7 @@ void pollingAdd(Polling* polling, int fd, PollingCallback callback) {
     arrayPush(polling->callbacks, &callback);
 }
 void pollingRemove(Polling* polling, int fd) {
-    for (U64 i = 0; i < polling->pollfds->count; i++) {
+    for (Size i = 0; i < polling->pollfds->count; i++) {
         struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
         if (pfd->fd == fd) {
             if (polling->looping) {
@@ -47,7 +47,7 @@ void pollingRemove(Polling* polling, int fd) {
     }
 }
 void pollingEvents(Polling* polling, int fd, short events) {
-    for (U64 i = 0; i < polling->pollfds->count; i++) {
+    for (Size i = 0; i < polling->pollfds->count; i++) {
         struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
         if (pfd->fd == fd) {
             pfd->events = events;
@@ -63,14 +63,14 @@ void pollingPoll(Polling* polling) {
         }
 
         polling->looping = true;
-        for (U64 i = 0; i < polling->pollfds->count; i++) {
+        for (Size i = 0; i < polling->pollfds->count; i++) {
             struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
             if (pfd->revents) {
                 PollingCallback* callback = (PollingCallback*)arrayGet(polling->callbacks, i);
                 callback->func(pfd, callback->context);
             }
         }
-        for (U64 i = 0; i < polling->pollfds->count; i++) {
+        for (Size i = 0; i < polling->pollfds->count; i++) {
             struct pollfd* pfd = (struct pollfd*)arrayGet(polling->pollfds, i);
             if (pfd->events == 0) {
                 arraySet(polling->pollfds, i, arrayPop(polling->pollfds));

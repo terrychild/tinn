@@ -8,22 +8,22 @@
 #include "lib/log.h"
 #include "lib/cli.h"
 
-static void buildFreeList(Pool* pool, U8* start, U64 count) {
+static void buildFreeList(Pool* pool, U8* start, Size count) {
     PoolNode* node = (PoolNode*)start;
     pool->free = node;
-    for (U64 index = 1; index < count; index++) {
+    for (Size index = 1; index < count; index++) {
         node->next = (PoolNode*)(start + (index * pool->node_size));
         node = node->next;
     }
     node->next = NULL;
 }
 
-Pool* poolNew(Memory* mem, U64 item_size, U64 capacity) {
+Pool* poolNew(Memory* mem, Size item_size, Size capacity) {
     Pool* pool = allocate(mem, sizeof(Pool));
     poolInit(pool, mem, item_size, capacity);
     return pool;
 }
-void poolInit(Pool* pool, Memory* mem, U64 item_size, U64 capacity) {
+void poolInit(Pool* pool, Memory* mem, Size item_size, Size capacity) {
     assert(capacity > 0);
 
     pool->mem = mem;
@@ -96,7 +96,7 @@ void poolDebug(Pool* pool) {
 
     PRINT(CC_YELLOW, "  Free: ");
     PoolNode* node = pool->free;
-    U64 count = 0;
+    int count = 0;
     while (node != NULL && count<32) {
         PRINT(CC_YELLOW, "%lu; ", ((U8*)node) - pool->mem->arena->start);
         node = node->next;

@@ -7,8 +7,8 @@
 #include "lib/bytes.h"
 #include "lib/cli.h"
 
-U64 expect_passed = 0;
-U64 expect_failed = 0;
+Size expect_passed = 0;
+Size expect_failed = 0;
 
 #define MAKE_EXPECT(T, F) \
 void expect##T(const char* name, T value, T expected) { \

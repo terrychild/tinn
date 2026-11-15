@@ -7,8 +7,8 @@
 
 struct BigInt {
     Memory* mem;
-	U64 size;
-	U64 length;
+	Size size;
+	Size length;
 	U64* limbs;
 	bool negative;
 };
@@ -20,9 +20,9 @@ BigInt* biNew(Memory* mem);
 BigInt* biFromBi(Memory* mem, const BigInt* source);
 BigInt* biFromInt(Memory* mem, I64 i);
 BigInt* biFromStr(Memory* mem, const char* str);
-BigInt* biFromBE(Memory* mem, const U8* bytes, U64 count);
+BigInt* biFromBE(Memory* mem, const U8* bytes, Size count);
 BigInt* biFromBESlice(Memory* mem, const Slice slice);
-BigInt* biFromLE(Memory* mem, const U8* bytes, U64 count);
+BigInt* biFromLE(Memory* mem, const U8* bytes, Size count);
 BigInt* biFromLESlice(Memory* mem, const Slice slice);
 
 #define biFrom(mem, source) _Generic((source), \
@@ -40,9 +40,9 @@ BigInt* biFromLESlice(Memory* mem, const Slice slice);
 BigInt* biSetBi(BigInt* dest, const BigInt* source);
 BigInt* biSetInt(BigInt* bi, I64 i);
 BigInt* biSetStr(BigInt* bi, const char* str);
-BigInt* biSetBE(BigInt* bi, const U8* bytes, U64 count);
+BigInt* biSetBE(BigInt* bi, const U8* bytes, Size count);
 BigInt* biSetBESlice(BigInt* bi, const Slice slice);
-BigInt* biSetLE(BigInt* bi, const U8* bytes, U64 count);
+BigInt* biSetLE(BigInt* bi, const U8* bytes, Size count);
 BigInt* biSetLESlice(BigInt* bi, const Slice slice);
 
 #define biSet(dest, source) _Generic((source), \
@@ -77,8 +77,8 @@ int biCmpInt(const BigInt* a, I64 b);
 
 // === shift left ===
 
-BigInt* biShiftLeft_bb(BigInt* dest, const BigInt* source, U64 count);
-BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count);
+BigInt* biShiftLeft_bb(BigInt* dest, const BigInt* source, Size count);
+BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, Size count);
 
 #define biShiftLeft_dispatch(dest, source, count) _Generic((dest), \
     BigInt*: biShiftLeft_bb, \
@@ -92,8 +92,8 @@ BigInt* biShiftLeft_mb(Memory* mem, const BigInt* source, U64 count);
 
 // === shift right ===
 
-BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, U64 count);
-BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, U64 count);
+BigInt* biShiftRight_bb(BigInt* dest, const BigInt* source, Size count);
+BigInt* biShiftRight_mb(Memory* mem, const BigInt* source, Size count);
 
 #define biShiftRight_dispatch(dest, source, count) _Generic((dest), \
     BigInt*: biShiftRight_bb, \

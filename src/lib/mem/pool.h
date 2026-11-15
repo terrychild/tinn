@@ -10,15 +10,15 @@ typedef struct PoolNode {
 
 struct Pool {
     Memory* mem;
-    U64 node_size;
-    U64 capacity;
-    U64 count;
+    Size node_size;
+    Size capacity;
+    Size count;
     PoolNode* free;
     PoolNode* first;
 };
 
-Pool* poolNew(Memory* mem, U64 item_size, U64 capacity);
-void poolInit(Pool* pool, Memory* mem, U64 item_size, U64 capacity);
+Pool* poolNew(Memory* mem, Size item_size, Size capacity);
+void poolInit(Pool* pool, Memory* mem, Size item_size, Size capacity);
 void poolReset(Pool* pool);
 
 void* poolAdd(Pool* pool);

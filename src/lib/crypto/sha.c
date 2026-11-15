@@ -11,18 +11,18 @@
 
 typedef void (*Compression_32)(U32*, U8*);
 typedef void (*Compression_64)(U64*, U8*);
-typedef Slice (*Sha)(Memory* mem, Slice* source, U64 source_count);
+typedef Slice (*Sha)(Memory* mem, Slice* source, Size source_count);
 
-static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, Compression_32 compression) {
+static void md_32(U32* hash, Slice* source, Size source_count, Size block_len, Compression_32 compression) {
     ScratchMemory scratch = scratchMemory(NULL);
     U8* block = allocate(scratch.mem, block_len);
 
     // data
-    U64 bytes_read = 0;
-    U64 bytes_written = 0;
-    U64 i = 0;
+    Size bytes_read = 0;
+    Size bytes_written = 0;
+    Size i = 0;
     while (i < source_count) {
-        U64 bytes_to_write = min(source[i].length - bytes_read, block_len - bytes_written);
+        Size bytes_to_write = min(source[i].length - bytes_read, block_len - bytes_written);
         memcpy(block + bytes_written, source[i].start + bytes_read, bytes_to_write);
         bytes_read += bytes_to_write;
         bytes_written += bytes_to_write;
@@ -46,8 +46,8 @@ static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, Com
         compression(hash, block);
         memset(block, 0, block_len - 8);
     }
-    U64 total_bytes = 0;
-    for (U64 i = 0; i < source_count; i++) {
+    Size total_bytes = 0;
+    for (Size i = 0; i < source_count; i++) {
         total_bytes += source[i].length;
     }
     toBE64(block + block_len - 8, total_bytes * 8);
@@ -56,16 +56,16 @@ static void md_32(U32* hash, Slice* source, U64 source_count, U64 block_len, Com
     scratchRelease(scratch);
 }
 
-static void md_64(U64* hash, Slice* source, U64 source_count, U64 block_len, Compression_64 compression) {
+static void md_64(U64* hash, Slice* source, Size source_count, Size block_len, Compression_64 compression) {
     ScratchMemory scratch = scratchMemory(NULL);
     U8* block = allocate(scratch.mem, block_len);
 
     // full blocks
-    U64 bytes_read = 0;
-    U64 bytes_written = 0;
-    U64 i = 0;
+    Size bytes_read = 0;
+    Size bytes_written = 0;
+    Size i = 0;
     while (i < source_count) {
-        U64 bytes_to_write = min(source[i].length - bytes_read, block_len - bytes_written);
+        Size bytes_to_write = min(source[i].length - bytes_read, block_len - bytes_written);
         memcpy(block + bytes_written, source[i].start + bytes_read, bytes_to_write);
         bytes_read += bytes_to_write;
         bytes_written += bytes_to_write;
@@ -89,8 +89,8 @@ static void md_64(U64* hash, Slice* source, U64 source_count, U64 block_len, Com
         compression(hash, block);
         memset(block, 0, block_len - 16);
     }
-    U64 total_bytes = 0;
-    for (U64 i = 0; i < source_count; i++) {
+    Size total_bytes = 0;
+    for (Size i = 0; i < source_count; i++) {
         total_bytes += source[i].length;
     }
     toBE128(block + block_len - 16, biMul(scratch.mem, total_bytes, 8));
@@ -285,7 +285,7 @@ static void sha512Compression(U64 hash[8], U8 source[128]) {
     hash[7] += h;
 }
 
-Slice sha1_Slices(Memory* mem, Slice* source, U64 source_count) {
+Slice sha1_Slices(Memory* mem, Slice* source, Size source_count) {
     U32 hash[5] = { 0x67452301,	0xEFCDAB89,	0x98BADCFE,	0x10325476,	0xC3D2E1F0 };
     md_32(hash, source, source_count, 64, sha1Compression);
 
@@ -299,7 +299,7 @@ Slice sha1_Slice(Memory* mem, Slice source) {
     return sha1_Slices(mem, &source, 1);
 }
 
-Slice sha224_Slices(Memory* mem, Slice* source, U64 source_count) {
+Slice sha224_Slices(Memory* mem, Slice* source, Size source_count) {
     U32 hash[8] = { 0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4 };
     md_32(hash, source, source_count, 64, sha256Compression);
 
@@ -313,7 +313,7 @@ Slice sha224_Slice(Memory* mem, Slice source) {
     return sha224_Slices(mem, &source, 1);
 }
 
-Slice sha256_Slices(Memory* mem, Slice* source, U64 source_count) {
+Slice sha256_Slices(Memory* mem, Slice* source, Size source_count) {
     U32 hash[8] = { 0x6a09e667,	0xbb67ae85,	0x3c6ef372,	0xa54ff53a,	0x510e527f,	0x9b05688c,	0x1f83d9ab,	0x5be0cd19 };
     md_32(hash, source, source_count, 64, sha256Compression);
 
@@ -327,7 +327,7 @@ Slice sha256_Slice(Memory* mem, Slice source) {
     return sha256_Slices(mem, &source, 1);
 }
 
-Slice sha384_Slices(Memory* mem, Slice* source, U64 source_count) {
+Slice sha384_Slices(Memory* mem, Slice* source, Size source_count) {
     U64 hash[8] = {
         0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
         0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4
@@ -344,7 +344,7 @@ Slice sha384_Slice(Memory* mem, Slice source) {
     return sha384_Slices(mem, &source, 1);
 }
 
-Slice sha512_Slices(Memory* mem, Slice* source, U64 source_count) {
+Slice sha512_Slices(Memory* mem, Slice* source, Size source_count) {
     U64 hash[8] = {
         0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
         0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179
@@ -361,7 +361,7 @@ Slice sha512_Slice(Memory* mem, Slice source) {
     return sha512_Slices(mem, &source, 1);
 }
 
-static Slice hmacSha(Memory* mem, Slice key, Slice source, U64 block_len, Sha sha) {
+static Slice hmacSha(Memory* mem, Slice key, Slice source, Size block_len, Sha sha) {
     ScratchMemory scratch = scratchMemory(mem);
 
     if (key.length > block_len) {
@@ -369,7 +369,7 @@ static Slice hmacSha(Memory* mem, Slice key, Slice source, U64 block_len, Sha sh
     }
     U8 ikey[block_len];
     U8 okey[block_len];
-    for (U64 i=0; i<block_len; i++) {
+    for (Size i=0; i<block_len; i++) {
         ikey[i] = i < key.length ? key.start[i] ^ 0x36 : 0x36;
         okey[i] = i < key.length ? key.start[i] ^ 0x5c : 0x5c;
     }

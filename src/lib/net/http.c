@@ -38,7 +38,7 @@ typedef struct {
     HttpStatusCode status_code;
     Array* headers;
     Slice content_type;
-    U64 content_length;
+    Size content_length;
     Slice content;
 } Response;
 
@@ -157,7 +157,7 @@ void httpServerSetStatus(HttpConnection* connection, HttpStatusCode status_code)
     connection->response.status_code = status_code;
 }
 
-void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, U64 content_length) {
+void httpServerSetContentHeaders(HttpConnection* connection, Slice content_type, Size content_length) {
     connection->response.content_type = validateContentType(content_type);
     connection->response.content_length = content_length;
 }
@@ -284,7 +284,7 @@ static void onReceived(void* context, Slice data) {
 
                 // respond
                 bool responded = false;
-                for (U64 i=0; !responded && i<connection->listeners->count; i++) {
+                for (Size i=0; !responded && i<connection->listeners->count; i++) {
                     Listener* listener = arrayGet(connection->listeners, i);
                     responded = listener->func(connection->exchange_mem, connection, &connection->request, listener->context);
                 }

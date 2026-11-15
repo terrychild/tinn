@@ -10,12 +10,12 @@
 #include "lib/bytes.h"
 #include "lib/log.h"
 
-Buffer* bufNew(Memory* mem, U64 size) {
+Buffer* bufNew(Memory* mem, Size size) {
     Buffer* buf = allocate(mem, sizeof(Buffer));
     bufInit(buf, mem, size);
     return buf;
 }
-void bufInit(Buffer* buf, Memory* mem, U64 size) {
+void bufInit(Buffer* buf, Memory* mem, Size size) {
     PANIC_IF(size == 0, "Initial buffer size can not be zero.");
 
     buf->mem = mem;
@@ -27,8 +27,8 @@ void bufReset(Buffer* buf) {
     buf->length = 0;
 }
 
-static void ensure(Buffer* buf, U64 n) {
-    U64 new_size = buf->size;
+static void ensure(Buffer* buf, Size n) {
+    Size new_size = buf->size;
     while (new_size < buf->length + n) {
         new_size *= 2;
     }
@@ -38,35 +38,35 @@ static void ensure(Buffer* buf, U64 n) {
     }
 }
 
-BufferSpace bufReadyWrite(Buffer* buf, U64 min_size) {
+BufferSpace bufReadyWrite(Buffer* buf, Size min_size) {
     ensure(buf, min_size);
     return (BufferSpace) {
         .start = buf->start + buf->length,
         .length = buf->size - buf->length
     };
 }
-void bufConfirmWrite(Buffer* buf, U64 n) {
+void bufConfirmWrite(Buffer* buf, Size n) {
     PANIC_IF(buf->length + n > buf->size, "Writing beyond the end of the buffer");
     buf->length += n;
 }
 
-U64 bufReserve(Buffer* buf, U64 n) {
+Size bufReserve(Buffer* buf, Size n) {
     ensure(buf, n);
-    U64 offset = buf->length;
+    Size offset = buf->length;
     buf->length += n;
     return offset;
 }
-void bufConsume(Buffer* buf, U64 n) {
+void bufConsume(Buffer* buf, Size n) {
     if (n == buf->length) {
         bufReset(buf);
     } else if (n < buf->length) {
-        U64 new_len = buf->length - n;
+        Size new_len = buf->length - n;
         memmove(buf->start, buf->start + n, new_len);
         buf->length = new_len;
     }
 }
 
-void bufAppendBytes(Buffer* buf, const U8* data, U64 n) {
+void bufAppendBytes(Buffer* buf, const U8* data, Size n) {
     ensure(buf, n);
     memcpy(buf->start + buf->length, data, n);
     buf->length += n;
@@ -82,7 +82,7 @@ void bufAppendMappedFile(Buffer* buf, const MappedFile* file) {
 void bufAppendStr(Buffer* buf, const char* format, ...) {
     va_list args;
     va_start(args, format);
-    U64 n = vsnprintf(NULL, (U64)0, format, args);
+    Size n = vsnprintf(NULL, (Size)0, format, args);
     va_end(args);
 
     ensure(buf, n+1);
@@ -95,8 +95,8 @@ void bufAppendStr(Buffer* buf, const char* format, ...) {
 }
 
 void bufAppendHex(Buffer* buf, const char* hex) {
-    U64 nibbles = strlen(hex);
-    U64 len = (nibbles + 1) / 2;
+    Size nibbles = strlen(hex);
+    Size len = (nibbles + 1) / 2;
     ensure(buf, len);
 
     readHexStr(buf->start + buf->length, nibbles, hex);
@@ -129,23 +129,23 @@ void bufAppendBE64(Buffer* buf, U64 i) {
     buf->length += 8;
 }
 
-void bufSetBE8(Buffer* buf, U64 offset, U8 i) {
+void bufSetBE8(Buffer* buf, Size offset, U8 i) {
     PANIC_IF(offset + 1 > buf->length, "Writing beyond the end of the buffer");
     toBE8(buf->start + offset, i);
 }
-void bufSetBE16(Buffer* buf, U64 offset, U16 i) {
+void bufSetBE16(Buffer* buf, Size offset, U16 i) {
     PANIC_IF(offset + 2 > buf->length, "Writing beyond the end of the buffer");
     toBE16(buf->start + offset, i);
 }
-void bufSetBE24(Buffer* buf, U64 offset, U32 i) {
+void bufSetBE24(Buffer* buf, Size offset, U32 i) {
     PANIC_IF(offset + 3 > buf->length, "Writing beyond the end of the buffer");
     toBE24(buf->start + offset, i);
 }
-void bufSetBE32(Buffer* buf, U64 offset, U32 i) {
+void bufSetBE32(Buffer* buf, Size offset, U32 i) {
     PANIC_IF(offset + 4 > buf->length, "Writing beyond the end of the buffer");
     toBE32(buf->start + offset, i);
 }
-void bufSetBE64(Buffer* buf, U64 offset, U64 i) {
+void bufSetBE64(Buffer* buf, Size offset, U64 i) {
     PANIC_IF(offset + 8 > buf->length, "Writing beyond the end of the buffer");
     toBE64(buf->start + offset, i);
 }

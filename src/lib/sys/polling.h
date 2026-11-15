@@ -27,8 +27,8 @@ typedef struct {
     bool looping;
 } Polling;
 
-Polling* pollingNew(Memory* mem, U64 max_capacity);
-void pollingInit(Polling* polling, Memory* mem, U64 max_capacity);
+Polling* pollingNew(Memory* mem, Size max_capacity);
+void pollingInit(Polling* polling, Memory* mem, Size max_capacity);
 
 void pollingAdd(Polling* polling, int fd, PollingCallback callback);
 void pollingRemove(Polling* polling, int fd);

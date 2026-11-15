@@ -13,7 +13,7 @@
 #include <string.h>
 #include "lib/maths/bigint.h"
 
-static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label, const Slice context, U64 length) {
+static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label, const Slice context, Size length) {
     ScratchMemory scratch = scratchMemory(mem);
 
     Buffer* buf = bufNew(scratch.mem, length + 256);
@@ -222,11 +222,11 @@ static Slice sendServerHello(Connection* conn) {
     // record
     bufAppendBE8(buf, HANDSHAKE);
     bufAppendBE16(buf, 0x0303);
-    U64 record_size_offset = bufReserve(buf, 2);
+    Size record_size_offset = bufReserve(buf, 2);
 
     // handshake header
     bufAppendBE8(buf, SERVER_HELLO);
-    U64 handshake_size_offset = bufReserve(buf, 3);
+    Size handshake_size_offset = bufReserve(buf, 3);
 
     // server version
     bufAppendBE16(buf, 0x0303);
@@ -245,7 +245,7 @@ static Slice sendServerHello(Connection* conn) {
     bufAppendBE8(buf, 0);
 
     // extensions
-    U64 extensions_size_offset = bufReserve(buf, 2);
+    Size extensions_size_offset = bufReserve(buf, 2);
 
     // supported versions
     bufAppendBE16(buf, SUPPORTED_VERSIONS);
