@@ -1,7 +1,6 @@
 #ifndef LIB_MATHS_BIGINT_H
 #define LIB_MATHS_BIGINT_H
 
-#include <stdlib.h>
 #include "lib/macros.h"
 #include "lib/types.h"
 

@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include "lib/crypto/x25519.h"
 #include "lib/crypto/mc.h"
 #include "lib/mem/memory.h"

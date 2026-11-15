@@ -1,7 +1,6 @@
 #include "lib/crypto/mc.h"
 #include "lib/mem/memory.h"
 #include "lib/maths/bigint.h"
-#include "lib/log.h"
 
 typedef struct {
     BigInt* x;

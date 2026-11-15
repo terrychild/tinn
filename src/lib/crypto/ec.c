@@ -1,7 +1,6 @@
 #include "lib/crypto/ec.h"
 #include "lib/mem/memory.h"
 #include "lib/maths/bigint.h"
-#include "lib/log.h"
 
 static EllipticCurvePoint* newPoint(Memory* mem) {
     EllipticCurvePoint* point = allocate(mem, sizeof(EllipticCurvePoint));

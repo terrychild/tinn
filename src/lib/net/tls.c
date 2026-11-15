@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include "lib/net/tls.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/buffer.h"

@@ -1,5 +1,3 @@
-#include <stdlib.h>
-
 #include "lib/net/echo.h"
 #include "lib/mem/memory.h"
 #include "lib/bytes.h"

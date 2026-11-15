@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include <string.h>
 #define __USE_XOPEN // required for strptime
 #include <time.h>

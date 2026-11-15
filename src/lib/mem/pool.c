@@ -1,11 +1,9 @@
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 #include "lib/mem/memory.h"
 #include "lib/mem/pool.h"
 #include "lib/mem/arena.h"
-#include "lib/log.h"
 #include "lib/cli.h"
 
 static void buildFreeList(Pool* pool, U8* start, Size count) {
