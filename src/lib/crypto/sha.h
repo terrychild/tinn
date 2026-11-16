@@ -49,9 +49,40 @@ Slice sha512_Slice(Memory* mem, const Slice source);
     Slice*: sha512_Slices \
 )(mem, __VA_ARGS__)
 
-Slice hmacSha224(Memory* mem, const Slice key, const Slice source);
-Slice hmacSha256(Memory* mem, const Slice key, const Slice source);
-Slice hmacSha384(Memory* mem, const Slice key, const Slice source);
-Slice hmacSha512(Memory* mem, const Slice key, const Slice source);
+Slice hmacSha224_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
+Slice hmacSha224_Slice(Memory* mem, const Slice key, const Slice source);
+#define hmacSha224(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+    const Slice: hmacSha224_Slice, \
+    Slice: hmacSha224_Slice, \
+    const Slice*: hmacSha224_Slices, \
+    Slice*: hmacSha224_Slices \
+)(mem, key, __VA_ARGS__)
+
+Slice hmacSha256_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
+Slice hmacSha256_Slice(Memory* mem, const Slice key, const Slice source);
+#define hmacSha256(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+    const Slice: hmacSha256_Slice, \
+    Slice: hmacSha256_Slice, \
+    const Slice*: hmacSha256_Slices, \
+    Slice*: hmacSha256_Slices \
+)(mem, key, __VA_ARGS__)
+
+Slice hmacSha384_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
+Slice hmacSha384_Slice(Memory* mem, const Slice key, const Slice source);
+#define hmacSha384(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+    const Slice: hmacSha384_Slice, \
+    Slice: hmacSha384_Slice, \
+    const Slice*: hmacSha384_Slices, \
+    Slice*: hmacSha384_Slices \
+)(mem, key, __VA_ARGS__)
+
+Slice hmacSha512_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
+Slice hmacSha512_Slice(Memory* mem, const Slice key, const Slice source);
+#define hmacSha512(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
+    const Slice: hmacSha512_Slice, \
+    Slice: hmacSha512_Slice, \
+    const Slice*: hmacSha512_Slices, \
+    Slice*: hmacSha512_Slices \
+)(mem, key, __VA_ARGS__)
 
 #endif

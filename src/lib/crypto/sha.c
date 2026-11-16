@@ -356,35 +356,54 @@ Slice sha512_Slice(Memory* mem, const Slice source) {
     return sha512_Slices(mem, &source, 1);
 }
 
-static Slice hmacSha(Memory* mem, Slice key, const Slice source, Size block_len, Sha sha) {
+static Slice hmacSha(Memory* mem, Slice key, const Slice* source, Size source_count, Size block_len, Sha sha) {
     ScratchMemory scratch = scratchMemory(mem);
 
     if (key.length > block_len) {
         key = sha(scratch.mem, &key, 1);
     }
-    U8 ikey[block_len];
-    U8 okey[block_len];
+    U8 inner_key[block_len];
+    U8 outer_key[block_len];
     for (Size i=0; i<block_len; i++) {
-        ikey[i] = i < key.length ? key.start[i] ^ 0x36 : 0x36;
-        okey[i] = i < key.length ? key.start[i] ^ 0x5c : 0x5c;
+        inner_key[i] = i < key.length ? key.start[i] ^ 0x36 : 0x36;
+        outer_key[i] = i < key.length ? key.start[i] ^ 0x5c : 0x5c;
     }
-    Slice ihash = sha(scratch.mem, ((Slice[]){sliceNew(ikey, block_len), source}), 2);
-    Slice ohash = sha(mem, ((Slice[]){sliceNew(okey, block_len), ihash}), 2);
+    Slice* inner_slices = allocate(scratch.mem, sizeof(Slice) * (source_count + 1));
+    inner_slices[0].length = block_len;
+    inner_slices[0].start = inner_key;
+    memcpy(inner_slices + 1, source, sizeof(Slice) * source_count);
+    Slice inner_hash = sha(scratch.mem, inner_slices, source_count + 1);
+    Slice outer_hash = sha(mem, ((Slice[]){sliceNew(outer_key, block_len), inner_hash}), 2);
 
     scratchRelease(scratch);
 
-    return ohash;
+    return outer_hash;
 }
 
-Slice hmacSha224(Memory* mem, const Slice key, const Slice source) {
-    return hmacSha(mem, key, source, 64, sha224_Slices);
+Slice hmacSha224_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count) {
+    return hmacSha(mem, key, source, source_count, 64, sha224_Slices);
 }
-Slice hmacSha256(Memory* mem, const Slice key, const Slice source) {
-    return hmacSha(mem, key, source, 64, sha256_Slices);
+Slice hmacSha224_Slice(Memory* mem, const Slice key, const Slice source) {
+    return hmacSha(mem, key, &source, 1, 64, sha224_Slices);
 }
-Slice hmacSha384(Memory* mem, const Slice key, const Slice source) {
-    return hmacSha(mem, key, source, 128, sha384_Slices);
+
+Slice hmacSha256_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count) {
+    return hmacSha(mem, key, source, source_count, 64, sha256_Slices);
 }
-Slice hmacSha512(Memory* mem, const Slice key, const Slice source) {
-    return hmacSha(mem, key, source, 128, sha512_Slices);
+Slice hmacSha256_Slice(Memory* mem, const Slice key, const Slice source) {
+    return hmacSha(mem, key, &source, 1, 64, sha256_Slices);
+}
+
+Slice hmacSha384_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count) {
+    return hmacSha(mem, key, source, source_count, 128, sha384_Slices);
+}
+Slice hmacSha384_Slice(Memory* mem, const Slice key, const Slice source) {
+    return hmacSha(mem, key, &source, 1, 128, sha384_Slices);
+}
+
+Slice hmacSha512_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count) {
+    return hmacSha(mem, key, source, source_count, 128, sha512_Slices);
+}
+Slice hmacSha512_Slice(Memory* mem, const Slice key, const Slice source) {
+    return hmacSha(mem, key, &source, 1, 128, sha512_Slices);
 }
