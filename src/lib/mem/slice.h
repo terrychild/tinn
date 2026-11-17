@@ -47,20 +47,4 @@ Tokeniser sliceTokeniser(const Slice source, const Slice delim, bool greedy);
 Tokeniser sliceTokeniserStr(const Slice source, const char* delim, bool greedy);
 Slice nextToken(Tokeniser* tokeniser);
 
-typedef struct {
-    Slice slice;
-} Reader;
-
-Reader sliceReader(const Slice source);
-Size readerRemaining(Reader* reader);
-bool readerEOF(Reader* reader);
-
-void readSkip(Reader* reader, Size length);
-Slice readSlice(Reader* reader, Size length);
-Reader readReader(Reader* reader, Size length);
-U8 readBE8(Reader* reader);
-U16 readBE16(Reader* reader);
-U32 readBE24(Reader* reader);
-U32 readBE32(Reader* reader);
-
 #endif

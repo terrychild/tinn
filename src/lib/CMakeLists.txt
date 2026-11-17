@@ -12,6 +12,7 @@ add_library(lib
     mem/pool.c
     mem/buffer.c
     mem/slice.c
+    mem/reader.c
 
     sys/sockets.c
     sys/polling.c
