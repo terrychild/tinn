@@ -2,87 +2,78 @@
 #define LIB_CRYPTO_SHA_H
 
 #include "lib/types.h"
-#include "lib/macros.h"
 
-Slice sha1_Slices(Memory* mem, const Slice* source, Size source_count);
-Slice sha1_Slice(Memory* mem, const Slice source);
-#define sha1(mem, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: sha1_Slice, \
-    Slice: sha1_Slice, \
-    const Slice*: sha1_Slices, \
-    Slice*: sha1_Slices \
-)(mem, __VA_ARGS__)
+Slice sha1Reader(Memory* mem, Reader* reader);
+Slice sha1Slice(Memory* mem, Slice slice);
+#define sha1(mem, source) _Generic(source, \
+    Reader*: sha1Reader, \
+    const Slice: sha1Slice, \
+    Slice: sha1Slice \
+)(mem, source)
 
-Slice sha224_Slices(Memory* mem, const Slice* source, Size source_count);
-Slice sha224_Slice(Memory* mem, const Slice source);
-#define sha224(mem, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: sha224_Slice, \
-    Slice: sha224_Slice, \
-    const Slice*: sha224_Slices, \
-    Slice*: sha224_Slices \
-)(mem, __VA_ARGS__)
+Slice sha224Reader(Memory* mem, Reader* reader);
+Slice sha224Slice(Memory* mem, Slice slice);
+#define sha224(mem, source) _Generic(source, \
+    Reader*: sha224Reader, \
+    const Slice: sha224Slice, \
+    Slice: sha224Slice \
+)(mem, source)
 
-Slice sha256_Slices(Memory* mem, const Slice* source, Size source_count);
-Slice sha256_Slice(Memory* mem, const Slice source);
-#define sha256(mem, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: sha256_Slice, \
-    Slice: sha256_Slice, \
-    const Slice*: sha256_Slices, \
-    Slice*: sha256_Slices \
-)(mem, __VA_ARGS__)
+Slice sha256Reader(Memory* mem, Reader* reader);
+Slice sha256Slice(Memory* mem, Slice slice);
+#define sha256(mem, source) _Generic(source, \
+    Reader*: sha256Reader, \
+    const Slice: sha256Slice, \
+    Slice: sha256Slice \
+)(mem, source)
 
-Slice sha384_Slices(Memory* mem, const Slice* source, Size source_count);
-Slice sha384_Slice(Memory* mem, const Slice source);
-#define sha384(mem, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: sha384_Slice, \
-    Slice: sha384_Slice, \
-    const Slice*: sha384_Slices, \
-    Slice*: sha384_Slices \
-)(mem, __VA_ARGS__)
+Slice sha384Reader(Memory* mem, Reader* reader);
+Slice sha384Slice(Memory* mem, Slice slice);
+#define sha384(mem, source) _Generic(source, \
+    Reader*: sha384Reader, \
+    const Slice: sha384Slice, \
+    Slice: sha384Slice \
+)(mem, source)
 
-Slice sha512_Slices(Memory* mem, const Slice* source, Size source_count);
-Slice sha512_Slice(Memory* mem, const Slice source);
-#define sha512(mem, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: sha512_Slice, \
-    Slice: sha512_Slice, \
-    const Slice*: sha512_Slices, \
-    Slice*: sha512_Slices \
-)(mem, __VA_ARGS__)
+Slice sha512Reader(Memory* mem, Reader* reader);
+Slice sha512Slice(Memory* mem, Slice slice);
+#define sha512(mem, source) _Generic(source, \
+    Reader*: sha512Reader, \
+    const Slice: sha512Slice, \
+    Slice: sha512Slice \
+)(mem, source)
 
-Slice hmacSha224_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
-Slice hmacSha224_Slice(Memory* mem, const Slice key, const Slice source);
-#define hmacSha224(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: hmacSha224_Slice, \
-    Slice: hmacSha224_Slice, \
-    const Slice*: hmacSha224_Slices, \
-    Slice*: hmacSha224_Slices \
-)(mem, key, __VA_ARGS__)
 
-Slice hmacSha256_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
-Slice hmacSha256_Slice(Memory* mem, const Slice key, const Slice source);
-#define hmacSha256(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: hmacSha256_Slice, \
-    Slice: hmacSha256_Slice, \
-    const Slice*: hmacSha256_Slices, \
-    Slice*: hmacSha256_Slices \
-)(mem, key, __VA_ARGS__)
+Slice hmacSha224Reader(Memory* mem, const Slice key, Reader* reader);
+Slice hmacSha224Slice(Memory* mem, const Slice key, Slice slice);
+#define hmacSha224(mem, key, source) _Generic(source, \
+    Reader*: hmacSha224Reader, \
+    const Slice: hmacSha224Slice, \
+    Slice: hmacSha224Slice \
+)(mem, key, source)
 
-Slice hmacSha384_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
-Slice hmacSha384_Slice(Memory* mem, const Slice key, const Slice source);
-#define hmacSha384(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: hmacSha384_Slice, \
-    Slice: hmacSha384_Slice, \
-    const Slice*: hmacSha384_Slices, \
-    Slice*: hmacSha384_Slices \
-)(mem, key, __VA_ARGS__)
+Slice hmacSha256Reader(Memory* mem, const Slice key, Reader* reader);
+Slice hmacSha256Slice(Memory* mem, const Slice key, Slice slice);
+#define hmacSha256(mem, key, source) _Generic(source, \
+    Reader*: hmacSha256Reader, \
+    const Slice: hmacSha256Slice, \
+    Slice: hmacSha256Slice \
+)(mem, key, source)
 
-Slice hmacSha512_Slices(Memory* mem, const Slice key, const Slice* source, Size source_count);
-Slice hmacSha512_Slice(Memory* mem, const Slice key, const Slice source);
-#define hmacSha512(mem, key, ...) _Generic(FIRST_ARG(__VA_ARGS__), \
-    const Slice: hmacSha512_Slice, \
-    Slice: hmacSha512_Slice, \
-    const Slice*: hmacSha512_Slices, \
-    Slice*: hmacSha512_Slices \
-)(mem, key, __VA_ARGS__)
+Slice hmacSha384Reader(Memory* mem, const Slice key, Reader* reader);
+Slice hmacSha384Slice(Memory* mem, const Slice key, Slice slice);
+#define hmacSha384(mem, key, source) _Generic(source, \
+    Reader*: hmacSha384Reader, \
+    const Slice: hmacSha384Slice, \
+    Slice: hmacSha384Slice \
+)(mem, key, source)
+
+Slice hmacSha512Reader(Memory* mem, const Slice key, Reader* reader);
+Slice hmacSha512Slice(Memory* mem, const Slice key, Slice slice);
+#define hmacSha512(mem, key, source) _Generic(source, \
+    Reader*: hmacSha512Reader, \
+    const Slice: hmacSha512Slice, \
+    Slice: hmacSha512Slice \
+)(mem, key, source)
 
 #endif

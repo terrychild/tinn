@@ -537,7 +537,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Reader* read
     hexDump(client_hello);
     DEBUG("server hello");
     hexDump(server_hello);
-    Slice hello_hash = sha384(conn->exchange_mem, ((Slice[]){client_hello, server_hello}), 2);
+    Slice hello_hash = sha384(conn->exchange_mem, readerFromArray(conn->exchange_mem, (Slice[]){client_hello, server_hello}, 2));
     DEBUG("Hello hash");
     hexDump(hello_hash);
 

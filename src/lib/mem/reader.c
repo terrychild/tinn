@@ -4,42 +4,45 @@
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/bytes.h"
+#include "lib/log.h"
 
-Reader* readerNew(Memory* mem) {
+Reader* readerNew(Memory* mem, Size capacity) {
     Reader* reader = allocate(mem, sizeof(Reader));
-    reader->mem = mem;
-    reader->capacity = 4;
+    reader->capacity = capacity;
     reader->count = 0;
-    reader->slices = allocate(reader->mem, reader->capacity * sizeof(Slice));
+    reader->slices = allocate(mem, capacity * sizeof(Slice));
     return reader;
 }
 
 Reader* readerFromSlice(Memory* mem, Slice slice) {
-    Reader* reader = readerNew(mem);
+    Reader* reader = readerNew(mem, 1);
     readerAppendSlice(reader, slice);
     return reader;
 }
-
-static void* add(Reader* reader) {
-    if (reader->count == reader->capacity) {
-        reader->capacity *= 2;
-        Size size = reader->capacity * sizeof(Slice);
-        reader->slices = reallocate(reader->mem, reader->slices, size);
+Reader* readerFromArray(Memory* mem, Slice* slices, Size count) {
+    Reader* reader = readerNew(mem, count);
+    for (Size i = 0; i<count; i++) {
+        readerAppendSlice(reader, slices[i]);
     }
-
-    void* address = reader->slices + (reader->count * sizeof(Slice));
-    reader->count++;
-    return address;
+    return reader;
 }
 
 void readerAppendSlice(Reader* reader, const Slice slice) {
-    memcpy(add(reader), &slice, sizeof(Slice));
+    PANIC_IF(reader->count == reader->capacity, "Reader at capacity.");
+
+    memcpy(reader->slices + reader->count, &slice, sizeof(Slice));
+    reader->count++;
 }
 void readerAppendBytes(Reader* reader, const U8* start, Size length) {
     readerAppendSlice(reader, sliceNew(start, length));
 }
 void readerAppendStr(Reader* reader, const char* str) {
     readerAppendSlice(reader, sliceFromStr(str));
+}
+void readerAppendReader(Reader* dest, const Reader* source) {
+    for (Size i=0; i<source->count; i++) {
+        readerAppendSlice(dest, source->slices[i]);
+    }
 }
 
 Size readerRemaining(Reader* reader) {
@@ -71,7 +74,7 @@ Slice readSlice(Reader* reader, Size length) {
     return rv;
 }
 Reader* readReader(Memory* mem, Reader* reader, Size length) {
-    Reader* new_reader = readerNew(mem);
+    Reader* new_reader = readerNew(mem, reader->count);
     Size read = 0;
     for (Size i=0; i<reader->count && read < length; i++) {
         Slice slice = readSlice(reader, length - read);
