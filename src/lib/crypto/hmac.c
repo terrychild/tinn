@@ -32,11 +32,9 @@ Slice hmac(Memory* mem, Slice key, Reader* reader, Size block_len, Hash hash_fun
 Slice hmacSha224Slices(Memory* mem, const Slice key, Reader* reader) {
     return hmac(mem, key, reader, 64, sha224Reader);
 }
-Slice hmacSha224Slice(Memory* mem, const Slice key, const Slice source) {
-    ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = hmac(mem, key, readerFromSlice(scratch.mem, source), 64, sha224Reader);
-    scratchRelease(scratch);
-    return hash;
+Slice hmacSha224Slice(Memory* mem, const Slice key, const Slice slice) {
+    Reader reader = sliceAsReader(slice);
+    return hmac(mem, key, &reader, 64, sha224Reader);
 }
 
 Slice hmacSha256Slices(Memory* mem, const Slice key, Reader* reader) {

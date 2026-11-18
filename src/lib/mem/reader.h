@@ -5,12 +5,14 @@
 #include "lib/macros.h"
 
 struct Reader {
+    Slice slice;
     Size capacity;
     Size count;
     Slice* slices;
 };
 
 Reader* readerNew(Memory* mem, Size capacity);
+Reader sliceAsReader(Slice slice);
 Reader* readerFromSlice(Memory* mem, Slice slice);
 Reader* readerFromArray(Memory* mem, Slice* slices, Size count);
 
