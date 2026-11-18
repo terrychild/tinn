@@ -24,7 +24,7 @@ static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label,
     bufAppend(buf, context);
     bufAppendBE8(buf, 1);
 
-    Slice key_material = hmacSha384(mem, secret, bufAsSlice(buf));
+    Slice key_material = hmac(mem, SHA_2_384, secret, bufAsSlice(buf));
 
     scratchRelease(scratch);
 
@@ -538,16 +538,16 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Reader* read
     hexDump(client_hello);
     DEBUG("server hello");
     hexDump(server_hello);
-    Slice hello_hash = sha384(conn->exchange_mem, readerFromArray(conn->exchange_mem, (Slice[]){client_hello, server_hello}, 2));
+    Slice hello_hash = sha_2_384(conn->exchange_mem, readerFromArray(conn->exchange_mem, (Slice[]){client_hello, server_hello}, 2));
     DEBUG("Hello hash");
     hexDump(hello_hash);
 
     U8 zero_key[48] = {0};
-    Slice early_secret = hmacSha384(conn->exchange_mem, sliceFromHex(conn->exchange_mem, "00"), sliceNew(zero_key, 48));
+    Slice early_secret = hmac(conn->exchange_mem, SHA_2_384, sliceFromHex(conn->exchange_mem, "00"), sliceNew(zero_key, 48));
     DEBUG("early_secret");
     hexDump(early_secret);
 
-    Slice empty_hash = sha384(conn->exchange_mem, sliceFromStr(""));
+    Slice empty_hash = sha_2_384(conn->exchange_mem, sliceFromStr(""));
     DEBUG("empty_hash");
     hexDump(empty_hash);
 
@@ -555,7 +555,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Reader* read
     DEBUG("derived_secret");
     hexDump(derived_secret);
 
-    Slice handshake_secret = hmacSha384(conn->exchange_mem, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
+    Slice handshake_secret = hmac(conn->exchange_mem, SHA_2_384, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
     DEBUG("handshake secret");
     hexDump(handshake_secret);
 }

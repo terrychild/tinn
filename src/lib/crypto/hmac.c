@@ -3,7 +3,9 @@
 #include "lib/mem/memory.h"
 #include "lib/mem/reader.h"
 
-Slice hmac(Memory* mem, Slice key, Reader* reader, Size block_len, Hash hash_func) {
+typedef Slice (*HashFunc)(Memory* mem, Reader* reader);
+
+static Slice hmacImpl(Memory* mem, Slice key, Reader* reader, Size block_len, HashFunc hash_func) {
     ScratchMemory scratch = scratchMemory(mem);
 
     if (key.length > block_len) {
@@ -29,42 +31,33 @@ Slice hmac(Memory* mem, Slice key, Reader* reader, Size block_len, Hash hash_fun
     return outer_hash;
 }
 
-Slice hmacSha224Slices(Memory* mem, const Slice key, Reader* reader) {
-    return hmac(mem, key, reader, 64, sha224Reader);
-}
-Slice hmacSha224Slice(Memory* mem, const Slice key, const Slice source) {
-    ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = hmac(mem, key, readerFromSlice(scratch.mem, source), 64, sha224Reader);
-    scratchRelease(scratch);
-    return hash;
-}
-
-Slice hmacSha256Slices(Memory* mem, const Slice key, Reader* reader) {
-    return hmac(mem, key, reader, 64, sha256Reader);
-}
-Slice hmacSha256Slice(Memory* mem, const Slice key, const Slice source) {
-    ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = hmac(mem, key, readerFromSlice(scratch.mem, source), 64, sha256Reader);
-    scratchRelease(scratch);
-    return hash;
+Slice hmacReader(Memory* mem, HashAlgorithm hash, Slice key, Reader* reader) {
+    switch (hash) {
+        case SHA_1:
+            return hmacImpl(mem, key, reader, 64, sha_1_Reader);
+        case SHA_2_224:
+            return hmacImpl(mem, key, reader, 64, sha_2_224_Reader);
+        case SHA_2_256:
+            return hmacImpl(mem, key, reader, 64, sha_2_256_Reader);
+        case SHA_2_384:
+            return hmacImpl(mem, key, reader, 128, sha_2_384_Reader);
+        case SHA_2_512:
+            return hmacImpl(mem, key, reader, 128, sha_2_512_Reader);
+    }
 }
 
-Slice hmacSha384Slices(Memory* mem, const Slice key, Reader* reader) {
-    return hmac(mem, key, reader, 128, sha384Reader);
-}
-Slice hmacSha384Slice(Memory* mem, const Slice key, const Slice source) {
-    ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = hmac(mem, key, readerFromSlice(scratch.mem, source), 128, sha384Reader);
-    scratchRelease(scratch);
-    return hash;
-}
-
-Slice hmacSha512Slices(Memory* mem, const Slice key, Reader* reader) {
-    return hmac(mem, key, reader, 128, sha512Reader);
-}
-Slice hmacSha512Slice(Memory* mem, const Slice key, const Slice source) {
-    ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = hmac(mem, key, readerFromSlice(scratch.mem, source), 128, sha512Reader);
-    scratchRelease(scratch);
-    return hash;
+Slice hmacSlice(Memory* mem, HashAlgorithm hash, Slice key, Slice slice) {
+    Reader* reader = readerFromSlice(mem, slice);
+    switch (hash) {
+        case SHA_1:
+            return hmacImpl(mem, key, reader, 64, sha_1_Reader);
+        case SHA_2_224:
+            return hmacImpl(mem, key, reader, 64, sha_2_224_Reader);
+        case SHA_2_256:
+            return hmacImpl(mem, key, reader, 64, sha_2_256_Reader);
+        case SHA_2_384:
+            return hmacImpl(mem, key, reader, 128, sha_2_384_Reader);
+        case SHA_2_512:
+            return hmacImpl(mem, key, reader, 128, sha_2_512_Reader);
+    }
 }

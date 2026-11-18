@@ -80,7 +80,7 @@ static void md_64(U64* hash, Reader* reader, Size block_len, Compression_64 comp
     scratchRelease(scratch);
 }
 
-static void sha1Compression(U32 hash[5], const U8 source[64]) {
+static void sha_1_Compression(U32 hash[5], const U8 source[64]) {
     // build schedule
     U32 w[80];
     for (int i=0; i<16; i++) {
@@ -141,7 +141,7 @@ static U32 sha_256_k[] = {
    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
 
-static void sha256Compression(U32 hash[8], const U8 source[64]) {
+static void sha_2_256_Compression(U32 hash[8], const U8 source[64]) {
     // build schedule
     U32 w[64];
     for (int i=0; i<16; i++) {
@@ -213,7 +213,7 @@ static U64 sha_512_k[] = {
     0x431d67c49c100d4c, 0x4cc5d4becb3e42b6, 0x597f299cfc657e2a, 0x5fcb6fab3ad6faec, 0x6c44198c4a475817
 };
 
-static void sha512Compression(U64 hash[8], const U8 source[128]) {
+static void sha_2_512_Compression(U64 hash[8], const U8 source[128]) {
     // build schedule
     U64 w[80];
     for (int i=0; i<16; i++) {
@@ -266,9 +266,9 @@ static void sha512Compression(U64 hash[8], const U8 source[128]) {
     hash[7] += h;
 }
 
-Slice sha1Reader(Memory* mem, Reader* reader) {
+Slice sha_1_Reader(Memory* mem, Reader* reader) {
     U32 hash[5] = { 0x67452301,	0xEFCDAB89,	0x98BADCFE,	0x10325476,	0xC3D2E1F0 };
-    md_32(hash, reader, 64, sha1Compression);
+    md_32(hash, reader, 64, sha_1_Compression);
 
     U8* dest = allocate(mem, 20);
     for (int i=0; i<5; i++) {
@@ -276,16 +276,16 @@ Slice sha1Reader(Memory* mem, Reader* reader) {
     }
     return sliceNew(dest, 20);
 }
-Slice sha1Slice(Memory* mem, const Slice slice) {
+Slice sha_1_Slice(Memory* mem, const Slice slice) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = sha1Reader(mem, readerFromSlice(scratch.mem, slice));
+    Slice hash = sha_1_Reader(mem, readerFromSlice(scratch.mem, slice));
     scratchRelease(scratch);
     return hash;
 }
 
-Slice sha224Reader(Memory* mem, Reader* reader) {
+Slice sha_2_224_Reader(Memory* mem, Reader* reader) {
     U32 hash[8] = { 0xc1059ed8, 0x367cd507, 0x3070dd17, 0xf70e5939, 0xffc00b31, 0x68581511, 0x64f98fa7, 0xbefa4fa4 };
-    md_32(hash, reader, 64, sha256Compression);
+    md_32(hash, reader, 64, sha_2_256_Compression);
 
     U8* dest = allocate(mem, 28);
     for (int i=0; i<7; i++) {
@@ -293,16 +293,16 @@ Slice sha224Reader(Memory* mem, Reader* reader) {
     }
     return sliceNew(dest, 28);
 }
-Slice sha224Slice(Memory* mem, const Slice slice) {
+Slice sha_2_224_Slice(Memory* mem, const Slice slice) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = sha224Reader(mem, readerFromSlice(scratch.mem, slice));
+    Slice hash = sha_2_224_Reader(mem, readerFromSlice(scratch.mem, slice));
     scratchRelease(scratch);
     return hash;
 }
 
-Slice sha256Reader(Memory* mem, Reader* reader) {
+Slice sha_2_256_Reader(Memory* mem, Reader* reader) {
     U32 hash[8] = { 0x6a09e667,	0xbb67ae85,	0x3c6ef372,	0xa54ff53a,	0x510e527f,	0x9b05688c,	0x1f83d9ab,	0x5be0cd19 };
-    md_32(hash, reader, 64, sha256Compression);
+    md_32(hash, reader, 64, sha_2_256_Compression);
 
     U8* dest = allocate(mem, 32);
     for (int i=0; i<8; i++) {
@@ -310,19 +310,19 @@ Slice sha256Reader(Memory* mem, Reader* reader) {
     }
     return sliceNew(dest, 32);
 }
-Slice sha256Slice(Memory* mem, const Slice slice) {
+Slice sha_2_256_Slice(Memory* mem, const Slice slice) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = sha256Reader(mem, readerFromSlice(scratch.mem, slice));
+    Slice hash = sha_2_256_Reader(mem, readerFromSlice(scratch.mem, slice));
     scratchRelease(scratch);
     return hash;
 }
 
-Slice sha384Reader(Memory* mem, Reader* reader) {
+Slice sha_2_384_Reader(Memory* mem, Reader* reader) {
     U64 hash[8] = {
         0xcbbb9d5dc1059ed8, 0x629a292a367cd507, 0x9159015a3070dd17, 0x152fecd8f70e5939,
         0x67332667ffc00b31, 0x8eb44a8768581511, 0xdb0c2e0d64f98fa7, 0x47b5481dbefa4fa4
     };
-    md_64(hash, reader, 128, sha512Compression);
+    md_64(hash, reader, 128, sha_2_512_Compression);
 
     U8* dest = allocate(mem, 48);
     for (int i=0; i<6; i++) {
@@ -330,19 +330,19 @@ Slice sha384Reader(Memory* mem, Reader* reader) {
     }
     return sliceNew(dest, 48);
 }
-Slice sha384Slice(Memory* mem, const Slice slice) {
+Slice sha_2_384_Slice(Memory* mem, const Slice slice) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = sha384Reader(mem, readerFromSlice(scratch.mem, slice));
+    Slice hash = sha_2_384_Reader(mem, readerFromSlice(scratch.mem, slice));
     scratchRelease(scratch);
     return hash;
 }
 
-Slice sha512Reader(Memory* mem, Reader* reader) {
+Slice sha_2_512_Reader(Memory* mem, Reader* reader) {
     U64 hash[8] = {
         0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
         0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179
     };
-    md_64(hash, reader, 128, sha512Compression);
+    md_64(hash, reader, 128, sha_2_512_Compression);
 
     U8* dest = allocate(mem, 64);
     for (int i=0; i<8; i++) {
@@ -350,9 +350,9 @@ Slice sha512Reader(Memory* mem, Reader* reader) {
     }
     return sliceNew(dest, 64);
 }
-Slice sha512Slice(Memory* mem, const Slice slice) {
+Slice sha_2_512_Slice(Memory* mem, const Slice slice) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice hash = sha512Reader(mem, readerFromSlice(scratch.mem, slice));
+    Slice hash = sha_2_512_Reader(mem, readerFromSlice(scratch.mem, slice));
     scratchRelease(scratch);
     return hash;
 }
