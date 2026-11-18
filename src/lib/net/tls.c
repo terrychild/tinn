@@ -5,6 +5,7 @@
 #include "lib/mem/reader.h"
 #include "lib/crypto/x25519.h"
 #include "lib/crypto/sha.h"
+#include "lib/crypto/hmac.h"
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"

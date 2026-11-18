@@ -27,6 +27,7 @@ add_library(lib
     maths/bigint.c
 
     crypto/sha.c
+    crypto/hmac.c
     crypto/ec.c
     crypto/mc.c
     crypto/x25519.c

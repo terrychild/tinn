@@ -5,6 +5,7 @@
 #include "lib/crypto/mc.h"
 #include "lib/crypto/x25519.h"
 #include "lib/crypto/sha.h"
+#include "lib/crypto/hmac.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/mem/reader.h"
