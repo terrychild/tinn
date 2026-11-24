@@ -6,6 +6,7 @@
 #include "lib/crypto/x25519.h"
 #include "lib/crypto/sha.h"
 #include "lib/crypto/hmac.h"
+#include "lib/crypto/hkdf.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/mem/reader.h"
@@ -139,6 +140,12 @@ void testCrypto() {
     expect("HMAC-SHA-512, hi there", hash, sliceFromHex(mem, "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854"));
     hash = hmac(mem, SHA_2_512, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
     expect("HMAC-SHA-512, long", hash, sliceFromHex(mem, "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58"));
+
+    Slice prk = hkdfExtract(mem, SHA_2_256, sliceFromHex(mem, "000102030405060708090a0b0c"), sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"));
+    expect("HKDF extract, test case 1", prk, sliceFromHex(mem, "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5"));
+
+    prk = hkdfExtract(mem, SHA_2_256, sliceFromHex(mem, "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf"), sliceFromHex(mem, "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f"));
+    expect("HKDF extract, test case 2", prk, sliceFromHex(mem, "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244"));
 
     memoryDebug(mem);
     scratchRelease(scratch);

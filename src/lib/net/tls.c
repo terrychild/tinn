@@ -6,6 +6,7 @@
 #include "lib/crypto/x25519.h"
 #include "lib/crypto/sha.h"
 #include "lib/crypto/hmac.h"
+#include "lib/crypto/hkdf.h"
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
@@ -543,7 +544,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Reader* read
     hexDump(hello_hash);
 
     U8 zero_key[48] = {0};
-    Slice early_secret = hmac(conn->exchange_mem, SHA_2_384, sliceFromHex(conn->exchange_mem, "00"), sliceNew(zero_key, 48));
+    Slice early_secret = hkdfExtract(conn->exchange_mem, SHA_2_384, sliceFromHex(conn->exchange_mem, "00"), sliceNew(zero_key, 48));
     DEBUG("early_secret");
     hexDump(early_secret);
 
