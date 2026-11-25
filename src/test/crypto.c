@@ -9,7 +9,6 @@
 #include "lib/crypto/hkdf.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
-#include "lib/mem/reader.h"
 #include "lib/cli.h"
 #include "lib/bytes.h"
 
@@ -79,15 +78,9 @@ void testCrypto() {
     U8 shrared_secret_bytes[] = {0xdf, 0x4a, 0x29, 0x1b, 0xaa, 0x1e, 0xb7, 0xcf, 0xa6, 0x93, 0x4b, 0x29, 0xb4, 0x74, 0xba, 0xad, 0x26, 0x97, 0xe2, 0x9f, 0x1f, 0x92, 0x0d, 0xcc, 0x77, 0xc8, 0xa0, 0xa0, 0x88, 0x44, 0x76, 0x24};
     expect("shared secret", x25519(mem, server_private, client_public), biFromLE(mem, shrared_secret_bytes, 32));
 
-    Reader* reader = readerNew(mem, 2);
-    readerAppend(reader, "The quick brown fox jumps over the lazy ");
-    readerAppend(reader, "dog");
-    Slice hash = sha_1(mem, reader);
+    Slice hash = sha_1(mem, sliceFromStr("The quick brown fox jumps over the lazy dog"));
     expect("SHA-1, lazy dog", hash, sliceFromHex(mem, "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"));
-    reader = readerNew(mem, 2);
-    readerAppend(reader, "The quick brown fox jumps over the lazy ");
-    readerAppend(reader, "cog");
-    hash = sha_1(mem, reader);
+    hash = sha_1(mem, sliceFromStr("The quick brown fox jumps over the lazy cog"));
     expect("SHA-1, lazy cog", hash, sliceFromHex(mem, "de9f2c7fd25e1b3afad3e85a0bd17d9b100db4b3"));
     hash = sha_1(mem, sliceFromStr(""));
     expect("SHA-1, empty string", hash, sliceFromHex(mem, "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
@@ -113,13 +106,6 @@ void testCrypto() {
     expect("SHA-512, abc", hash, sliceFromHex(mem, "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"));
     hash = sha_2_512(mem, sliceFromStr(""));
     expect("SHA-512, empty string", hash, sliceFromHex(mem, "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"));
-
-    reader = readerNew(mem, 3);
-    readerAppend(reader, "a");
-    readerAppend(reader, "b");
-    readerAppend(reader, "c");
-    hash = sha_2_512(mem, reader);
-    expect("SHA-512, abc joined", hash, sliceFromHex(mem, "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"));
 
     hash = hmac(mem, SHA_2_224, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
     expect("HMAC-SHA-224, hi there", hash, sliceFromHex(mem, "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22"));

@@ -31,6 +31,4 @@ typedef struct {
     const U8* start;
 } Slice;
 
-typedef struct Reader Reader;
-
 #endif
