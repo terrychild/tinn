@@ -26,6 +26,7 @@ add_library(lib
     maths/minmax.c
     maths/bigint.c
 
+    crypto/hash.c
     crypto/sha.c
     crypto/hmac.c
     crypto/hkdf.c

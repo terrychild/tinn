@@ -2,6 +2,8 @@
 #include "lib/crypto/sha.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/buffer.h"
+#include "lib/mem/slice.h"
+#include "lib/log.h"
 
 typedef Slice (*HashFunc)(Memory* mem, Slice message);
 
@@ -46,4 +48,6 @@ Slice hmac(Memory* mem, HashAlgorithm hash, Slice key, Slice message) {
         case SHA_2_512:
             return hmacImpl(mem, key, message, 128, sha_2_512);
     }
+    PANIC("Unknown hash algorithm.");
+    return sliceEmpty();
 }

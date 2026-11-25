@@ -12,7 +12,7 @@ Slice hkdfExpand(Memory* mem, HashAlgorithm hash, Slice prk, Slice info, Size le
     ScratchMemory scratch = scratchMemory(mem);
 
     Buffer* okm = bufNew(mem, length);
-    Buffer* message = bufNew(scratch.mem, 128 + info.length + 1); // TODO: get hash len from hash?
+    Buffer* message = bufNew(scratch.mem, hash_length[hash] + info.length + 1);
     Slice temp = sliceEmpty();
     for (U8 i=0; okm->length < length && i<255; i++) {
         bufReset(message);
