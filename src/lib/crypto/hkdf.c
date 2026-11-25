@@ -8,18 +8,22 @@ Slice hkdfExtract(Memory* mem, HashAlgorithm hash, Slice salt, Slice ikm) {
     return hmac(mem, hash, salt, ikm);
 }
 
-/*Slice hkdfExpandReader(Memory* mem, HashAlgorithm hash, Slice prk, Reader* info, Size length) {
+Slice hkdfExpand(Memory* mem, HashAlgorithm hash, Slice prk, Slice info, Size length) {
     ScratchMemory scratch = scratchMemory(mem);
 
     Buffer* okm = bufNew(mem, length);
+    Buffer* message = bufNew(scratch.mem, 128 + info.length + 1); // TODO: get hash len from hash?
     Slice temp = sliceEmpty();
-    while (okm->length < length) {
-        Reader* data = readerNew(scratch.mem, info->count + 2);
-        readerAppend(data, temp);
-        readerAppend(data, info);
+    for (U8 i=0; okm->length < length && i<255; i++) {
+        bufReset(message);
+        bufAppend(message, temp);
+        bufAppend(message, info);
+        bufAppendBE8(message, i+1);
 
+        temp = hmac(mem, hash, prk, bufAsSlice(message));
+        bufAppend(okm, temp);
     }
 
     scratchRelease(scratch);
-    return slice(buf, 0, length);
-}*/
+    return slice(okm, 0, length);
+}

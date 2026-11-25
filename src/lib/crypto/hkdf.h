@@ -5,5 +5,6 @@
 #include "lib/crypto/hash.h"
 
 Slice hkdfExtract(Memory* mem, HashAlgorithm hash, Slice salt, Slice ikm);
+Slice hkdfExpand(Memory* mem, HashAlgorithm hash, Slice prk, Slice info, Size length);
 
 #endif
