@@ -17,19 +17,25 @@
 static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label, const Slice context, Size length) {
     ScratchMemory scratch = scratchMemory(mem);
 
-    Buffer* buf = bufNew(scratch.mem, length + 256);
+    Buffer* buf = bufNew(scratch.mem, 514);
     bufAppendBE16(buf, length);
     bufAppendBE8(buf, 6+strlen(label));
     bufAppend(buf, "tls13 %s", label);
     bufAppendBE8(buf, context.length);
     bufAppend(buf, context);
-    bufAppendBE8(buf, 1);
 
-    Slice key_material = hmac(mem, SHA_2_384, secret, bufAsSlice(buf));
+    Slice key_material = hkdfExpand(mem, SHA_2_384, secret, bufAsSlice(buf), length);
 
     scratchRelease(scratch);
 
     return key_material;
+}
+
+static Slice deriveSecret(Memory* mem, const Slice secret, const char* label, const Slice messages) {
+    ScratchMemory scratch = scratchMemory(mem);
+    Slice new_secret = hkdfExpandLabel(mem, secret, label, hash(scratch.mem, SHA_2_384, messages), hash_length[SHA_2_384]);
+    scratchRelease(scratch);
+    return new_secret;
 }
 
 // TLS enums
@@ -540,7 +546,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
     Buffer* both_hellos = bufNew(conn->exchange_mem, client_hello.length + server_hello.length);
     bufAppend(both_hellos, client_hello);
     bufAppend(both_hellos, server_hello);
-    Slice hello_hash = sha_2_384(conn->exchange_mem, bufAsSlice(both_hellos));
+    Slice hello_hash = hash(conn->exchange_mem, SHA_2_384, bufAsSlice(both_hellos));
     DEBUG("Hello hash");
     hexDump(hello_hash);
 
@@ -549,7 +555,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
     DEBUG("early_secret");
     hexDump(early_secret);
 
-    Slice empty_hash = sha_2_384(conn->exchange_mem, sliceFromStr(""));
+    Slice empty_hash = hash(conn->exchange_mem, SHA_2_384, sliceFromStr(""));
     DEBUG("empty_hash");
     hexDump(empty_hash);
 
@@ -557,7 +563,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
     DEBUG("derived_secret");
     hexDump(derived_secret);
 
-    Slice handshake_secret = hmac(conn->exchange_mem, SHA_2_384, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
+    Slice handshake_secret = hkdfExtract(conn->exchange_mem, SHA_2_384, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
     DEBUG("handshake secret");
     hexDump(handshake_secret);
 }
