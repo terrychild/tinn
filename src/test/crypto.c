@@ -4,7 +4,7 @@
 #include "lib/crypto/ec.h"
 #include "lib/crypto/mc.h"
 #include "lib/crypto/x25519.h"
-#include "lib/crypto/sha.h"
+#include "lib/crypto/hash.h"
 #include "lib/crypto/hmac.h"
 #include "lib/crypto/hkdf.h"
 #include "lib/mem/memory.h"
@@ -78,54 +78,54 @@ void testCrypto() {
     U8 shrared_secret_bytes[] = {0xdf, 0x4a, 0x29, 0x1b, 0xaa, 0x1e, 0xb7, 0xcf, 0xa6, 0x93, 0x4b, 0x29, 0xb4, 0x74, 0xba, 0xad, 0x26, 0x97, 0xe2, 0x9f, 0x1f, 0x92, 0x0d, 0xcc, 0x77, 0xc8, 0xa0, 0xa0, 0x88, 0x44, 0x76, 0x24};
     expect("shared secret", x25519(mem, server_private, client_public), biFromLE(mem, shrared_secret_bytes, 32));
 
-    Slice hash = sha_1(mem, sliceFromStr("The quick brown fox jumps over the lazy dog"));
-    expect("SHA-1, lazy dog", hash, sliceFromHex(mem, "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"));
-    hash = sha_1(mem, sliceFromStr("The quick brown fox jumps over the lazy cog"));
-    expect("SHA-1, lazy cog", hash, sliceFromHex(mem, "de9f2c7fd25e1b3afad3e85a0bd17d9b100db4b3"));
-    hash = sha_1(mem, sliceFromStr(""));
-    expect("SHA-1, empty string", hash, sliceFromHex(mem, "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
+    Slice the_hash = hash(mem, SHA_1, sliceFromStr("The quick brown fox jumps over the lazy dog"));
+    expect("SHA-1, lazy dog", the_hash, sliceFromHex(mem, "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"));
+    the_hash = hash(mem, SHA_1, sliceFromStr("The quick brown fox jumps over the lazy cog"));
+    expect("SHA-1, lazy cog", the_hash, sliceFromHex(mem, "de9f2c7fd25e1b3afad3e85a0bd17d9b100db4b3"));
+    the_hash = hash(mem, SHA_1, sliceFromStr(""));
+    expect("SHA-1, empty string", the_hash, sliceFromHex(mem, "da39a3ee5e6b4b0d3255bfef95601890afd80709"));
 
-    hash = sha_2_224(mem, sliceFromStr("The quick brown fox jumps over the lazy dog"));
-    expect("SHA-224, lazy dog", hash, sliceFromHex(mem, "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525"));
-    hash = sha_2_224(mem, sliceFromStr("The quick brown fox jumps over the lazy dog."));
-    expect("SHA-224, lazy dog.", hash, sliceFromHex(mem, "619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4c"));
-    hash = sha_2_224(mem, sliceFromStr(""));
-    expect("SHA-224, empty string", hash, sliceFromHex(mem, "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f"));
+    the_hash = hash(mem, SHA_2_224, sliceFromStr("The quick brown fox jumps over the lazy dog"));
+    expect("SHA-224, lazy dog", the_hash, sliceFromHex(mem, "730e109bd7a8a32b1cb9d9a09aa2325d2430587ddbc0c38bad911525"));
+    the_hash = hash(mem, SHA_2_224, sliceFromStr("The quick brown fox jumps over the lazy dog."));
+    expect("SHA-224, lazy dog.", the_hash, sliceFromHex(mem, "619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4c"));
+    the_hash = hash(mem, SHA_2_224, sliceFromStr(""));
+    expect("SHA-224, empty string", the_hash, sliceFromHex(mem, "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f"));
 
-    hash = sha_2_256(mem, sliceFromStr("abc"));
-    expect("SHA-256, abc", hash, sliceFromHex(mem, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
-    hash = sha_2_256(mem, sliceFromStr(""));
-    expect("SHA-256, empty string", hash, sliceFromHex(mem, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
+    the_hash = hash(mem, SHA_2_256, sliceFromStr("abc"));
+    expect("SHA-256, abc", the_hash, sliceFromHex(mem, "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+    the_hash = hash(mem, SHA_2_256, sliceFromStr(""));
+    expect("SHA-256, empty string", the_hash, sliceFromHex(mem, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"));
 
-    hash = sha_2_384(mem, sliceFromStr("abc"));
-    expect("SHA-384, abc", hash, sliceFromHex(mem, "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7"));
-    hash = sha_2_384(mem, sliceFromStr(""));
-    expect("SHA-384, empty string", hash, sliceFromHex(mem, "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b"));
+    the_hash = hash(mem, SHA_2_384, sliceFromStr("abc"));
+    expect("SHA-384, abc", the_hash, sliceFromHex(mem, "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7"));
+    the_hash = hash(mem, SHA_2_384, sliceFromStr(""));
+    expect("SHA-384, empty string", the_hash, sliceFromHex(mem, "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b"));
 
-    hash = sha_2_512(mem, sliceFromStr("abc"));
-    expect("SHA-512, abc", hash, sliceFromHex(mem, "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"));
-    hash = sha_2_512(mem, sliceFromStr(""));
-    expect("SHA-512, empty string", hash, sliceFromHex(mem, "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"));
+    the_hash = hash(mem, SHA_2_512, sliceFromStr("abc"));
+    expect("SHA-512, abc", the_hash, sliceFromHex(mem, "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"));
+    the_hash = hash(mem, SHA_2_512, sliceFromStr(""));
+    expect("SHA-512, empty string", the_hash, sliceFromHex(mem, "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e"));
 
-    hash = hmac(mem, SHA_2_224, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
-    expect("HMAC-SHA-224, hi there", hash, sliceFromHex(mem, "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22"));
-    hash = hmac(mem, SHA_2_224, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
-    expect("HMAC-SHA-224, long", hash, sliceFromHex(mem, "3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1"));
+    the_hash = hmac(mem, SHA_2_224, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
+    expect("HMAC-SHA-224, hi there", the_hash, sliceFromHex(mem, "896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22"));
+    the_hash = hmac(mem, SHA_2_224, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
+    expect("HMAC-SHA-224, long", the_hash, sliceFromHex(mem, "3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1"));
 
-    hash = hmac(mem, SHA_2_256, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
-    expect("HMAC-SHA-256, hi there", hash, sliceFromHex(mem, "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"));
-    hash = hmac(mem, SHA_2_256, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
-    expect("HMAC-SHA-256, long", hash, sliceFromHex(mem, "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2"));
+    the_hash = hmac(mem, SHA_2_256, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
+    expect("HMAC-SHA-256, hi there", the_hash, sliceFromHex(mem, "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"));
+    the_hash = hmac(mem, SHA_2_256, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
+    expect("HMAC-SHA-256, long", the_hash, sliceFromHex(mem, "9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2"));
 
-    hash = hmac(mem, SHA_2_384, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
-    expect("HMAC-SHA-384, hi there", hash, sliceFromHex(mem, "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6"));
-    hash = hmac(mem, SHA_2_384, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
-    expect("HMAC-SHA-384, long", hash, sliceFromHex(mem, "6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e"));
+    the_hash = hmac(mem, SHA_2_384, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
+    expect("HMAC-SHA-384, hi there", the_hash, sliceFromHex(mem, "afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6"));
+    the_hash = hmac(mem, SHA_2_384, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
+    expect("HMAC-SHA-384, long", the_hash, sliceFromHex(mem, "6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e"));
 
-    hash = hmac(mem, SHA_2_512, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
-    expect("HMAC-SHA-512, hi there", hash, sliceFromHex(mem, "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854"));
-    hash = hmac(mem, SHA_2_512, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
-    expect("HMAC-SHA-512, long", hash, sliceFromHex(mem, "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58"));
+    the_hash = hmac(mem, SHA_2_512, sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"), sliceFromStr("Hi There"));
+    expect("HMAC-SHA-512, hi there", the_hash, sliceFromHex(mem, "87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854"));
+    the_hash = hmac(mem, SHA_2_512, sliceFromHex(mem, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), sliceFromStr("This is a test using a larger than block-size key and a larger than block-size data. The key needs to be hashed before being used by the HMAC algorithm."));
+    expect("HMAC-SHA-512, long", the_hash, sliceFromHex(mem, "e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58"));
 
     Slice prk = hkdfExtract(mem, SHA_2_256, sliceFromHex(mem, "000102030405060708090a0b0c"), sliceFromHex(mem, "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b"));
     expect("HKDF extract, test case 1", prk, sliceFromHex(mem, "077709362c2e32df0ddc3f0dc47bba6390b6c73bb50f9c3122ec844ad7c2b3e5"));

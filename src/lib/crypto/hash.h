@@ -12,5 +12,8 @@ typedef enum {
 } HashAlgorithm;
 
 extern const Size hash_length[];
+extern const Size hash_block_length[];
+
+Slice hash(Memory* mem, HashAlgorithm hash, Slice source);
 
 #endif
