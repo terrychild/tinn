@@ -4,7 +4,7 @@
 #include "lib/mem/slice.h"
 #include "lib/mem/reader.h"
 #include "lib/crypto/x25519.h"
-#include "lib/crypto/sha.h"
+#include "lib/crypto/hash.h"
 #include "lib/crypto/hmac.h"
 #include "lib/crypto/hkdf.h"
 #include "lib/macros.h"
@@ -14,26 +14,28 @@
 #include <string.h>
 #include "lib/maths/bigint.h"
 
-static Slice hkdfExpandLabel(Memory* mem, const Slice secret, const char* label, const Slice context, Size length) {
+static Slice hkdfExpandLabel(Memory* mem, HashAlgorithm hash_algorithm, const Slice secret, const char* label, const Slice context, Size length) {
     ScratchMemory scratch = scratchMemory(mem);
 
-    Buffer* buf = bufNew(scratch.mem, 514);
+    Size label_length = 6 + strlen(label);
+
+    Buffer* buf = bufNew(scratch.mem, 3 + label_length + context.length);
     bufAppendBE16(buf, length);
-    bufAppendBE8(buf, 6+strlen(label));
+    bufAppendBE8(buf, label_length);
     bufAppend(buf, "tls13 %s", label);
     bufAppendBE8(buf, context.length);
     bufAppend(buf, context);
 
-    Slice key_material = hkdfExpand(mem, SHA_2_384, secret, bufAsSlice(buf), length);
+    Slice key_material = hkdfExpand(mem, hash_algorithm, secret, bufAsSlice(buf), length);
 
     scratchRelease(scratch);
 
     return key_material;
 }
 
-static Slice deriveSecret(Memory* mem, const Slice secret, const char* label, const Slice messages) {
+static Slice deriveSecret(Memory* mem, HashAlgorithm hash_algorithm, const Slice secret, const char* label, const Slice messages) {
     ScratchMemory scratch = scratchMemory(mem);
-    Slice new_secret = hkdfExpandLabel(mem, secret, label, hash(scratch.mem, SHA_2_384, messages), hash_length[SHA_2_384]);
+    Slice new_secret = hkdfExpandLabel(mem, hash_algorithm, secret, label, hash(scratch.mem, hash_algorithm, messages), hash_length[hash_algorithm]);
     scratchRelease(scratch);
     return new_secret;
 }
@@ -102,7 +104,7 @@ typedef enum:U8 {
     CERTIFICATE_VERIFY = 15,
     FINISHED = 20,
     KEY_UPDATE = 24,
-    MESSAGE_HASH = 254
+    MESSAGE_HASH = 254,
 } HandshakeType;
 
 typedef enum:U16 {
@@ -110,7 +112,7 @@ typedef enum:U16 {
     AES_256_GCM_SHA384 = 0x1302/*,
     CHACHA20_POLY1305_SHA256 = 0x1303,
     AES_128_CCM_SHA256 = 0x1304,
-    AES_128_CCM_8_SHA256 = 0x1305*/
+    AES_128_CCM_8_SHA256 = 0x1305,*/
 } CipherSuite;
 
 typedef enum:U16 {
@@ -120,18 +122,18 @@ typedef enum:U16 {
     SUPPORTED_VERSIONS = 43,
     COOKIE = 44,
     SIGNATURE_ALGORITHMS_CERT = 50,
-    KEY_SHARE = 51
+    KEY_SHARE = 51,
 } ExtensionType;
 
 typedef enum:U16 {
     RSA_PKCS1_SHA256 = 0x0401,
     ECDSA_SECP256R1_SHA256 = 0x0403,
-    RSA_PSS_RSAE_SHA256 = 0x0804
+    RSA_PSS_RSAE_SHA256 = 0x0804,
 } SignatureAlgorithm;
 
 typedef enum:U16 {
-    SECP256R1 = 0x0017,
-    X25519 = 0x001D
+    /*SECP256R1 = 0x0017,*/
+    X25519 = 0x001D,
 } NamedGroup;
 
 // TLS stucts
@@ -222,13 +224,63 @@ static void decodeAlert(Connection* conn, Slice fragment) {
     }
 }
 
+// change spec
+static void sendChangeCipherSpec(Connection* conn) {
+    Buffer* buf = bufNew(conn->exchange_mem, sizeof(Record) + 1);
+    bufAppendBE8(buf, CHANGE_CIPHER_SPEC);
+    bufAppendBE16(buf, TLS_1_2);
+    bufAppendBE16(buf, 1);
+
+    bufAppendBE8(buf, 1);
+
+    serverSend(conn->server, bufAsSlice(buf));
+}
+
+static void sendEncryptedRecord(Connection* conn, Slice plain_text) {
+    Buffer* buf = bufNew(conn->exchange_mem, KiB(4));
+
+    // record
+    bufAppendBE8(buf, APPLICATION_DATA);
+    bufAppendBE16(buf, TLS_1_2);
+    Size record_size_offset = bufReserve(buf, 2);
+
+    // encrypt data
+    bufAppend(buf, plain_text);
+
+    // update sizes
+    bufSetBE16(buf, record_size_offset, buf->length - record_size_offset - 2);
+
+    // send
+    serverSend(conn->server, bufAsSlice(buf));
+}
+
+// server extensions
+static void sendServerExtensions(Connection* conn) {
+    Buffer* buf = bufNew(conn->exchange_mem, KiB(4));
+
+    // handshake header
+    bufAppendBE8(buf, ENCRYPTED_EXTENSIONS);
+    Size handshake_size_offset = bufReserve(buf, 3);
+
+    // Extensions
+    bufAppendBE16(buf, 0);
+
+    // update sizes
+    bufSetBE24(buf, handshake_size_offset, buf->length - handshake_size_offset - 3);
+
+    // content type
+    bufAppendBE8(buf, HANDSHAKE);
+
+    sendEncryptedRecord(conn, bufAsSlice(buf));
+}
+
 // TLS Handshake
 static Slice sendServerHello(Connection* conn) {
     Buffer* buf = bufNew(conn->exchange_mem, KiB(4));
 
     // record
     bufAppendBE8(buf, HANDSHAKE);
-    bufAppendBE16(buf, 0x0303);
+    bufAppendBE16(buf, TLS_1_2);
     Size record_size_offset = bufReserve(buf, 2);
 
     // handshake header
@@ -236,7 +288,7 @@ static Slice sendServerHello(Connection* conn) {
     Size handshake_size_offset = bufReserve(buf, 3);
 
     // server version
-    bufAppendBE16(buf, 0x0303);
+    bufAppendBE16(buf, TLS_1_2);
 
     // server random
     bufAppend(buf, conn->handshake.server_random, 32);
@@ -542,7 +594,7 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
 
     Slice server_hello = sendServerHello(conn);
 
-    // Hello hash
+    // compute key stuff
     Buffer* both_hellos = bufNew(conn->exchange_mem, client_hello.length + server_hello.length);
     bufAppend(both_hellos, client_hello);
     bufAppend(both_hellos, server_hello);
@@ -555,17 +607,41 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
     DEBUG("early_secret");
     hexDump(early_secret);
 
-    Slice empty_hash = hash(conn->exchange_mem, SHA_2_384, sliceFromStr(""));
-    DEBUG("empty_hash");
-    hexDump(empty_hash);
-
-    Slice derived_secret = hkdfExpandLabel(conn->exchange_mem, early_secret, "derived", empty_hash, 48);
+    Slice derived_secret = deriveSecret(conn->exchange_mem, SHA_2_384, early_secret, "derived", sliceFromStr(""));
     DEBUG("derived_secret");
     hexDump(derived_secret);
 
     Slice handshake_secret = hkdfExtract(conn->exchange_mem, SHA_2_384, derived_secret, biToLESlice(conn->exchange_mem, conn->handshake.shared_secret));
     DEBUG("handshake secret");
     hexDump(handshake_secret);
+
+    Slice server_handshake_traffic_secret = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, handshake_secret, "s hs traffic", hello_hash, hash_length[SHA_2_384]);
+    DEBUG("server handshake traffic secret");
+    hexDump(server_handshake_traffic_secret);
+
+    Slice client_handshake_traffic_secret = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, handshake_secret, "c hs traffic", hello_hash, hash_length[SHA_2_384]);
+    DEBUG("client handshake traffic secret");
+    hexDump(client_handshake_traffic_secret);
+
+    Slice server_handshake_key = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "key", sliceFromStr(""), 32);
+    DEBUG("server_handshake_key");
+    hexDump(server_handshake_key);
+
+    Slice server_handshake_iv = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "iv", sliceFromStr(""), 12);
+    DEBUG("server_handshake_iv");
+    hexDump(server_handshake_iv);
+
+    Slice client_handshake_key = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, client_handshake_traffic_secret, "key", sliceFromStr(""), 32);
+    DEBUG("client_handshake_key");
+    hexDump(client_handshake_key);
+
+    Slice client_handshake_iv = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, client_handshake_traffic_secret, "iv", sliceFromStr(""), 12);
+    DEBUG("client_handshake_iv");
+    hexDump(client_handshake_iv);
+
+    // send next records
+    sendChangeCipherSpec(conn);
+    sendServerExtensions(conn);
 }
 
 static void decodeHandshake(Connection* conn, Slice fragment) {

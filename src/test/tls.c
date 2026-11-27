@@ -9,11 +9,29 @@
 
 typedef struct {
     Memory* mem;
+    int state;
 } FakeServer;
 
 static void send(void* context, Slice data) {
     FakeServer* server = context;
-    expect("Response", data, sliceFromHex(server->mem, "160303007a020000760303707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f20e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff130200002e002b0002030400330024001d00209fd7ad6dcff4298dd3f96d5b1b2af910a0535b1488d7f8fabb349a982880b615"));
+    server->state++;
+    switch (server->state) {
+        case 1:
+            expect("Server hello", data, sliceFromHex(server->mem, "160303007a020000760303707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f20e0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff130200002e002b0002030400330024001d00209fd7ad6dcff4298dd3f96d5b1b2af910a0535b1488d7f8fabb349a982880b615"));
+            break;
+
+        case 2:
+            expect("Server change chiper spec", data, sliceFromHex(server->mem, "140303000101"));
+            break;
+
+        case 3:
+            expect("Server extensions", data, sliceFromHex(server->mem, "17030300176be02f9da7c2dc9ddef56f2468b90adfa25101ab0344ae"));
+            break;
+
+        default:
+            expect("Unexpected Response", data, sliceFromStr(""));
+            break;
+    }
 }
 
 static void setListener(void* server_context, ServerConnectedFunc onConnect, void* context) {
@@ -34,6 +52,7 @@ void testTLS() {
 
     FakeServer fake_server = {
         .mem = mem,
+        .state = 0,
     };
     tlsServer(mem, (ServerInterface) {
         .setListener = setListener,
