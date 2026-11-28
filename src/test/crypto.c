@@ -7,6 +7,7 @@
 #include "lib/crypto/hash.h"
 #include "lib/crypto/hmac.h"
 #include "lib/crypto/hkdf.h"
+#include "lib/crypto/aes.h"
 #include "lib/mem/memory.h"
 #include "lib/mem/slice.h"
 #include "lib/cli.h"
@@ -138,6 +139,15 @@ void testCrypto() {
 
     okm = hkdfExpand(mem, SHA_2_256, prk, sliceFromHex(mem, "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"), 82);
     expect("HKDF expand, test case 2", okm, sliceFromHex(mem, "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87"));
+
+    Slice cipher_text = aes_gcs_encrypt(mem, sliceFromHex(mem, "00000000000000000000000000000000"), sliceFromHex(mem, "000000000000000000000000"), sliceFromHex(mem, "00000000000000000000000000000000"), sliceFromStr(""));
+    expect("AES-GCM test case 2", cipher_text, sliceFromHex(mem, "0388dace60b6a392f328c2b971b2fe78ab6e47d42cec13bdf53a67b21257bddf"));
+
+    cipher_text = aes_gcs_encrypt(mem, sliceFromHex(mem, "feffe9928665731c6d6a8f9467308308"), sliceFromHex(mem, "cafebabefacedbaddecaf888"), sliceFromHex(mem, "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255"), sliceFromStr(""));
+    expect("AES-GCM test case 3", cipher_text, sliceFromHex(mem, "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091473f59854d5c2af327cd64a62cf35abd2ba6fab4"));
+
+    cipher_text = aes_gcs_encrypt(mem, sliceFromHex(mem, "feffe9928665731c6d6a8f9467308308"), sliceFromHex(mem, "cafebabefacedbaddecaf888"), sliceFromHex(mem, "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39"), sliceFromHex(mem, "feedfacedeadbeeffeedfacedeadbeefabaddad2"));
+    expect("AES-GCM test case 4", cipher_text, sliceFromHex(mem, "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e0915bc94fbc3221a5db94fae95ae7121a47"));
 
     memoryDebug(mem);
     scratchRelease(scratch);

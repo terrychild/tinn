@@ -7,6 +7,7 @@
 #include "lib/crypto/hash.h"
 #include "lib/crypto/hmac.h"
 #include "lib/crypto/hkdf.h"
+#include "lib/crypto/aes.h"
 #include "lib/macros.h"
 #include "lib/bytes.h"
 #include "lib/log.h"
@@ -166,6 +167,9 @@ typedef struct {
     BigInt* server_public_key;
     Slice server_public_key_encoded;
     BigInt* shared_secret;
+
+    Slice server_key;
+    Slice server_iv;
 } Handshake;
 
 // Connection state
@@ -242,13 +246,10 @@ static void sendEncryptedRecord(Connection* conn, Slice plain_text) {
     // record
     bufAppendBE8(buf, APPLICATION_DATA);
     bufAppendBE16(buf, TLS_1_2);
-    Size record_size_offset = bufReserve(buf, 2);
+    bufAppendBE16(buf, plain_text.length + 16); //TODO: is it always a 16 btye auth tag?
 
     // encrypt data
-    bufAppend(buf, plain_text);
-
-    // update sizes
-    bufSetBE16(buf, record_size_offset, buf->length - record_size_offset - 2);
+    bufAppend(buf, aes_gcs_encrypt(conn->exchange_mem, conn->handshake.server_key, conn->handshake.server_iv, plain_text, bufAsSlice(buf)));
 
     // send
     serverSend(conn->server, bufAsSlice(buf));
@@ -623,13 +624,13 @@ static void decodeClientHello(Connection* conn, Slice client_hello, Slice messag
     DEBUG("client handshake traffic secret");
     hexDump(client_handshake_traffic_secret);
 
-    Slice server_handshake_key = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "key", sliceFromStr(""), 32);
-    DEBUG("server_handshake_key");
-    hexDump(server_handshake_key);
+    conn->handshake.server_key = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "key", sliceFromStr(""), 32);
+    DEBUG("server handshake key");
+    hexDump(conn->handshake.server_key);
 
-    Slice server_handshake_iv = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "iv", sliceFromStr(""), 12);
-    DEBUG("server_handshake_iv");
-    hexDump(server_handshake_iv);
+    conn->handshake.server_iv = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, server_handshake_traffic_secret, "iv", sliceFromStr(""), 12);
+    DEBUG("server handshake iv");
+    hexDump(conn->handshake.server_iv);
 
     Slice client_handshake_key = hkdfExpandLabel(conn->exchange_mem, SHA_2_384, client_handshake_traffic_secret, "key", sliceFromStr(""), 32);
     DEBUG("client_handshake_key");

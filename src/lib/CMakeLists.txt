@@ -30,6 +30,7 @@ add_library(lib
     crypto/sha.c
     crypto/hmac.c
     crypto/hkdf.c
+    crypto/aes.c
     crypto/ec.c
     crypto/mc.c
     crypto/x25519.c
